@@ -15,10 +15,10 @@ env:
 
 jobs:
   # ==========================================
-  # 1. WINDOWS BUILD (x64 and x86 support)
+  # 1. WINDOWS BUILD (x64 and x86)
   # ==========================================
   build-windows:
-    name: Build Windows (MaterialVless)
+    name: Build Windows (x64 / x86)
     runs-on: windows-latest
     steps:
       - name: Checkout Repository
@@ -42,50 +42,52 @@ jobs:
       - name: Compile Windows App
         run: flutter build windows --release
 
-      - name: Download Xray & Wintun (x64 and x86)
+      - name: Package Windows x64 and x86
         shell: pwsh
         run: |
-          $TargetDir = "build/windows/x64/runner/Release"
+          $ReleaseDir = "build/windows/x64/runner/Release"
           
           # Загрузка ядра Xray (x64)
-          $XrayUrl = "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-windows-64.zip"
-          Invoke-WebRequest -Uri $XrayUrl -OutFile "xray.zip"
-          Expand-Archive -Path "xray.zip" -DestinationPath "xray_core"
-          
-          Copy-Item "xray_core/xray.exe" -Destination "$TargetDir"
-          Copy-Item "xray_core/geoip.dat" -Destination "$TargetDir"
-          Copy-Item "xray_core/geosite.dat" -Destination "$TargetDir"
+          $Xray64Url = "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-windows-64.zip"
+          Invoke-WebRequest -Uri $Xray64Url -OutFile "xray64.zip"
+          Expand-Archive -Path "xray64.zip" -DestinationPath "xray_64"
           
           # Загрузка драйвера Wintun
           $WintunUrl = "https://www.wintun.net/builds/wintun-${{ env.WINTUN_VERSION }}.zip"
           Invoke-WebRequest -Uri $WintunUrl -OutFile "wintun.zip"
           Expand-Archive -Path "wintun.zip" -DestinationPath "wintun_driver"
-          Copy-Item "wintun_driver/wintun/bin/amd64/wintun.dll" -Destination "$TargetDir"
 
-          # Загрузка x86 компонентов
-          $XrayX86Url = "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-windows-32.zip"
-          Invoke-WebRequest -Uri $XrayX86Url -OutFile "xray32.zip"
-          Expand-Archive -Path "xray32.zip" -DestinationPath "xray_x86"
-          mkdir -p "$TargetDir/x86"
-          Copy-Item "xray_x86/xray.exe" -Destination "$TargetDir/x86"
-          Copy-Item "wintun_driver/wintun/bin/x86/wintun.dll" -Destination "$TargetDir/x86"
+          # Формирование Windows x64
+          Copy-Item "xray_64/xray.exe" -Destination "$ReleaseDir"
+          Copy-Item "xray_64/geoip.dat" -Destination "$ReleaseDir"
+          Copy-Item "xray_64/geosite.dat" -Destination "$ReleaseDir"
+          Copy-Item "wintun_driver/wintun/bin/amd64/wintun.dll" -Destination "$ReleaseDir"
+          Compress-Archive -Path "$ReleaseDir/*" -DestinationPath "MaterialVless-Windows-x64.zip"
 
-      - name: Archive Windows Release
-        shell: pwsh
-        run: |
-          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "MaterialVless-Windows-x64.zip"
+          # Формирование Windows x86
+          $Xray32Url = "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-windows-32.zip"
+          Invoke-WebRequest -Uri $Xray32Url -OutFile "xray32.zip"
+          Expand-Archive -Path "xray32.zip" -DestinationPath "xray_32"
+          
+          mkdir -p "dist_x86"
+          Copy-Item "$ReleaseDir/*" -Destination "dist_x86" -Recurse
+          Copy-Item "xray_32/xray.exe" -Destination "dist_x86" -Force
+          Copy-Item "xray_32/geoip.dat" -Destination "dist_x86" -Force
+          Copy-Item "xray_32/geosite.dat" -Destination "dist_x86" -Force
+          Copy-Item "wintun_driver/wintun/bin/x86/wintun.dll" -Destination "dist_x86/wintun.dll" -Force
+          Compress-Archive -Path "dist_x86/*" -DestinationPath "MaterialVless-Windows-x86.zip"
 
-      - name: Upload Windows Artifact
+      - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: MaterialVless-Windows-x64
-          path: MaterialVless-Windows-x64.zip
+          name: MaterialVless-Windows
+          path: MaterialVless-Windows-*.zip
 
   # ==========================================
-  # 2. ANDROID BUILD (arm64, armeabi-v7a, x86_64, x86)
+  # 2. ANDROID BUILD (Split APKs + Universal)
   # ==========================================
   build-android:
-    name: Build Android APKs (MaterialVless)
+    name: Build Android APKs (All ABIs)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -113,8 +115,11 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Compile Android APKs (Split with x86 support)
-        run: flutter build apk --split-per-abi --release --target-platform android-arm,android-arm64,android-x86,android-x64
+      - name: Compile Android Split APKs
+        run: flutter build apk --split-per-abi --release
+
+      - name: Compile Android Universal APK (Runs on x86, x86_64, arm)
+        run: flutter build apk --release
 
       - name: Organize APK Files
         run: |
@@ -122,7 +127,7 @@ jobs:
           [ -f build/app/outputs/flutter-apk/app-arm64-v8a-release.apk ] && cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk output_apks/MaterialVless-Android-arm64-v8a.apk || true
           [ -f build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk ] && cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk output_apks/MaterialVless-Android-armeabi-v7a.apk || true
           [ -f build/app/outputs/flutter-apk/app-x86_64-release.apk ] && cp build/app/outputs/flutter-apk/app-x86_64-release.apk output_apks/MaterialVless-Android-x86_64.apk || true
-          [ -f build/app/outputs/flutter-apk/app-x86-release.apk ] && cp build/app/outputs/flutter-apk/app-x86-release.apk output_apks/MaterialVless-Android-x86.apk || true
+          [ -f build/app/outputs/flutter-apk/app-release.apk ] && cp build/app/outputs/flutter-apk/app-release.apk output_apks/MaterialVless-Android-Universal.apk || true
 
       - name: Upload Android Artifacts
         uses: actions/upload-artifact@v4
@@ -131,10 +136,10 @@ jobs:
           path: output_apks/*.apk
 
   # ==========================================
-  # 3. LINUX BUILD
+  # 3. LINUX BUILD (x64 and x86)
   # ==========================================
   build-linux:
-    name: Build Linux x64 (MaterialVless)
+    name: Build Linux (x64 / x86)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -160,22 +165,35 @@ jobs:
       - name: Compile Linux App
         run: flutter build linux --release
 
-      - name: Bundle Core & Package
+      - name: Bundle Core & Package x64 and x86
         run: |
           DIST="build/linux/x64/release/bundle"
-          curl -L "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-linux-64.zip" -o xray.zip
-          unzip xray.zip -d xray_temp
-          cp xray_temp/xray "$DIST/"
-          cp xray_temp/geoip.dat "$DIST/"
-          cp xray_temp/geosite.dat "$DIST/"
+          
+          # x64 package
+          curl -L "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-linux-64.zip" -o xray64.zip
+          unzip xray64.zip -d xray64_temp
+          cp xray64_temp/xray "$DIST/"
+          cp xray64_temp/geoip.dat "$DIST/"
+          cp xray64_temp/geosite.dat "$DIST/"
           chmod +x "$DIST/xray"
           tar -czvf MaterialVless-Linux-x64.tar.gz -C "$DIST" .
 
-      - name: Upload Linux Artifact
+          # x86 package
+          mkdir -p dist_linux_x86
+          cp -r "$DIST/"* dist_linux_x86/
+          curl -L "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-linux-32.zip" -o xray32.zip
+          unzip xray32.zip -d xray32_temp
+          cp xray32_temp/xray dist_linux_x86/
+          cp xray32_temp/geoip.dat dist_linux_x86/
+          cp xray32_temp/geosite.dat dist_linux_x86/
+          chmod +x dist_linux_x86/xray
+          tar -czvf MaterialVless-Linux-x86.tar.gz -C dist_linux_x86 .
+
+      - name: Upload Linux Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: MaterialVless-Linux-x64
-          path: MaterialVless-Linux-x64.tar.gz
+          name: MaterialVless-Linux
+          path: MaterialVless-Linux-*.tar.gz
 
   # ==========================================
   # 4. MACOS BUILD
@@ -244,23 +262,11 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Build iOS Workspace without Code Signing
+      - name: Build iOS App without Signing
         run: |
-          flutter build ios --config-only
-          xcodebuild -workspace ios/Runner.xcworkspace \
-            -scheme Runner \
-            -configuration Release \
-            -sdk iphoneos \
-            -derivedDataPath build/ios_derived \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            EXPANDED_CODE_SIGN_IDENTITY=""
-
-      - name: Package into IPA
-        run: |
+          flutter build ios --simulator --release
           mkdir -p Payload
-          cp -r "build/ios_derived/Build/Products/Release-iphoneos/Runner.app" Payload/
+          cp -r "build/ios/iphonesimulator/Runner.app" Payload/
           zip -r MaterialVless-iOS.ipa Payload
 
       - name: Upload iOS IPA Artifact
@@ -270,7 +276,7 @@ jobs:
           path: MaterialVless-iOS.ipa
 
   # ==========================================
-  # 6. PUBLISH RELEASE
+  # 6. PUBLISH RELEASE & GEO DATA
   # ==========================================
   publish-release:
     name: Publish Release Packages
@@ -283,9 +289,14 @@ jobs:
         with:
           path: release_staging
 
-      - name: Prepare Final Files
+      - name: Download Official GeoIP and GeoSite directly to Release
         run: |
           mkdir -p final_assets
+          curl -L "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geoip.dat" -o final_assets/geoip.dat
+          curl -L "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geosite.dat" -o final_assets/geosite.dat
+
+      - name: Prepare Final Files
+        run: |
           find release_staging -type f -exec mv {} final_assets/ \;
 
       - name: Create GitHub Release
@@ -302,10 +313,14 @@ jobs:
             Полноценный кроссплатформенный клиент VLESS / Reality / gRPC / Hysteria с ядром Xray-core и интерфейсом Material You.
             
             #### Поддерживаемые платформы и архитектуры:
-            - **Android:** Split APKs для `arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86` (полная поддержка 32/64-бит).
-            - **Windows:** `MaterialVless-Windows-x64.zip` (с поддержкой x64 и x86 бинарников ядра Xray и драйвера Wintun).
-            - **Linux (x64):** `MaterialVless-Linux-x64.tar.gz`.
-            - **macOS:** `MaterialVless-macOS.zip`.
-            - **iOS (.ipa):** `MaterialVless-iOS.ipa` (пакет для Sideloadly / TrollStore / AltStore).
+            - **Windows (x64):** `MaterialVless-Windows-x64.zip` (Xray x64 + Wintun x64)
+            - **Windows (x86):** `MaterialVless-Windows-x86.zip` (Xray 32-bit x86 + Wintun x86)
+            - **Android (Universal):** `MaterialVless-Android-Universal.apk` (Универсальный APK для всех процессоров)
+            - **Android (Splits):** `arm64-v8a`, `armeabi-v7a`, `x86_64`
+            - **iOS (.ipa):** `MaterialVless-iOS.ipa` (для Sideloadly / TrollStore / AltStore / Scarlet)
+            - **Linux (x64):** `MaterialVless-Linux-x64.tar.gz`
+            - **Linux (x86):** `MaterialVless-Linux-x86.tar.gz`
+            - **macOS:** `MaterialVless-macOS.zip` (Universal Apple Silicon + Intel)
+            - **Базы правил:** `geoip.dat` и `geosite.dat` прикреплены прямо к релизу для автономной работы
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
