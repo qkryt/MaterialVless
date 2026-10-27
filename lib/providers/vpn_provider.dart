@@ -16,6 +16,9 @@ class VpnState {
   final int downloadSpeedBps;
   final String searchQuery;
   final bool isTestingPing;
+  final int connectedSeconds;
+  final int currentPingMs;
+  final bool hideEverything;
 
   VpnState({
     this.status = CoreState.disconnected,
@@ -27,25 +30,19 @@ class VpnState {
     this.downloadSpeedBps = 0,
     this.searchQuery = '',
     this.isTestingPing = false,
+    this.connectedSeconds = 0,
+    this.currentPingMs = 356,
+    this.hideEverything = false,
   });
 
-  List<VlessNode> get allNodes {
-    final list = <VlessNode>[];
-    for (final sub in subscriptions) {
-      list.addAll(sub.nodes);
+  String get formattedTimer {
+    final hours = connectedSeconds ~/ 3600;
+    final minutes = (connectedSeconds % 3600) ~/ 60;
+    final seconds = connectedSeconds % 60;
+    if (hours > 0) {
+      return '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
     }
-    list.addAll(manualNodes);
-    return list;
-  }
-
-  List<VlessNode> get filteredNodes {
-    if (searchQuery.trim().isEmpty) return allNodes;
-    final q = searchQuery.toLowerCase();
-    return allNodes.where((n) {
-      return n.remark.toLowerCase().contains(q) ||
-          n.address.toLowerCase().contains(q) ||
-          n.sni.toLowerCase().contains(q);
-    }).toList();
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
   VpnState copyWith({
@@ -58,6 +55,9 @@ class VpnState {
     int? downloadSpeedBps,
     String? searchQuery,
     bool? isTestingPing,
+    int? connectedSeconds,
+    int? currentPingMs,
+    bool? hideEverything,
   }) {
     return VpnState(
       status: status ?? this.status,
@@ -69,15 +69,24 @@ class VpnState {
       downloadSpeedBps: downloadSpeedBps ?? this.downloadSpeedBps,
       searchQuery: searchQuery ?? this.searchQuery,
       isTestingPing: isTestingPing ?? this.isTestingPing,
+      connectedSeconds: connectedSeconds ?? this.connectedSeconds,
+      currentPingMs: currentPingMs ?? this.currentPingMs,
+      hideEverything: hideEverything ?? this.hideEverything,
     );
   }
 }
 
 class VpnNotifier extends StateNotifier<VpnState> {
   final XrayService _xrayService;
+  Timer? _sessionTimer;
 
   VpnNotifier(this._xrayService) : super(VpnState(settings: AppSettings())) {
     _xrayService.stateStream.listen((status) {
+      if (status == CoreState.connected) {
+        _startTimer();
+      } else {
+        _stopTimer();
+      }
       state = state.copyWith(status: status);
     });
 
@@ -88,7 +97,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
       );
     });
 
-    // Автообновление баз GeoIP / GeoSite на старте
     if (state.settings.autoUpdateRulesOnStart) {
       SubscriptionService.updateGeoDatabases(
         targetDir: '.',
@@ -96,6 +104,33 @@ class VpnNotifier extends StateNotifier<VpnState> {
         geositeUrl: state.settings.geositeUrl,
       );
     }
+  }
+
+  void _startTimer() {
+    _sessionTimer?.cancel();
+    state = state.copyWith(connectedSeconds: 0);
+    _sessionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      state = state.copyWith(connectedSeconds: state.connectedSeconds + 1);
+    });
+  }
+
+  void _stopTimer() {
+    _sessionTimer?.cancel();
+    state = state.copyWith(connectedSeconds: 0);
+  }
+
+  void toggleHideEverything() {
+    state = state.copyWith(hideEverything: !state.hideEverything);
+  }
+
+  void toggleSubscriptionExpanded(String subId) {
+    final updated = state.subscriptions.map((s) {
+      if (s.id == subId) {
+        return s.copyWith(isExpanded: !s.isExpanded);
+      }
+      return s;
+    }).toList();
+    state = state.copyWith(subscriptions: updated);
   }
 
   void setSearchQuery(String query) {
@@ -110,7 +145,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
     state = state.copyWith(settings: newSettings);
   }
 
-  /// Добавление подписки из URL, .txt файла или прямой ссылки
   Future<void> addSubscription(String source, {String? customName}) async {
     final (nodes, meta) = await SubscriptionService.loadSubscription(
       source: source,
@@ -131,6 +165,11 @@ class VpnNotifier extends StateNotifier<VpnState> {
       totalBytes: meta['total'] ?? 0,
       expireDate: meta['expire'],
       nodes: nodes,
+      isExpanded: true,
+      announcements: const [
+        'Подключим Вас к миру',
+        'Не используйте LTE сервера на WiFi',
+      ],
     );
 
     final updatedSubs = List<SubscriptionModel>.from(state.subscriptions)..add(newSub);
@@ -141,7 +180,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
     );
   }
 
-  /// Обновление конкретной подписки
   Future<void> refreshSubscription(String id) async {
     final index = state.subscriptions.indexWhere((s) => s.id == id);
     if (index == -1) return;
@@ -168,8 +206,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
     state = state.copyWith(subscriptions: updatedSubs);
   }
 
-  /// Тестирование пинга всех серверов
-  /// Требование: прежде чем пинговать все сервера в подписке нужно отключить VPN!
   Future<void> pingAllNodes() async {
     if (state.status == CoreState.connected) {
       await _xrayService.stop();
@@ -209,21 +245,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
     );
   }
 
-  /// Тест скорости для выбранного узла
-  Future<void> testCurrentNodeSpeed() async {
-    if (state.selectedNode == null) return;
-    final (down, up) = await SubscriptionService.testSpeed(
-      speedtestUrl: state.settings.speedtestUrl,
-      timeoutMs: state.settings.pingTimeoutMs,
-    );
-    final updated = state.selectedNode!.copyWith(
-      downloadSpeedMs: down,
-      uploadSpeedMs: up,
-    );
-    state = state.copyWith(selectedNode: updated);
-  }
-
-  /// Подключение / Отключение (единый режим TUN + системный прокси)
   Future<void> toggleConnection() async {
     if (state.status == CoreState.connected) {
       await _xrayService.stop();
