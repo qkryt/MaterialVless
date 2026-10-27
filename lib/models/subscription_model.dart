@@ -12,6 +12,8 @@ class SubscriptionModel {
   final DateTime? expireDate;
   final List<VlessNode> nodes;
   final bool autoUpdate;
+  final bool isExpanded;
+  final List<String> announcements;
 
   SubscriptionModel({
     required this.id,
@@ -24,6 +26,8 @@ class SubscriptionModel {
     this.expireDate,
     this.nodes = const [],
     this.autoUpdate = true,
+    this.isExpanded = true,
+    this.announcements = const [],
   });
 
   int get usedBytes => uploadBytes + downloadBytes;
@@ -52,6 +56,8 @@ class SubscriptionModel {
     DateTime? expireDate,
     List<VlessNode>? nodes,
     bool? autoUpdate,
+    bool? isExpanded,
+    List<String>? announcements,
   }) {
     return SubscriptionModel(
       id: id,
@@ -64,6 +70,8 @@ class SubscriptionModel {
       expireDate: expireDate ?? this.expireDate,
       nodes: nodes ?? this.nodes,
       autoUpdate: autoUpdate ?? this.autoUpdate,
+      isExpanded: isExpanded ?? this.isExpanded,
+      announcements: announcements ?? this.announcements,
     );
   }
 }
