@@ -6,6 +6,7 @@ import '../../models/vless_node.dart';
 import '../../models/subscription_model.dart';
 import '../../utils/country_flag_helper.dart';
 import '../widgets/logo.dart';
+import '../widgets/country_flag_widget.dart';
 import 'settings_screen.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -15,27 +16,11 @@ class DashboardScreen extends ConsumerStatefulWidget {
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   final TextEditingController _searchController = TextEditingController();
 
   @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    )..repeat(reverse: true);
-
-    _pulseAnimation = Tween<double>(begin: 0.96, end: 1.05).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
   void dispose() {
-    _pulseController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -101,13 +86,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     );
   }
 
-  // ==================== БЛОК ПОДКЛЮЧЕНИЯ И ТАЙМЕРА ====================
+  // ==================== БЛОК ПОДКЛЮЧЕНИЯ И ТАЙМЕРА (БЕЗ АНИМАЦИИ) ====================
   Widget _buildPowerControlArea(BuildContext context, {required bool isCompact}) {
     final vpn = ref.watch(vpnProvider);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isConnected = vpn.status == CoreState.connected;
     final isConnecting = vpn.status == CoreState.connecting;
+    final size = isCompact ? 144.0 : 190.0;
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 20, vertical: isCompact ? 16 : 28),
@@ -137,76 +123,66 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             const Spacer(),
           ],
 
-          // Круглая кнопка включения со светящейся аурой
+          // Статичная, четкая круглая кнопка включения в дизайне Material You
           Center(
-            child: AnimatedBuilder(
-              animation: _pulseAnimation,
-              builder: (context, child) {
-                final scale = isConnected ? _pulseAnimation.value : 1.0;
-                final size = isCompact ? 144.0 : 190.0;
-                return Transform.scale(
-                  scale: scale,
-                  child: GestureDetector(
-                    onTap: () => ref.read(vpnProvider.notifier).toggleConnection(),
-                    child: Container(
-                      width: size,
-                      height: size,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isConnected ? colorScheme.primary : colorScheme.surfaceContainerHighest,
-                        boxShadow: [
-                          BoxShadow(
-                            color: (isConnected ? colorScheme.primary : colorScheme.outlineVariant).withOpacity(0.35),
-                            blurRadius: isConnected ? 32 : 12,
-                            spreadRadius: isConnected ? 6 : 1,
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: isConnecting
-                            ? CircularProgressIndicator(color: colorScheme.onPrimary, strokeWidth: 4)
-                            : Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.power_settings_new_rounded,
-                                    size: isCompact ? 46 : 64,
-                                    color: isConnected ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    isConnected ? 'ПОДКЛЮЧЕНО' : 'ПОДКЛЮЧИТЬ',
-                                    style: TextStyle(
-                                      color: isConnected ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
-                                      fontSize: isCompact ? 11 : 13,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 1.1,
-                                    ),
-                                  ),
-                                  if (isConnected) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      vpn.formattedTimer,
-                                      style: TextStyle(
-                                        color: colorScheme.onPrimary.withOpacity(0.95),
-                                        fontSize: isCompact ? 13 : 15,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                      ),
+            child: GestureDetector(
+              onTap: () => ref.read(vpnProvider.notifier).toggleConnection(),
+              child: Container(
+                width: size,
+                height: size,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isConnected ? colorScheme.primary : colorScheme.surfaceContainerHighest,
+                  boxShadow: [
+                    BoxShadow(
+                      color: (isConnected ? colorScheme.primary : colorScheme.outlineVariant).withOpacity(0.3),
+                      blurRadius: isConnected ? 28 : 10,
+                      spreadRadius: isConnected ? 4 : 1,
                     ),
-                  ),
-                );
-              },
+                  ],
+                ),
+                child: Center(
+                  child: isConnecting
+                      ? CircularProgressIndicator(color: colorScheme.onPrimary, strokeWidth: 4)
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.power_settings_new_rounded,
+                              size: isCompact ? 46 : 64,
+                              color: isConnected ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              isConnected ? 'ПОДКЛЮЧЕНО' : 'ПОДКЛЮЧИТЬ',
+                              style: TextStyle(
+                                color: isConnected ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
+                                fontSize: isCompact ? 11 : 13,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.1,
+                              ),
+                            ),
+                            if (isConnected) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                vpn.formattedTimer,
+                                style: TextStyle(
+                                  color: colorScheme.onPrimary.withOpacity(0.95),
+                                  fontSize: isCompact ? 13 : 15,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                ),
+              ),
             ),
           ),
 
           const SizedBox(height: 18),
 
-          // Карточка выбранного сервера под кнопкой
+          // Карточка выбранного сервера под кнопкой с аутентичным флагом
           if (vpn.selectedNode != null)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -218,9 +194,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    CountryFlagHelper.getCountryFlag(vpn.selectedNode!.remark),
-                    style: const TextStyle(fontSize: 22),
+                  CountryFlagWidget(
+                    isoCode: CountryFlagHelper.getCountryCode(vpn.selectedNode!.remark),
+                    width: 28,
+                    height: 19,
                   ),
                   const SizedBox(width: 10),
                   Flexible(
@@ -229,7 +206,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          vpn.selectedNode!.remark,
+                          CountryFlagHelper.cleanRemark(vpn.selectedNode!.remark),
                           style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -326,13 +303,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       children: [
-        // Каждая подписка — это отдельная сворачиваемая секция
         for (final sub in vpn.subscriptions) ...[
           _buildCollapsibleSubscriptionContainer(context, sub),
           const SizedBox(height: 14),
         ],
 
-        // Секция ручных узлов (если добавлены без подписки)
         if (vpn.manualNodes.isNotEmpty) ...[
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
@@ -370,7 +345,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Шапка подписки (клик сворачивает / разворачивает)
           InkWell(
             onTap: () => ref.read(vpnProvider.notifier).toggleSubscriptionExpanded(sub.id),
             child: Padding(
@@ -419,7 +393,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                     ),
                   ),
                   const SizedBox(height: 10),
-                  // Индикатор трафика
                   Padding(
                     padding: const EdgeInsets.only(left: 34.0),
                     child: Column(
@@ -473,7 +446,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             ),
           ),
 
-          // Список серверов подписки
           if (sub.isExpanded) ...[
             const Divider(height: 1),
             for (final node in sub.nodes)
@@ -502,9 +474,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             color: isSelected ? colorScheme.primary.withOpacity(0.12) : colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Text(
-            CountryFlagHelper.getCountryFlag(node.remark),
-            style: const TextStyle(fontSize: 20),
+          child: CountryFlagWidget(
+            isoCode: CountryFlagHelper.getCountryCode(node.remark),
+            width: 26,
+            height: 18,
           ),
         ),
         title: Text(
