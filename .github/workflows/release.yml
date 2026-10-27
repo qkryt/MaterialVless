@@ -15,6 +15,9 @@ env:
   WINTUN_VERSION: '0.14.1'
 
 jobs:
+  # ==========================================
+  # 1. СБОРКА WINDOWS (x64)
+  # ==========================================
   build-windows:
     name: Build Windows x64 (MaterialVless)
     runs-on: windows-latest
@@ -29,29 +32,33 @@ jobs:
           channel: 'stable'
           cache: true
 
+      # Автогенерация нативных файлов Windows (CMake, runner)
+      - name: Generate Windows Native Files
+        run: flutter create . --platforms=windows --org com.materialvless --project-name material_vless
+
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Compile Windows Executable
+      - name: Compile Windows App
         run: flutter build windows --release
 
-      - name: Fetch Xray-core & Wintun Driver
+      - name: Download Xray & Wintun
         shell: pwsh
         run: |
           $TargetDir = "build/windows/x64/runner/Release"
           
           # Загрузка официального ядра Xray-core
-          $XrayArchive = "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-windows-64.zip"
-          Invoke-WebRequest -Uri $XrayArchive -OutFile "xray.zip"
+          $XrayUrl = "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-windows-64.zip"
+          Invoke-WebRequest -Uri $XrayUrl -OutFile "xray.zip"
           Expand-Archive -Path "xray.zip" -DestinationPath "xray_core"
           
           Copy-Item "xray_core/xray.exe" -Destination "$TargetDir"
           Copy-Item "xray_core/geoip.dat" -Destination "$TargetDir"
           Copy-Item "xray_core/geosite.dat" -Destination "$TargetDir"
           
-          # Загрузка драйвера виртуального адаптера Wintun
-          $WintunArchive = "https://www.wintun.net/builds/wintun-${{ env.WINTUN_VERSION }}.zip"
-          Invoke-WebRequest -Uri $WintunArchive -OutFile "wintun.zip"
+          # Загрузка драйвера Wintun
+          $WintunUrl = "https://www.wintun.net/builds/wintun-${{ env.WINTUN_VERSION }}.zip"
+          Invoke-WebRequest -Uri $WintunUrl -OutFile "wintun.zip"
           Expand-Archive -Path "wintun.zip" -DestinationPath "wintun_driver"
           Copy-Item "wintun_driver/wintun/bin/amd64/wintun.dll" -Destination "$TargetDir"
 
@@ -66,6 +73,9 @@ jobs:
           name: MaterialVless-Windows-x64
           path: MaterialVless-Windows-x64.zip
 
+  # ==========================================
+  # 2. СБОРКА ANDROID (APKs)
+  # ==========================================
   build-android:
     name: Build Android APKs (MaterialVless)
     runs-on: ubuntu-latest
@@ -73,12 +83,12 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      # Установка Java 17 без жесткого кэша Gradle
       - name: Setup Java JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-          cache: 'gradle'
 
       - name: Setup Flutter Toolchain
         uses: subosito/flutter-action@v2
@@ -87,13 +97,17 @@ jobs:
           channel: 'stable'
           cache: true
 
+      # Автогенерация нативных файлов Android (Gradle, Manifest)
+      - name: Generate Android Native Files
+        run: flutter create . --platforms=android --org com.materialvless --project-name material_vless
+
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Compile Release APKs (Split per ABI)
+      - name: Compile Android Split APKs
         run: flutter build apk --split-per-abi --release
 
-      - name: Organize Android APKs
+      - name: Organize APK Files
         run: |
           mkdir -p output_apks
           cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk output_apks/MaterialVless-Android-arm64-v8a.apk
@@ -106,6 +120,9 @@ jobs:
           name: MaterialVless-Android-APKs
           path: output_apks/*.apk
 
+  # ==========================================
+  # 3. СБОРКА LINUX (x64)
+  # ==========================================
   build-linux:
     name: Build Linux x64 (MaterialVless)
     runs-on: ubuntu-latest
@@ -113,7 +130,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install Build Toolchain & GTK3
+      - name: Install Linux Build Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
@@ -124,6 +141,10 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
+
+      # Автогенерация нативных файлов Linux
+      - name: Generate Linux Native Files
+        run: flutter create . --platforms=linux --org com.materialvless --project-name material_vless
 
       - name: Install Dependencies
         run: flutter pub get
@@ -148,6 +169,9 @@ jobs:
           name: MaterialVless-Linux-x64
           path: MaterialVless-Linux-x64.tar.gz
 
+  # ==========================================
+  # 4. СБОРКА MACOS (Universal)
+  # ==========================================
   build-macos:
     name: Build macOS (MaterialVless)
     runs-on: macos-latest
@@ -162,13 +186,17 @@ jobs:
           channel: 'stable'
           cache: true
 
+      # Автогенерация нативных файлов macOS (Xcode проект)
+      - name: Generate macOS Native Files
+        run: flutter create . --platforms=macos --org com.materialvless --project-name material_vless
+
       - name: Install Dependencies
         run: flutter pub get
 
       - name: Compile macOS Application
         run: flutter build macos --release
 
-      - name: Bundle Core & Archive App
+      - name: Bundle Core & Archive
         run: |
           APP_DIR="build/macos/Build/Products/Release/material_vless.app"
           RES_DIR="$APP_DIR/Contents/Resources"
@@ -187,13 +215,16 @@ jobs:
           name: MaterialVless-macOS
           path: MaterialVless-macOS.zip
 
+  # ==========================================
+  # 5. ПУБЛИКАЦИЯ РЕЛИЗА
+  # ==========================================
   publish-release:
     name: Publish Release Packages
     needs: [build-windows, build-android, build-linux, build-macos]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
-      - name: Fetch All Build Artifacts
+      - name: Download Build Artifacts
         uses: actions/download-artifact@v4
         with:
           path: release_staging
@@ -216,9 +247,9 @@ jobs:
             
             Полноценный кроссплатформенный клиент VLESS / Reality / gRPC с ядром Xray-core и интерфейсом Material You (M3).
             
-            #### Готовые сборки:
-            - **Windows (x64):** `MaterialVless-Windows-x64.zip` (содержит `wintun.dll`, `xray.exe`, GeoIP/GeoSite).
-            - **Android:** Split APKs для архитектур `arm64-v8a`, `armeabi-v7a`, `x86_64`.
+            #### Готовые файлы к загрузке:
+            - **Windows (x64):** `MaterialVless-Windows-x64.zip` (с драйвером `wintun.dll`, `xray.exe`, GeoIP/GeoSite).
+            - **Android:** Split APKs для `arm64-v8a`, `armeabi-v7a`, `x86_64`.
             - **Linux (x64):** `MaterialVless-Linux-x64.tar.gz`.
             - **macOS:** `MaterialVless-macOS.zip`.
         env:
