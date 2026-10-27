@@ -7,7 +7,6 @@ import '../models/app_settings.dart';
 import 'hwid_service.dart';
 
 class SubscriptionService {
-  /// Загрузка или парсинг подписки / .txt файла / прямой ссылки
   static Future<(List<VlessNode>, Map<String, dynamic>)> loadSubscription({
     required String source,
     required AppSettings settings,
@@ -35,7 +34,6 @@ class SubscriptionService {
         throw HttpException('Ошибка загрузки подписки: HTTP ${response.statusCode}');
       }
 
-      // Заголовок subscription-userinfo
       final userInfoHeader = response.headers['subscription-userinfo'];
       if (userInfoHeader != null) {
         metadata = _parseUserInfo(userInfoHeader);
@@ -45,11 +43,9 @@ class SubscriptionService {
     } else if (isLocalFile) {
       rawContent = await File(source).readAsString();
     } else {
-      // Это открытый текст или ссылка
       rawContent = source.trim();
     }
 
-    // Декодирование содержимого (поддерживается Base64 или обычный текст)
     String decodedBody = rawContent;
     try {
       decodedBody = utf8.decode(base64.decode(base64.normalize(rawContent.replaceAll('\n', '').replaceAll('\r', ''))));
@@ -75,12 +71,12 @@ class SubscriptionService {
   static String _buildUserAgent(String choice, String hwid, bool sendHwid) {
     final hwidSuffix = sendHwid ? ' (HWID: $hwid)' : '';
     switch (choice) {
-      case 'Happ':
-        return 'Happ-Client/4.5.4 (Windows NT 10.0; Win64; x64)$hwidSuffix';
       case 'Clash.Meta':
         return 'ClashMeta/v1.18.0$hwidSuffix';
       case 'Sing-box':
         return 'sing-box/1.9.0$hwidSuffix';
+      case 'v2rayN':
+        return 'v2rayN/6.42$hwidSuffix';
       default:
         return 'MaterialVless/1.1.0 (${Platform.operatingSystem}; Win64; x64)$hwidSuffix';
     }
@@ -107,7 +103,6 @@ class SubscriptionService {
     };
   }
 
-  /// Пинг узла через HTTP GET к http://cp.cloudflare.com/ (или через локальный сокет) с таймаутом 1000 мс
   static Future<int> pingNode(VlessNode node, {String pingUrl = 'http://cp.cloudflare.com/', int timeoutMs = 1000}) async {
     final stopwatch = Stopwatch()..start();
     try {
@@ -124,7 +119,6 @@ class SubscriptionService {
     }
   }
 
-  /// Тест скорости загрузки через http://cachefly.cachefly.net/1mb.test с таймаутом 1 секунда
   static Future<(int, int)> testSpeed({
     String speedtestUrl = 'http://cachefly.cachefly.net/1mb.test',
     int timeoutMs = 1000,
@@ -132,7 +126,6 @@ class SubscriptionService {
     int downloadLatencyMs = -1;
     int uploadLatencyMs = -1;
 
-    // Тест загрузки
     try {
       final sw = Stopwatch()..start();
       final response = await http.get(Uri.parse(speedtestUrl)).timeout(Duration(milliseconds: timeoutMs));
@@ -144,7 +137,6 @@ class SubscriptionService {
       downloadLatencyMs = -1;
     }
 
-    // Тест отдачи
     try {
       final sw = Stopwatch()..start();
       final response = await http.post(
@@ -162,7 +154,6 @@ class SubscriptionService {
     return (downloadLatencyMs, uploadLatencyMs);
   }
 
-  /// Автоматическое обновление баз GeoIP и GeoSite
   static Future<void> updateGeoDatabases({
     required String targetDir,
     String geoipUrl = 'https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geoip.dat',
