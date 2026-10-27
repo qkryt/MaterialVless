@@ -4,6 +4,8 @@ import '../../providers/vpn_provider.dart';
 import '../../services/xray_service.dart';
 import '../../models/vless_node.dart';
 import '../../models/subscription_model.dart';
+import '../../utils/country_flag_helper.dart';
+import '../widgets/logo.dart';
 import 'settings_screen.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -26,7 +28,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
       duration: const Duration(milliseconds: 1500),
     )..repeat(reverse: true);
 
-    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.06).animate(
+    _pulseAnimation = Tween<double>(begin: 0.96, end: 1.05).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
   }
@@ -44,43 +46,55 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    // Планшеты (Android / iPad) и ПК используют двухколоночный режим (кнопка справа, серверы слева)
-    // Телефоны используют вертикальный режим (кнопка сверху, серверы снизу)
-    final isTabletOrDesktop = MediaQuery.of(context).size.shortestSide >= 600 || MediaQuery.of(context).size.width >= 720;
+    final isWide = MediaQuery.of(context).size.width >= 780;
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        title: const Text('MaterialVless', style: TextStyle(fontWeight: FontWeight.bold)),
-        leading: IconButton(
-          icon: const Icon(Icons.settings_outlined),
-          tooltip: 'Настройки',
-          onPressed: () {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
-          },
+        titleSpacing: 0,
+        title: Row(
+          children: [
+            const SizedBox(width: 14),
+            const MaterialVlessLogo(size: 26),
+            const SizedBox(width: 10),
+            const Text('MaterialVless', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add_rounded, size: 28),
+            icon: const Icon(Icons.speed_rounded),
+            tooltip: 'Проверить пинг всех серверов',
+            onPressed: vpn.isTestingPing
+                ? null
+                : () => ref.read(vpnProvider.notifier).pingAllNodes(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.add_rounded, size: 26),
             tooltip: 'Добавить подписку или узел',
             onPressed: () => _showAddSubscriptionDialog(context),
           ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Настройки',
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+            },
+          ),
+          const SizedBox(width: 6),
         ],
       ),
-      body: isTabletOrDesktop
-          // Двухпанельный режим для ПК и планшетов (Android / iPad)
+      body: isWide
           ? Row(
               children: [
                 Expanded(flex: 5, child: _buildSubscriptionsAndServersList(context)),
-                VerticalDivider(width: 1, color: colorScheme.outlineVariant.withOpacity(0.4)),
-                Expanded(flex: 6, child: _buildPowerControlArea(context, isCompact: false)),
+                VerticalDivider(width: 1, color: colorScheme.outlineVariant.withOpacity(0.3)),
+                Expanded(flex: 5, child: _buildPowerControlArea(context, isCompact: false)),
               ],
             )
-          // Вертикальный режим для телефонов
           : Column(
               children: [
-                if (!vpn.hideEverything)
-                  _buildPowerControlArea(context, isCompact: true),
+                _buildPowerControlArea(context, isCompact: true),
+                Divider(height: 1, color: colorScheme.outlineVariant.withOpacity(0.3)),
                 Expanded(child: _buildSubscriptionsAndServersList(context)),
               ],
             ),
@@ -96,7 +110,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     final isConnecting = vpn.status == CoreState.connecting;
 
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 20, vertical: isCompact ? 12 : 24),
+      padding: EdgeInsets.symmetric(horizontal: 20, vertical: isCompact ? 16 : 28),
       color: colorScheme.surface,
       child: Column(
         mainAxisSize: isCompact ? MainAxisSize.min : MainAxisSize.max,
@@ -123,13 +137,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             const Spacer(),
           ],
 
-          // Круглая кнопка подключения со светящейся аурой
+          // Круглая кнопка включения со светящейся аурой
           Center(
             child: AnimatedBuilder(
               animation: _pulseAnimation,
               builder: (context, child) {
                 final scale = isConnected ? _pulseAnimation.value : 1.0;
-                final size = isCompact ? 150.0 : 210.0;
+                final size = isCompact ? 144.0 : 190.0;
                 return Transform.scale(
                   scale: scale,
                   child: GestureDetector(
@@ -142,9 +156,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                         color: isConnected ? colorScheme.primary : colorScheme.surfaceContainerHighest,
                         boxShadow: [
                           BoxShadow(
-                            color: (isConnected ? colorScheme.primary : colorScheme.outlineVariant).withOpacity(0.4),
-                            blurRadius: isConnected ? 36 : 14,
-                            spreadRadius: isConnected ? 8 : 2,
+                            color: (isConnected ? colorScheme.primary : colorScheme.outlineVariant).withOpacity(0.35),
+                            blurRadius: isConnected ? 32 : 12,
+                            spreadRadius: isConnected ? 6 : 1,
                           ),
                         ],
                       ),
@@ -156,25 +170,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                                 children: [
                                   Icon(
                                     Icons.power_settings_new_rounded,
-                                    size: isCompact ? 48 : 72,
+                                    size: isCompact ? 46 : 64,
                                     color: isConnected ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    isConnected ? 'ПОДКЛЮЧЕНО' : 'ПОДКЛЮЧИТЬ',
+                                    style: TextStyle(
+                                      color: isConnected ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
+                                      fontSize: isCompact ? 11 : 13,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.1,
+                                    ),
                                   ),
                                   if (isConnected) ...[
                                     const SizedBox(height: 4),
                                     Text(
-                                      'CONNECTED',
-                                      style: TextStyle(
-                                        color: colorScheme.onPrimary,
-                                        fontSize: isCompact ? 10 : 12,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 1.1,
-                                      ),
-                                    ),
-                                    Text(
                                       vpn.formattedTimer,
                                       style: TextStyle(
-                                        color: colorScheme.onPrimary.withOpacity(0.9),
-                                        fontSize: isCompact ? 12 : 14,
+                                        color: colorScheme.onPrimary.withOpacity(0.95),
+                                        fontSize: isCompact ? 13 : 15,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
@@ -189,47 +204,70 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             ),
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 18),
 
-          // Строка пинга и кнопки "Hide everything"
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  isConnected ? '${vpn.currentPingMs} ms' : 'Отключено',
-                  style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                ),
-                TextButton(
-                  onPressed: () => ref.read(vpnProvider.notifier).toggleHideEverything(),
-                  child: Text(
-                    vpn.hideEverything ? 'Показать всё' : 'Hide everything',
-                    style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.primary),
+          // Карточка выбранного сервера под кнопкой
+          if (vpn.selectedNode != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.25)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    CountryFlagHelper.getCountryFlag(vpn.selectedNode!.remark),
+                    style: const TextStyle(fontSize: 22),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          vpn.selectedNode!.remark,
+                          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          '${vpn.selectedNode!.protocol.name.toUpperCase()} • ${vpn.selectedNode!.streamType.toUpperCase()}',
+                          style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (vpn.selectedNode!.pingMs != null && vpn.selectedNode!.pingMs! > 0) ...[
+                    const SizedBox(width: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${vpn.selectedNode!.pingMs} ms',
+                        style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 11),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            )
+          else
+            Text(
+              'Выберите сервер для подключения',
+              style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
             ),
-          ),
 
           if (!isCompact) ...[
             const Spacer(),
-            if (vpn.selectedNode != null) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _buildFlagIcon(vpn.selectedNode!.remark),
-                  const SizedBox(width: 8),
-                  Text(
-                    vpn.selectedNode!.remark,
-                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-            ],
             SizedBox(
-              width: 200,
+              width: 220,
               height: 44,
               child: FilledButton.tonal(
                 onPressed: vpn.isTestingPing
@@ -242,7 +280,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                 ),
                 child: vpn.isTestingPing
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Тест пинга', style: TextStyle(fontWeight: FontWeight.bold)),
+                    : const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.speed_rounded, size: 18),
+                          SizedBox(width: 8),
+                          Text('Тест всех серверов', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ],
+                      ),
               ),
             ),
             const SizedBox(height: 16),
@@ -265,10 +310,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.cloud_off_rounded, size: 56, color: colorScheme.onSurfaceVariant),
+              Icon(Icons.cloud_off_rounded, size: 52, color: colorScheme.onSurfaceVariant),
               const SizedBox(height: 16),
               Text(
-                'Подписок пока нет\nНажмите + вверху, чтобы добавить подписку или ссылку',
+                'Подписок пока нет\nНажмите + в правом верхнем углу, чтобы добавить подписку или ссылку',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: colorScheme.onSurfaceVariant),
               ),
@@ -279,39 +324,47 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     }
 
     return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       children: [
-        // Каждая подписка — это отдельная сущность и сворачиваемая вкладка
+        // Каждая подписка — это отдельная сворачиваемая секция
         for (final sub in vpn.subscriptions) ...[
           _buildCollapsibleSubscriptionContainer(context, sub),
           const SizedBox(height: 14),
         ],
 
-        // Секция ручных ссылок (если добавлены без подписки)
+        // Секция ручных узлов (если добавлены без подписки)
         if (vpn.manualNodes.isNotEmpty) ...[
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-            child: Text(
-              'Отдельные узлы',
-              style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Отдельные серверы (${vpn.manualNodes.length})',
+                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ],
             ),
           ),
-          for (final node in vpn.manualNodes) _buildServerTile(context, node),
+          for (final node in vpn.manualNodes)
+            _buildServerTile(context, node, canDelete: true),
         ],
       ],
     );
   }
 
   Widget _buildCollapsibleSubscriptionContainer(BuildContext context, SubscriptionModel sub) {
-    final vpn = ref.watch(vpnProvider);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+
+    final dateStr = '${sub.lastUpdated.day.toString().padLeft(2, '0')}.${sub.lastUpdated.month.toString().padLeft(2, '0')}.${sub.lastUpdated.year} '
+        '${sub.lastUpdated.hour.toString().padLeft(2, '0')}:${sub.lastUpdated.minute.toString().padLeft(2, '0')}';
 
     return Container(
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.3)),
+        border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.25)),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -321,13 +374,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
           InkWell(
             onTap: () => ref.read(vpnProvider.notifier).toggleSubscriptionExpanded(sub.id),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      // Иконка сворачивания (стрелка вниз или вправо)
                       Icon(
                         sub.isExpanded ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_right_rounded,
                         color: colorScheme.onSurfaceVariant,
@@ -335,15 +387,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: Row(
-                          children: [
-                            Text(
-                              sub.name,
-                              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(width: 6),
-                            const Text('💥', style: TextStyle(fontSize: 16)),
-                          ],
+                        child: Text(
+                          sub.name,
+                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       IconButton(
@@ -353,25 +401,25 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                       ),
                       IconButton(
                         icon: const Icon(Icons.speed_rounded, size: 20),
-                        tooltip: 'Пинг серверов',
+                        tooltip: 'Пинг серверов в подписке',
                         onPressed: () => ref.read(vpnProvider.notifier).pingAllNodes(),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.more_horiz_rounded, size: 20),
-                        tooltip: 'Опции',
-                        onPressed: () {},
+                        icon: const Icon(Icons.more_vert_rounded, size: 20),
+                        tooltip: 'Настройки подписки',
+                        onPressed: () => _showSubscriptionOptionsDialog(context, sub),
                       ),
                     ],
                   ),
                   Padding(
                     padding: const EdgeInsets.only(left: 34.0),
                     child: Text(
-                      '${sub.lastUpdated.day}.${sub.lastUpdated.month}.${sub.lastUpdated.year} | Автообновление • 2ч. ⭐',
+                      'Обновлено: $dateStr • ${sub.autoUpdate ? 'Автообновление каждые ${sub.autoUpdateIntervalHours} ч.' : 'Автообновление выкл.'}',
                       style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
                     ),
                   ),
                   const SizedBox(height: 10),
-                  // Полоса израсходованного трафика (как на скриншоте 1)
+                  // Индикатор трафика
                   Padding(
                     padding: const EdgeInsets.only(left: 34.0),
                     child: Column(
@@ -382,38 +430,39 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                               child: Stack(
                                 children: [
                                   Container(
-                                    height: 20,
+                                    height: 18,
                                     decoration: BoxDecoration(
                                       color: colorScheme.surfaceContainerHighest,
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(color: colorScheme.primary.withOpacity(0.3)),
+                                      borderRadius: BorderRadius.circular(9),
+                                      border: Border.all(color: colorScheme.primary.withOpacity(0.2)),
                                     ),
                                   ),
                                   FractionallySizedBox(
                                     widthFactor: sub.usedPercentage,
                                     child: Container(
-                                      height: 20,
+                                      height: 18,
                                       decoration: BoxDecoration(
-                                        color: colorScheme.primary.withOpacity(0.6),
-                                        borderRadius: BorderRadius.circular(10),
+                                        color: colorScheme.primary.withOpacity(0.55),
+                                        borderRadius: BorderRadius.circular(9),
                                       ),
                                     ),
                                   ),
                                   Center(
                                     child: Text(
                                       '${SubscriptionModel.formatBytes(sub.usedBytes)} / ${sub.totalBytes > 0 ? SubscriptionModel.formatBytes(sub.totalBytes) : '∞'}',
-                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            if (sub.expireDate != null)
+                            if (sub.expireDate != null) ...[
+                              const SizedBox(width: 10),
                               Text(
                                 'Истекает: ${sub.expireDate!.day}.${sub.expireDate!.month}.${sub.expireDate!.year}',
                                 style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
                               ),
+                            ],
                           ],
                         ),
                       ],
@@ -424,52 +473,60 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             ),
           ),
 
-          // Список серверов внутри подписки (скрывается если свернуто)
+          // Список серверов подписки
           if (sub.isExpanded) ...[
             const Divider(height: 1),
-            for (final node in sub.nodes) _buildServerTile(context, node),
+            for (final node in sub.nodes)
+              _buildServerTile(context, node),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildServerTile(BuildContext context, VlessNode node) {
+  Widget _buildServerTile(BuildContext context, VlessNode node, {bool canDelete = false}) {
     final vpn = ref.watch(vpnProvider);
     final isSelected = vpn.selectedNode?.id == node.id;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
     return Container(
-      color: isSelected ? colorScheme.secondaryContainer.withOpacity(0.4) : Colors.transparent,
+      color: isSelected ? colorScheme.secondaryContainer.withOpacity(0.35) : Colors.transparent,
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-        leading: _buildFlagIcon(node.remark),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                node.remark,
-                style: TextStyle(
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                  color: isSelected ? colorScheme.primary : colorScheme.onSurface,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 4),
-            const Text('⚡', style: TextStyle(fontSize: 14)),
-          ],
+        leading: Container(
+          width: 36,
+          height: 36,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: isSelected ? colorScheme.primary.withOpacity(0.12) : colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            CountryFlagHelper.getCountryFlag(node.remark),
+            style: const TextStyle(fontSize: 20),
+          ),
+        ),
+        title: Text(
+          CountryFlagHelper.cleanRemark(node.remark),
+          style: TextStyle(
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected ? colorScheme.primary : colorScheme.onSurface,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text(
-          '${node.protocol.name.toUpperCase()} / ${node.streamType.toUpperCase()} / ${node.security.toUpperCase()} / JSON',
+          '${node.protocol.name.toUpperCase()} / ${node.streamType.toUpperCase()} / ${node.security.toUpperCase()}',
           style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: node.pingMs != null
-            ? Container(
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (node.pingMs != null)
+              Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: node.pingMs! > 0 ? Colors.green.withOpacity(0.15) : Colors.red.withOpacity(0.15),
@@ -484,36 +541,156 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                   ),
                 ),
               )
-            : Icon(Icons.chevron_right_rounded, color: colorScheme.onSurfaceVariant, size: 20),
+            else
+              Icon(
+                isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                color: isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant,
+                size: 20,
+              ),
+            if (canDelete) ...[
+              const SizedBox(width: 4),
+              IconButton(
+                icon: const Icon(Icons.close_rounded, size: 18),
+                tooltip: 'Удалить узел',
+                onPressed: () => ref.read(vpnProvider.notifier).deleteManualNode(node.id),
+              ),
+            ],
+          ],
+        ),
         onTap: () => ref.read(vpnProvider.notifier).selectNode(node),
       ),
     );
   }
 
-  Widget _buildFlagIcon(String title) {
-    final lower = title.toLowerCase();
-    String flag = '🌐';
-    if (lower.contains('германия') || lower.contains('germany') || lower.contains('frankfurt')) flag = '🇩🇪';
-    if (lower.contains('австрия') || lower.contains('вена') || lower.contains('vienna')) flag = '🇦🇹';
-    if (lower.contains('нидерланды') || lower.contains('амстердам')) flag = '🇳🇱';
-    if (lower.contains('польша') || lower.contains('варшава')) flag = '🇵🇱';
-    if (lower.contains('россия') || lower.contains('петербург') || lower.contains('москва')) flag = '🇷🇺';
-    if (lower.contains('литва') || lower.contains('вильнюс')) flag = '🇱🇹';
-    if (lower.contains('сша') || lower.contains('usa') || lower.contains('йорк')) flag = '🇺🇸';
-    if (lower.contains('финляндия') || lower.contains('helsinki')) flag = '🇫🇮';
-    if (lower.contains('автоматический') || lower.contains('auto') || lower.contains('trusted') || lower.contains('доверенных')) {
-      return Container(
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          color: Colors.blue.withOpacity(0.15),
-          shape: BoxShape.circle,
-        ),
-        child: const Center(child: Icon(Icons.public_rounded, color: Colors.blue, size: 20)),
-      );
-    }
+  // ==================== ДИАЛОГ НАСТРОЕК ПОДПИСКИ ====================
+  void _showSubscriptionOptionsDialog(BuildContext context, SubscriptionModel sub) {
+    int selectedInterval = sub.autoUpdateIntervalHours;
+    bool autoUpdate = sub.autoUpdate;
+    final nameController = TextEditingController(text: sub.name);
 
-    return Text(flag, style: const TextStyle(fontSize: 24));
+    final dateStr = '${sub.lastUpdated.day.toString().padLeft(2, '0')}.${sub.lastUpdated.month.toString().padLeft(2, '0')}.${sub.lastUpdated.year} '
+        '${sub.lastUpdated.hour.toString().padLeft(2, '0')}:${sub.lastUpdated.minute.toString().padLeft(2, '0')}:${sub.lastUpdated.second.toString().padLeft(2, '0')}';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Опции подписки'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Название подписки',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Последнее обновление из файла:',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        dateStr,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Автообновление'),
+                  subtitle: const Text('Периодически загружать свежие узлы'),
+                  value: autoUpdate,
+                  onChanged: (val) {
+                    setDialogState(() => autoUpdate = val);
+                  },
+                ),
+                if (autoUpdate) ...[
+                  const SizedBox(height: 8),
+                  const Text('Интервал обновления:', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8,
+                    children: [1, 2, 6, 12, 24].map((hours) {
+                      final isSel = selectedInterval == hours;
+                      return ChoiceChip(
+                        label: Text('$hours ч.'),
+                        selected: isSel,
+                        onSelected: (sel) {
+                          if (sel) setDialogState(() => selectedInterval = hours);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _confirmDeleteSubscription(context, sub);
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Удалить'),
+            ),
+            FilledButton(
+              onPressed: () {
+                ref.read(vpnProvider.notifier).updateSubscriptionOptions(
+                      sub.id,
+                      intervalHours: selectedInterval,
+                      autoUpdate: autoUpdate,
+                      customName: nameController.text.trim().isNotEmpty ? nameController.text.trim() : null,
+                    );
+                Navigator.pop(ctx);
+              },
+              child: const Text('Сохранить'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDeleteSubscription(BuildContext context, SubscriptionModel sub) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Удалить подписку?'),
+        content: Text('Вы действительно хотите удалить подписку "${sub.name}" и все её серверы?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Отмена')),
+          FilledButton(
+            onPressed: () {
+              ref.read(vpnProvider.notifier).deleteSubscription(sub.id);
+              Navigator.pop(ctx);
+            },
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Удалить'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showAddSubscriptionDialog(BuildContext context) {
@@ -526,7 +703,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
           controller: controller,
           maxLines: 4,
           decoration: const InputDecoration(
-            hintText: 'Вставьте ссылку подписки, прямую ссылку vless:// или путь к .txt файлу',
+            hintText: 'Вставьте ссылку подписки, прямую ссылку vless://, ss://, hy2:// или путь к .txt файлу',
             border: OutlineInputBorder(),
           ),
         ),
