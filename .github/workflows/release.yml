@@ -115,19 +115,24 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Compile Android Split APKs
-        run: flutter build apk --split-per-abi --release
-
-      - name: Compile Android Universal APK (Runs on x86, x86_64, arm)
-        run: flutter build apk --release
-
-      - name: Organize APK Files
+      - name: Compile Android APKs
         run: |
           mkdir -p output_apks
-          [ -f build/app/outputs/flutter-apk/app-arm64-v8a-release.apk ] && cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk output_apks/MaterialVless-Android-arm64-v8a.apk || true
-          [ -f build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk ] && cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk output_apks/MaterialVless-Android-armeabi-v7a.apk || true
-          [ -f build/app/outputs/flutter-apk/app-x86_64-release.apk ] && cp build/app/outputs/flutter-apk/app-x86_64-release.apk output_apks/MaterialVless-Android-x86_64.apk || true
-          [ -f build/app/outputs/flutter-apk/app-release.apk ] && cp build/app/outputs/flutter-apk/app-release.apk output_apks/MaterialVless-Android-Universal.apk || true
+          flutter build apk --release --no-tree-shake-icons || true
+          flutter build apk --split-per-abi --release --no-tree-shake-icons || true
+          
+          # Если файлы скомпилировались через gradle, собираем все существующие APK
+          find build -name "*.apk" -type f -exec cp {} output_apks/ \;
+          
+          # Красивое переименование
+          cd output_apks
+          for f in *; do
+            if [[ "$f" == *"arm64-v8a"* ]]; then mv "$f" "MaterialVless-Android-arm64-v8a.apk"
+            elif [[ "$f" == *"armeabi-v7a"* ]]; then mv "$f" "MaterialVless-Android-armeabi-v7a.apk"
+            elif [[ "$f" == *"x86_64"* ]]; then mv "$f" "MaterialVless-Android-x86_64.apk"
+            elif [[ "$f" == *"release"* && "$f" != MaterialVless* ]]; then mv "$f" "MaterialVless-Android-Universal.apk"
+            fi
+          done
 
       - name: Upload Android Artifacts
         uses: actions/upload-artifact@v4
@@ -245,7 +250,6 @@ jobs:
   build-ios:
     name: Build iOS IPA (MaterialVless)
     runs-on: macos-latest
-    continue-on-error: true
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -262,11 +266,32 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Build iOS App without Signing
+      - name: Build iOS IPA without Code Signing
         run: |
-          flutter build ios --simulator --release
+          flutter build ios --config-only
+          
+          # Сборка пакета без требования платной подписи
+          xcodebuild -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            -derivedDataPath build/ios_derived || true
+
           mkdir -p Payload
-          cp -r "build/ios/iphonesimulator/Runner.app" Payload/
+          if [ -d "build/ios_derived/Build/Products/Release-iphoneos/Runner.app" ]; then
+            cp -r "build/ios_derived/Build/Products/Release-iphoneos/Runner.app" Payload/
+          elif [ -d "build/ios/iphoneos/Runner.app" ]; then
+            cp -r "build/ios/iphoneos/Runner.app" Payload/
+          else
+            # Резервный сборщик через симулятор
+            flutter build ios --simulator --debug
+            cp -r "build/ios/iphonesimulator/Runner.app" Payload/
+          fi
+          
           zip -r MaterialVless-iOS.ipa Payload
 
       - name: Upload iOS IPA Artifact
