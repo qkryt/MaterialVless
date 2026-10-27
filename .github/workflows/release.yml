@@ -11,6 +11,7 @@ permissions:
 
 env:
   XRAY_VERSION: 'v24.11.30'
+  HYSTERIA_VERSION: 'app/v2.13.0'
   WINTUN_VERSION: '0.14.1'
 
 jobs:
@@ -52,6 +53,10 @@ jobs:
           Invoke-WebRequest -Uri $Xray64Url -OutFile "xray64.zip"
           Expand-Archive -Path "xray64.zip" -DestinationPath "xray_64"
           
+          # Загрузка ядра Hysteria 2 (x64)
+          $Hy64Url = "https://github.com/HyNetworks/hysteria/releases/download/${{ env.HYSTERIA_VERSION }}/hysteria-windows-amd64.exe"
+          Invoke-WebRequest -Uri $Hy64Url -OutFile "hysteria64.exe"
+
           # Загрузка драйвера Wintun
           $WintunUrl = "https://www.wintun.net/builds/wintun-${{ env.WINTUN_VERSION }}.zip"
           Invoke-WebRequest -Uri $WintunUrl -OutFile "wintun.zip"
@@ -59,6 +64,7 @@ jobs:
 
           # Формирование Windows x64
           Copy-Item "xray_64/xray.exe" -Destination "$ReleaseDir"
+          Copy-Item "hysteria64.exe" -Destination "$ReleaseDir/hysteria.exe"
           Copy-Item "xray_64/geoip.dat" -Destination "$ReleaseDir"
           Copy-Item "xray_64/geosite.dat" -Destination "$ReleaseDir"
           Copy-Item "wintun_driver/wintun/bin/amd64/wintun.dll" -Destination "$ReleaseDir"
@@ -69,9 +75,13 @@ jobs:
           Invoke-WebRequest -Uri $Xray32Url -OutFile "xray32.zip"
           Expand-Archive -Path "xray32.zip" -DestinationPath "xray_32"
           
+          $Hy32Url = "https://github.com/HyNetworks/hysteria/releases/download/${{ env.HYSTERIA_VERSION }}/hysteria-windows-386.exe"
+          Invoke-WebRequest -Uri $Hy32Url -OutFile "hysteria32.exe"
+
           mkdir -p "dist_x86"
           Copy-Item "$ReleaseDir/*" -Destination "dist_x86" -Recurse
           Copy-Item "xray_32/xray.exe" -Destination "dist_x86" -Force
+          Copy-Item "hysteria32.exe" -Destination "dist_x86/hysteria.exe" -Force
           Copy-Item "xray_32/geoip.dat" -Destination "dist_x86" -Force
           Copy-Item "xray_32/geosite.dat" -Destination "dist_x86" -Force
           Copy-Item "wintun_driver/wintun/bin/x86/wintun.dll" -Destination "dist_x86/wintun.dll" -Force
@@ -120,10 +130,12 @@ jobs:
           # x64 package
           curl -L "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-linux-64.zip" -o xray64.zip
           unzip xray64.zip -d xray64_temp
+          curl -L "https://github.com/HyNetworks/hysteria/releases/download/${{ env.HYSTERIA_VERSION }}/hysteria-linux-amd64" -o "$DIST/hysteria"
           cp xray64_temp/xray "$DIST/"
           cp xray64_temp/geoip.dat "$DIST/"
           cp xray64_temp/geosite.dat "$DIST/"
           chmod +x "$DIST/xray"
+          chmod +x "$DIST/hysteria"
           tar -czvf MaterialVless-Linux-x64.tar.gz -C "$DIST" .
 
           # x86 package
@@ -131,10 +143,12 @@ jobs:
           cp -r "$DIST/"* dist_linux_x86/
           curl -L "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-linux-32.zip" -o xray32.zip
           unzip xray32.zip -d xray32_temp
+          curl -L "https://github.com/HyNetworks/hysteria/releases/download/${{ env.HYSTERIA_VERSION }}/hysteria-linux-386" -o "dist_linux_x86/hysteria"
           cp xray32_temp/xray dist_linux_x86/
           cp xray32_temp/geoip.dat dist_linux_x86/
           cp xray32_temp/geosite.dat dist_linux_x86/
           chmod +x dist_linux_x86/xray
+          chmod +x dist_linux_x86/hysteria
           tar -czvf MaterialVless-Linux-x86.tar.gz -C dist_linux_x86 .
 
       - name: Upload Linux Artifacts
@@ -175,10 +189,12 @@ jobs:
           curl -L "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-macos-arm64-v8a.zip" -o xray.zip
           unzip xray.zip -d xray_temp
           mkdir -p "$RES_DIR"
+          curl -L "https://github.com/HyNetworks/hysteria/releases/download/${{ env.HYSTERIA_VERSION }}/hysteria-darwin-arm64" -o "$RES_DIR/hysteria"
           cp xray_temp/xray "$RES_DIR/"
           cp xray_temp/geoip.dat "$RES_DIR/"
           cp xray_temp/geosite.dat "$RES_DIR/"
           chmod +x "$RES_DIR/xray"
+          chmod +x "$RES_DIR/hysteria"
           ditto -c -k --sequesterRsrc --keepParent "$APP_DIR" MaterialVless-macOS.zip
 
       - name: Upload macOS Artifact
@@ -188,7 +204,7 @@ jobs:
           path: MaterialVless-macOS.zip
 
   # ==========================================
-  # 4. PUBLISH RELEASE & GEO DATA
+  # 4. PUBLISH RELEASE
   # ==========================================
   publish-release:
     name: Publish Release Packages
@@ -201,14 +217,9 @@ jobs:
         with:
           path: release_staging
 
-      - name: Download Official GeoIP and GeoSite directly to Release
-        run: |
-          mkdir -p final_assets
-          curl -L "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geoip.dat" -o final_assets/geoip.dat
-          curl -L "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geosite.dat" -o final_assets/geosite.dat
-
       - name: Prepare Final Files
         run: |
+          mkdir -p final_assets
           find release_staging -type f -exec mv {} final_assets/ \;
           ls -la final_assets/
 
@@ -218,7 +229,7 @@ jobs:
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
           else
-            echo "tag=v1.1.0" >> $GITHUB_OUTPUT
+            echo "tag=v1.2.0" >> $GITHUB_OUTPUT
           fi
 
       - name: Create GitHub Release
@@ -232,14 +243,13 @@ jobs:
           body: |
             ### MaterialVless Client — Релиз ${{ steps.tag_info.outputs.tag }}
             
-            Кроссплатформенный клиент VLESS / Reality / gRPC / Hysteria с ядром Xray-core и интерфейсом Material You.
+            Кроссплатформенный клиент VLESS / Reality / gRPC / Hysteria 2 с ядрами Xray-core + Hysteria и интерфейсом Material You.
             
-            #### Поддерживаемые десктопные платформы:
-            - **Windows (x64):** `MaterialVless-Windows-x64.zip` (Xray x64 + Wintun x64)
-            - **Windows (x86):** `MaterialVless-Windows-x86.zip` (Xray 32-bit x86 + Wintun x86)
-            - **Linux (x64):** `MaterialVless-Linux-x64.tar.gz` (Xray 64-bit)
-            - **Linux (x86):** `MaterialVless-Linux-x86.tar.gz` (Xray 32-bit)
-            - **macOS:** `MaterialVless-macOS.zip` (Apple Silicon & Intel)
-            - **Базы маршрутизации:** `geoip.dat` и `geosite.dat` прикреплены прямо к релизу для автономной работы
+            #### Поддерживаемые платформы:
+            - **Windows (x64):** `MaterialVless-Windows-x64.zip` (Xray + Hysteria 2 + Wintun x64 + GeoIP/GeoSite)
+            - **Windows (x86):** `MaterialVless-Windows-x86.zip` (Xray + Hysteria 2 + Wintun x86 + GeoIP/GeoSite)
+            - **Linux (x64):** `MaterialVless-Linux-x64.tar.gz` (Xray + Hysteria 2 + GeoIP/GeoSite)
+            - **Linux (x86):** `MaterialVless-Linux-x86.tar.gz` (Xray + Hysteria 2 + GeoIP/GeoSite)
+            - **macOS:** `MaterialVless-macOS.zip` (Universal)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
