@@ -69,19 +69,8 @@ class ConfigGenerator {
           "geosite:category-ads-all": "127.0.0.1"
         },
         "servers": [
-          if (settings.routingPreset == 'russia') ...[
-            {
-              "address": "77.88.8.8",
-              "domains": ["geosite:ru"],
-              "expectIPs": ["geoip:ru"]
-            },
-          ],
-          {
-            "address": "1.1.1.1",
-            "domains": ["geosite:geolocation-!ru"],
-            "expectIPs": ["geoip:!ru"]
-          },
-          "https://1.1.1.1/dns-query",
+          "1.1.1.1",
+          "8.8.8.8",
           "localhost"
         ],
         "queryStrategy": "UseIPv4"
@@ -96,24 +85,18 @@ class ConfigGenerator {
           "sniffing": {
             "enabled": true,
             "destOverride": ["http", "tls", "quic"],
-            "routeOnly": true
+            "routeOnly": false
           }
         },
         {
           "tag": "http-in",
           "port": 10809,
           "listen": "127.0.0.1",
-          "protocol": "http"
-        },
-        {
-          "tag": "tun-dokodemo",
-          "port": 10853,
-          "listen": "127.0.0.1",
-          "protocol": "dokodemo-door",
-          "settings": {"network": "tcp,udp", "followRedirect": true},
+          "protocol": "http",
           "sniffing": {
             "enabled": true,
-            "destOverride": ["http", "tls", "quic"]
+            "destOverride": ["http", "tls", "quic"],
+            "routeOnly": false
           }
         }
       ],
@@ -139,6 +122,24 @@ class ConfigGenerator {
     };
 
     return const JsonEncoder.withIndent('  ').convert(config);
+  }
+
+  static String generateHysteriaConfig(VlessNode node) {
+    final server = '${node.address}:${node.port}';
+    final auth = node.uuid;
+    final sni = node.sni.isNotEmpty ? node.sni : node.address;
+
+    return '''
+server: $server
+auth: $auth
+tls:
+  sni: $sni
+  insecure: true
+socks5:
+  listen: 127.0.0.1:10808
+http:
+  listen: 127.0.0.1:10809
+''';
   }
 
   static Map<String, dynamic> _buildOutbound(VlessNode node) {
