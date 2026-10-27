@@ -42,14 +42,16 @@ class StorageService {
         'manualNodes': manualNodes.map((n) => n.toJson()).toList(),
         if (settings != null)
           'settings': {
-            'proxyMode': settings.proxyMode.name,
-            'routingMode': settings.routingMode.name,
+            'routingPreset': settings.routingPreset,
             'pingUrl': settings.pingUrl,
             'pingTimeoutMs': settings.pingTimeoutMs,
             'speedtestUrl': settings.speedtestUrl,
             'autoUpdateRulesOnStart': settings.autoUpdateRulesOnStart,
             'userAgent': settings.userAgent,
             'sendHwid': settings.sendHwid,
+            'themeMode': settings.themeMode,
+            'fontFamily': settings.fontFamily,
+            'useDynamicColor': settings.useDynamicColor,
           },
       };
 
@@ -102,20 +104,16 @@ class StorageService {
       if (json['settings'] != null) {
         final sJson = json['settings'] as Map<String, dynamic>;
         settings = AppSettings(
-          proxyMode: ProxyMode.values.firstWhere(
-            (e) => e.name == sJson['proxyMode'],
-            orElse: () => ProxyMode.tunWithProxy,
-          ),
-          routingMode: RoutingMode.values.firstWhere(
-            (e) => e.name == sJson['routingMode'],
-            orElse: () => RoutingMode.none,
-          ),
-          pingUrl: sJson['pingUrl'] ?? 'http://cp.cloudflare.com/generate_204',
-          pingTimeoutMs: sJson['pingTimeoutMs'] ?? 1000,
-          speedtestUrl: sJson['speedtestUrl'] ?? 'http://cachefly.cachefly.net/1mb.test',
-          autoUpdateRulesOnStart: sJson['autoUpdateRulesOnStart'] ?? true,
-          userAgent: sJson['userAgent'] ?? 'Default (MaterialVless)',
-          sendHwid: sJson['sendHwid'] ?? true,
+          routingPreset: sJson['routingPreset']?.toString() ?? 'none',
+          pingUrl: sJson['pingUrl']?.toString() ?? 'http://cp.cloudflare.com/',
+          pingTimeoutMs: int.tryParse(sJson['pingTimeoutMs']?.toString() ?? '1000') ?? 1000,
+          speedtestUrl: sJson['speedtestUrl']?.toString() ?? 'http://cachefly.cachefly.net/1mb.test',
+          autoUpdateRulesOnStart: sJson['autoUpdateRulesOnStart'] == true,
+          userAgent: sJson['userAgent']?.toString() ?? 'MaterialVless',
+          sendHwid: sJson['sendHwid'] != false,
+          themeMode: sJson['themeMode']?.toString() ?? 'system',
+          fontFamily: sJson['fontFamily']?.toString() ?? 'Google Sans',
+          useDynamicColor: sJson['useDynamicColor'] != false,
         );
       }
 
