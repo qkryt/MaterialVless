@@ -1,0 +1,127 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import '../models/subscription_model.dart';
+import '../models/vless_node.dart';
+import '../models/app_settings.dart';
+
+class StorageService {
+  static const String _fileName = 'material_vless_data.json';
+
+  static Future<List<File>> _getFiles() async {
+    final list = <File>[];
+    // 1. Файл в корне проекта / рабочей директории
+    try {
+      list.add(File(_fileName));
+      list.add(File('${Directory.current.path}/$_fileName'));
+    } catch (_) {}
+
+    // 2. Файл в системной директории данных приложения
+    try {
+      final appDir = await getApplicationSupportDirectory();
+      list.add(File('${appDir.path}/$_fileName'));
+    } catch (_) {}
+
+    return list;
+  }
+
+  /// Сохранение всех данных в файл проекта
+  static Future<void> saveData({
+    required List<SubscriptionModel> subscriptions,
+    required List<VlessNode> manualNodes,
+    String? selectedNodeId,
+    AppSettings? settings,
+  }) async {
+    try {
+      final data = {
+        'version': 1,
+        'appName': 'MaterialVless',
+        'updatedAt': DateTime.now().toIso8601String(),
+        'selectedNodeId': selectedNodeId,
+        'subscriptions': subscriptions.map((s) => s.toJson()).toList(),
+        'manualNodes': manualNodes.map((n) => n.toJson()).toList(),
+        if (settings != null)
+          'settings': {
+            'proxyMode': settings.proxyMode.name,
+            'routingMode': settings.routingMode.name,
+            'pingUrl': settings.pingUrl,
+            'pingTimeoutMs': settings.pingTimeoutMs,
+            'speedtestUrl': settings.speedtestUrl,
+            'autoUpdateRulesOnStart': settings.autoUpdateRulesOnStart,
+            'userAgent': settings.userAgent,
+            'sendHwid': settings.sendHwid,
+          },
+      };
+
+      final jsonString = const JsonEncoder.withIndent('  ').convert(data);
+      final files = await _getFiles();
+      for (final file in files) {
+        try {
+          await file.writeAsString(jsonString);
+        } catch (_) {}
+      }
+    } catch (_) {}
+  }
+
+  /// Загрузка сохраненных данных
+  static Future<(List<SubscriptionModel>, List<VlessNode>, String?, AppSettings?)> loadData() async {
+    try {
+      final files = await _getFiles();
+      File? targetFile;
+      for (final f in files) {
+        if (await f.exists()) {
+          targetFile = f;
+          break;
+        }
+      }
+
+      if (targetFile == null) {
+        return (const <SubscriptionModel>[], const <VlessNode>[], null, null);
+      }
+
+      final content = await targetFile.readAsString();
+      if (content.trim().isEmpty) {
+        return (const <SubscriptionModel>[], const <VlessNode>[], null, null);
+      }
+
+      final json = jsonDecode(content) as Map<String, dynamic>;
+
+      final subs = (json['subscriptions'] as List<dynamic>?)
+              ?.map((s) => SubscriptionModel.fromJson(s as Map<String, dynamic>))
+              .toList() ??
+          [];
+
+      final nodes = (json['manualNodes'] as List<dynamic>?)
+              ?.map((n) => VlessNode.fromJson(n as Map<String, dynamic>))
+              .toList() ??
+          [];
+
+      final selectedNodeId = json['selectedNodeId'] as String?;
+
+      AppSettings? settings;
+      if (json['settings'] != null) {
+        final sJson = json['settings'] as Map<String, dynamic>;
+        settings = AppSettings(
+          proxyMode: ProxyMode.values.firstWhere(
+            (e) => e.name == sJson['proxyMode'],
+            orElse: () => ProxyMode.tunWithProxy,
+          ),
+          routingMode: RoutingMode.values.firstWhere(
+            (e) => e.name == sJson['routingMode'],
+            orElse: () => RoutingMode.none,
+          ),
+          pingUrl: sJson['pingUrl'] ?? 'http://cp.cloudflare.com/generate_204',
+          pingTimeoutMs: sJson['pingTimeoutMs'] ?? 1000,
+          speedtestUrl: sJson['speedtestUrl'] ?? 'http://cachefly.cachefly.net/1mb.test',
+          autoUpdateRulesOnStart: sJson['autoUpdateRulesOnStart'] ?? true,
+          userAgent: sJson['userAgent'] ?? 'Default (MaterialVless)',
+          sendHwid: sJson['sendHwid'] ?? true,
+        );
+      }
+
+      return (subs, nodes, selectedNodeId, settings);
+    } catch (_) {
+      return (const <SubscriptionModel>[], const <VlessNode>[], null, null);
+    }
+  }
+}
