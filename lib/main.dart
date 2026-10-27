@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'ui/theme/app_theme.dart';
 import 'ui/screens/dashboard_screen.dart';
+import 'providers/vpn_provider.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,19 +14,40 @@ void main() {
   );
 }
 
-class MaterialVlessApp extends StatelessWidget {
+class MaterialVlessApp extends ConsumerWidget {
   const MaterialVlessApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final vpn = ref.watch(vpnProvider);
+    final themeMode = vpn.settings.themeMode;
+    final fontFamily = vpn.settings.fontFamily;
+    final useDynamic = vpn.settings.useDynamicColor;
+
     return DynamicColorBuilder(
       builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
+        final lightScheme = useDynamic ? lightDynamic : null;
+        final darkScheme = useDynamic ? darkDynamic : null;
+
+        ThemeMode mode;
+        if (themeMode == 'light') {
+          mode = ThemeMode.light;
+        } else if (themeMode == 'dark' || themeMode == 'amoled') {
+          mode = ThemeMode.dark;
+        } else {
+          mode = ThemeMode.system;
+        }
+
         return MaterialApp(
           title: 'MaterialVless',
           debugShowCheckedModeBanner: false,
-          theme: AppTheme.light(lightDynamic),
-          darkTheme: AppTheme.dark(darkDynamic),
-          themeMode: ThemeMode.system,
+          theme: AppTheme.light(lightScheme, fontFamily: fontFamily),
+          darkTheme: AppTheme.dark(
+            darkScheme,
+            fontFamily: fontFamily,
+            isAmoled: themeMode == 'amoled',
+          ),
+          themeMode: mode,
           home: const DashboardScreen(),
         );
       },
