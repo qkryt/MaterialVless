@@ -12,8 +12,8 @@ class SubscriptionModel {
   final DateTime? expireDate;
   final List<VlessNode> nodes;
   final bool autoUpdate;
+  final int autoUpdateIntervalHours; // 1, 2, 6, 12, 24
   final bool isExpanded;
-  final List<String> announcements;
 
   SubscriptionModel({
     required this.id,
@@ -26,8 +26,8 @@ class SubscriptionModel {
     this.expireDate,
     this.nodes = const [],
     this.autoUpdate = true,
+    this.autoUpdateIntervalHours = 2,
     this.isExpanded = true,
-    this.announcements = const [],
   });
 
   int get usedBytes => uploadBytes + downloadBytes;
@@ -47,8 +47,44 @@ class SubscriptionModel {
     return '${d.toStringAsFixed(1)} ${suffixes[i]}';
   }
 
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'url': url,
+        'lastUpdated': lastUpdated.toIso8601String(),
+        'uploadBytes': uploadBytes,
+        'downloadBytes': downloadBytes,
+        'totalBytes': totalBytes,
+        'expireDate': expireDate?.toIso8601String(),
+        'autoUpdate': autoUpdate,
+        'autoUpdateIntervalHours': autoUpdateIntervalHours,
+        'isExpanded': isExpanded,
+        'nodes': nodes.map((n) => n.toJson()).toList(),
+      };
+
+  factory SubscriptionModel.fromJson(Map<String, dynamic> json) => SubscriptionModel(
+        id: json['id'] ?? '',
+        name: json['name'] ?? '',
+        url: json['url'] ?? '',
+        lastUpdated: json['lastUpdated'] != null
+            ? DateTime.parse(json['lastUpdated'])
+            : DateTime.now(),
+        uploadBytes: json['uploadBytes'] ?? 0,
+        downloadBytes: json['downloadBytes'] ?? 0,
+        totalBytes: json['totalBytes'] ?? 0,
+        expireDate: json['expireDate'] != null ? DateTime.parse(json['expireDate']) : null,
+        autoUpdate: json['autoUpdate'] ?? true,
+        autoUpdateIntervalHours: json['autoUpdateIntervalHours'] ?? 2,
+        isExpanded: json['isExpanded'] ?? true,
+        nodes: (json['nodes'] as List<dynamic>?)
+                ?.map((n) => VlessNode.fromJson(n as Map<String, dynamic>))
+                .toList() ??
+            [],
+      );
+
   SubscriptionModel copyWith({
     String? name,
+    String? url,
     DateTime? lastUpdated,
     int? uploadBytes,
     int? downloadBytes,
@@ -56,13 +92,13 @@ class SubscriptionModel {
     DateTime? expireDate,
     List<VlessNode>? nodes,
     bool? autoUpdate,
+    int? autoUpdateIntervalHours,
     bool? isExpanded,
-    List<String>? announcements,
   }) {
     return SubscriptionModel(
       id: id,
       name: name ?? this.name,
-      url: url,
+      url: url ?? this.url,
       lastUpdated: lastUpdated ?? this.lastUpdated,
       uploadBytes: uploadBytes ?? this.uploadBytes,
       downloadBytes: downloadBytes ?? this.downloadBytes,
@@ -70,8 +106,8 @@ class SubscriptionModel {
       expireDate: expireDate ?? this.expireDate,
       nodes: nodes ?? this.nodes,
       autoUpdate: autoUpdate ?? this.autoUpdate,
+      autoUpdateIntervalHours: autoUpdateIntervalHours ?? this.autoUpdateIntervalHours,
       isExpanded: isExpanded ?? this.isExpanded,
-      announcements: announcements ?? this.announcements,
     );
   }
 }
