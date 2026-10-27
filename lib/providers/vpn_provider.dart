@@ -5,6 +5,7 @@ import '../models/subscription_model.dart';
 import '../models/app_settings.dart';
 import '../services/xray_service.dart';
 import '../services/subscription_service.dart';
+import '../services/storage_service.dart';
 
 class VpnState {
   final CoreState status;
@@ -18,7 +19,6 @@ class VpnState {
   final bool isTestingPing;
   final int connectedSeconds;
   final int currentPingMs;
-  final bool hideEverything;
 
   VpnState({
     this.status = CoreState.disconnected,
@@ -31,8 +31,7 @@ class VpnState {
     this.searchQuery = '',
     this.isTestingPing = false,
     this.connectedSeconds = 0,
-    this.currentPingMs = 356,
-    this.hideEverything = false,
+    this.currentPingMs = 52,
   });
 
   String get formattedTimer {
@@ -57,7 +56,6 @@ class VpnState {
     bool? isTestingPing,
     int? connectedSeconds,
     int? currentPingMs,
-    bool? hideEverything,
   }) {
     return VpnState(
       status: status ?? this.status,
@@ -71,7 +69,6 @@ class VpnState {
       isTestingPing: isTestingPing ?? this.isTestingPing,
       connectedSeconds: connectedSeconds ?? this.connectedSeconds,
       currentPingMs: currentPingMs ?? this.currentPingMs,
-      hideEverything: hideEverything ?? this.hideEverything,
     );
   }
 }
@@ -79,8 +76,11 @@ class VpnState {
 class VpnNotifier extends StateNotifier<VpnState> {
   final XrayService _xrayService;
   Timer? _sessionTimer;
+  Timer? _autoUpdateCheckTimer;
 
   VpnNotifier(this._xrayService) : super(VpnState(settings: AppSettings())) {
+    _init();
+
     _xrayService.stateStream.listen((status) {
       if (status == CoreState.connected) {
         _startTimer();
@@ -96,14 +96,76 @@ class VpnNotifier extends StateNotifier<VpnState> {
         downloadSpeedBps: speeds.$2,
       );
     });
+  }
 
-    if (state.settings.autoUpdateRulesOnStart) {
+  Future<void> _init() async {
+    // 1. Загрузка сохраненных данных из файла material_vless_data.json
+    final (savedSubs, savedManual, savedSelectedId, savedSettings) =
+        await StorageService.loadData();
+
+    AppSettings currentSettings = savedSettings ?? state.settings;
+
+    VlessNode? restoredSelectedNode;
+    if (savedSelectedId != null) {
+      for (final s in savedSubs) {
+        final match = s.nodes.where((n) => n.id == savedSelectedId);
+        if (match.isNotEmpty) {
+          restoredSelectedNode = match.first;
+          break;
+        }
+      }
+      if (restoredSelectedNode == null) {
+        final match = savedManual.where((n) => n.id == savedSelectedId);
+        if (match.isNotEmpty) restoredSelectedNode = match.first;
+      }
+    }
+
+    if (restoredSelectedNode == null && savedSubs.isNotEmpty && savedSubs.first.nodes.isNotEmpty) {
+      restoredSelectedNode = savedSubs.first.nodes.first;
+    }
+
+    state = state.copyWith(
+      subscriptions: savedSubs,
+      manualNodes: savedManual,
+      settings: currentSettings,
+      selectedNode: restoredSelectedNode,
+    );
+
+    // 2. Автообновление Geo-баз при старте
+    if (currentSettings.autoUpdateRulesOnStart) {
       SubscriptionService.updateGeoDatabases(
         targetDir: '.',
-        geoipUrl: state.settings.geoipUrl,
-        geositeUrl: state.settings.geositeUrl,
+        geoipUrl: currentSettings.geoipUrl,
+        geositeUrl: currentSettings.geositeUrl,
       );
     }
+
+    // 3. Проверка интервалов автообновления подписок
+    _checkSubscriptionsAutoUpdate();
+    _autoUpdateCheckTimer = Timer.periodic(const Duration(minutes: 15), (_) {
+      _checkSubscriptionsAutoUpdate();
+    });
+  }
+
+  void _checkSubscriptionsAutoUpdate() {
+    final now = DateTime.now();
+    for (final sub in state.subscriptions) {
+      if (sub.autoUpdate) {
+        final diff = now.difference(sub.lastUpdated).inHours;
+        if (diff >= sub.autoUpdateIntervalHours) {
+          refreshSubscription(sub.id);
+        }
+      }
+    }
+  }
+
+  Future<void> _persist() async {
+    await StorageService.saveData(
+      subscriptions: state.subscriptions,
+      manualNodes: state.manualNodes,
+      selectedNodeId: state.selectedNode?.id,
+      settings: state.settings,
+    );
   }
 
   void _startTimer() {
@@ -119,10 +181,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
     state = state.copyWith(connectedSeconds: 0);
   }
 
-  void toggleHideEverything() {
-    state = state.copyWith(hideEverything: !state.hideEverything);
-  }
-
   void toggleSubscriptionExpanded(String subId) {
     final updated = state.subscriptions.map((s) {
       if (s.id == subId) {
@@ -131,6 +189,7 @@ class VpnNotifier extends StateNotifier<VpnState> {
       return s;
     }).toList();
     state = state.copyWith(subscriptions: updated);
+    _persist();
   }
 
   void setSearchQuery(String query) {
@@ -139,26 +198,57 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
   void selectNode(VlessNode node) {
     state = state.copyWith(selectedNode: node);
+    _persist();
   }
 
   void updateSettings(AppSettings newSettings) {
     state = state.copyWith(settings: newSettings);
+    _persist();
   }
 
   Future<void> addSubscription(String source, {String? customName}) async {
+    final cleanSource = source.trim();
+    if (cleanSource.isEmpty) return;
+
+    // Проверяем, это одиночный vless/vmess/trojan/ss/hy2 узел или подписка
+    final isSingleNode = cleanSource.startsWith('vless://') ||
+        cleanSource.startsWith('vmess://') ||
+        cleanSource.startsWith('trojan://') ||
+        cleanSource.startsWith('ss://') ||
+        cleanSource.startsWith('hysteria://') ||
+        cleanSource.startsWith('hysteria2://') ||
+        cleanSource.startsWith('hy2://');
+
+    if (isSingleNode) {
+      try {
+        final node = VlessNode.fromUri(
+          cleanSource,
+          subscriptionId: 'manual',
+          index: state.manualNodes.length,
+        );
+        final updatedManual = List<VlessNode>.from(state.manualNodes)..add(node);
+        state = state.copyWith(
+          manualNodes: updatedManual,
+          selectedNode: state.selectedNode ?? node,
+        );
+        await _persist();
+        return;
+      } catch (_) {}
+    }
+
     final (nodes, meta) = await SubscriptionService.loadSubscription(
-      source: source,
+      source: cleanSource,
       settings: state.settings,
       customName: customName,
     );
 
-    final isUrl = source.startsWith('http://') || source.startsWith('https://');
-    final name = customName ?? (isUrl ? Uri.parse(source).host : 'Импортированные узлы');
+    final isUrl = cleanSource.startsWith('http://') || cleanSource.startsWith('https://');
+    final name = customName ?? (isUrl ? Uri.parse(cleanSource).host : 'Импортированные узлы');
 
     final newSub = SubscriptionModel(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       name: name,
-      url: source,
+      url: cleanSource,
       lastUpdated: DateTime.now(),
       uploadBytes: meta['upload'] ?? 0,
       downloadBytes: meta['download'] ?? 0,
@@ -166,10 +256,8 @@ class VpnNotifier extends StateNotifier<VpnState> {
       expireDate: meta['expire'],
       nodes: nodes,
       isExpanded: true,
-      announcements: const [
-        'Подключим Вас к миру',
-        'Не используйте LTE сервера на WiFi',
-      ],
+      autoUpdate: true,
+      autoUpdateIntervalHours: 2,
     );
 
     final updatedSubs = List<SubscriptionModel>.from(state.subscriptions)..add(newSub);
@@ -178,6 +266,7 @@ class VpnNotifier extends StateNotifier<VpnState> {
       subscriptions: updatedSubs,
       selectedNode: state.selectedNode ?? (nodes.isNotEmpty ? nodes.first : null),
     );
+    await _persist();
   }
 
   Future<void> refreshSubscription(String id) async {
@@ -185,28 +274,102 @@ class VpnNotifier extends StateNotifier<VpnState> {
     if (index == -1) return;
 
     final target = state.subscriptions[index];
-    final (nodes, meta) = await SubscriptionService.loadSubscription(
-      source: target.url,
-      settings: state.settings,
-      customName: target.name,
-    );
+    try {
+      final (nodes, meta) = await SubscriptionService.loadSubscription(
+        source: target.url,
+        settings: state.settings,
+        customName: target.name,
+      );
 
+      final updatedSub = target.copyWith(
+        lastUpdated: DateTime.now(),
+        uploadBytes: meta['upload'] ?? target.uploadBytes,
+        downloadBytes: meta['download'] ?? target.downloadBytes,
+        totalBytes: meta['total'] ?? target.totalBytes,
+        expireDate: meta['expire'] ?? target.expireDate,
+        nodes: nodes,
+      );
+
+      final updatedSubs = List<SubscriptionModel>.from(state.subscriptions);
+      updatedSubs[index] = updatedSub;
+
+      // Если выбранный узел был из этой подписки, актуализируем ссылку
+      VlessNode? newSelected = state.selectedNode;
+      if (state.selectedNode?.subscriptionId == id) {
+        final match = nodes.where((n) => n.id == state.selectedNode!.id);
+        if (match.isNotEmpty) {
+          newSelected = match.first;
+        } else if (nodes.isNotEmpty) {
+          newSelected = nodes.first;
+        }
+      }
+
+      state = state.copyWith(
+        subscriptions: updatedSubs,
+        selectedNode: newSelected,
+      );
+      await _persist();
+    } catch (_) {}
+  }
+
+  void updateSubscriptionOptions(String id, {
+    required int intervalHours,
+    required bool autoUpdate,
+    String? customName,
+  }) {
+    final index = state.subscriptions.indexWhere((s) => s.id == id);
+    if (index == -1) return;
+
+    final target = state.subscriptions[index];
     final updatedSub = target.copyWith(
-      lastUpdated: DateTime.now(),
-      uploadBytes: meta['upload'] ?? target.uploadBytes,
-      downloadBytes: meta['download'] ?? target.downloadBytes,
-      totalBytes: meta['total'] ?? target.totalBytes,
-      expireDate: meta['expire'] ?? target.expireDate,
-      nodes: nodes,
+      autoUpdateIntervalHours: intervalHours,
+      autoUpdate: autoUpdate,
+      name: customName ?? target.name,
     );
 
     final updatedSubs = List<SubscriptionModel>.from(state.subscriptions);
     updatedSubs[index] = updatedSub;
 
     state = state.copyWith(subscriptions: updatedSubs);
+    _persist();
+  }
+
+  void deleteSubscription(String id) {
+    final updatedSubs = state.subscriptions.where((s) => s.id != id).toList();
+    VlessNode? newSelected = state.selectedNode;
+    if (state.selectedNode?.subscriptionId == id) {
+      newSelected = updatedSubs.isNotEmpty && updatedSubs.first.nodes.isNotEmpty
+          ? updatedSubs.first.nodes.first
+          : (state.manualNodes.isNotEmpty ? state.manualNodes.first : null);
+    }
+
+    state = state.copyWith(
+      subscriptions: updatedSubs,
+      selectedNode: newSelected,
+    );
+    _persist();
+  }
+
+  void deleteManualNode(String id) {
+    final updatedManual = state.manualNodes.where((n) => n.id != id).toList();
+    VlessNode? newSelected = state.selectedNode;
+    if (state.selectedNode?.id == id) {
+      newSelected = updatedManual.isNotEmpty
+          ? updatedManual.first
+          : (state.subscriptions.isNotEmpty && state.subscriptions.first.nodes.isNotEmpty
+              ? state.subscriptions.first.nodes.first
+              : null);
+    }
+
+    state = state.copyWith(
+      manualNodes: updatedManual,
+      selectedNode: newSelected,
+    );
+    _persist();
   }
 
   Future<void> pingAllNodes() async {
+    // Согласно требованию: перед пингом серверов отключаем активное VPN соединение
     if (state.status == CoreState.connected) {
       await _xrayService.stop();
       await Future.delayed(const Duration(milliseconds: 300));
@@ -243,6 +406,7 @@ class VpnNotifier extends StateNotifier<VpnState> {
       manualNodes: updatedManual,
       isTestingPing: false,
     );
+    await _persist();
   }
 
   Future<void> toggleConnection() async {
@@ -251,6 +415,13 @@ class VpnNotifier extends StateNotifier<VpnState> {
     } else if (state.status == CoreState.disconnected && state.selectedNode != null) {
       await _xrayService.start(state.selectedNode!, state.settings);
     }
+  }
+
+  @override
+  void dispose() {
+    _sessionTimer?.cancel();
+    _autoUpdateCheckTimer?.cancel();
+    super.dispose();
   }
 }
 
