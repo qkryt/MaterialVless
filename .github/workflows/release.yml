@@ -10,13 +10,12 @@ permissions:
   contents: write
 
 env:
-  FLUTTER_VERSION: '3.24.3'
   XRAY_VERSION: 'v24.11.30'
   WINTUN_VERSION: '0.14.1'
 
 jobs:
   # ==========================================
-  # 1. СБОРКА WINDOWS (x64)
+  # 1. WINDOWS BUILD
   # ==========================================
   build-windows:
     name: Build Windows x64 (MaterialVless)
@@ -25,14 +24,15 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Flutter Toolchain
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
 
-      # Автогенерация нативных файлов Windows (CMake, runner)
+      - name: Enable Windows Desktop
+        run: flutter config --enable-windows-desktop
+
       - name: Generate Windows Native Files
         run: flutter create . --platforms=windows --org com.materialvless --project-name material_vless
 
@@ -47,7 +47,7 @@ jobs:
         run: |
           $TargetDir = "build/windows/x64/runner/Release"
           
-          # Загрузка официального ядра Xray-core
+          # Ядро Xray
           $XrayUrl = "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-windows-64.zip"
           Invoke-WebRequest -Uri $XrayUrl -OutFile "xray.zip"
           Expand-Archive -Path "xray.zip" -DestinationPath "xray_core"
@@ -56,7 +56,7 @@ jobs:
           Copy-Item "xray_core/geoip.dat" -Destination "$TargetDir"
           Copy-Item "xray_core/geosite.dat" -Destination "$TargetDir"
           
-          # Загрузка драйвера Wintun
+          # Драйвер Wintun
           $WintunUrl = "https://www.wintun.net/builds/wintun-${{ env.WINTUN_VERSION }}.zip"
           Invoke-WebRequest -Uri $WintunUrl -OutFile "wintun.zip"
           Expand-Archive -Path "wintun.zip" -DestinationPath "wintun_driver"
@@ -74,7 +74,7 @@ jobs:
           path: MaterialVless-Windows-x64.zip
 
   # ==========================================
-  # 2. СБОРКА ANDROID (APKs)
+  # 2. ANDROID BUILD
   # ==========================================
   build-android:
     name: Build Android APKs (MaterialVless)
@@ -83,28 +83,25 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Установка Java 17 без жесткого кэша Gradle
       - name: Setup Java JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Flutter Toolchain
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
 
-      # Автогенерация нативных файлов Android (Gradle, Manifest)
       - name: Generate Android Native Files
         run: flutter create . --platforms=android --org com.materialvless --project-name material_vless
 
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Compile Android Split APKs
+      - name: Compile Android APKs
         run: flutter build apk --split-per-abi --release
 
       - name: Organize APK Files
@@ -121,7 +118,7 @@ jobs:
           path: output_apks/*.apk
 
   # ==========================================
-  # 3. СБОРКА LINUX (x64)
+  # 3. LINUX BUILD
   # ==========================================
   build-linux:
     name: Build Linux x64 (MaterialVless)
@@ -130,19 +127,17 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install Linux Build Dependencies
+      - name: Install Linux Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
 
-      - name: Setup Flutter Toolchain
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
 
-      # Автогенерация нативных файлов Linux
       - name: Generate Linux Native Files
         run: flutter create . --platforms=linux --org com.materialvless --project-name material_vless
 
@@ -170,7 +165,7 @@ jobs:
           path: MaterialVless-Linux-x64.tar.gz
 
   # ==========================================
-  # 4. СБОРКА MACOS (Universal)
+  # 4. MACOS BUILD
   # ==========================================
   build-macos:
     name: Build macOS (MaterialVless)
@@ -179,14 +174,12 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Flutter Toolchain
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
 
-      # Автогенерация нативных файлов macOS (Xcode проект)
       - name: Generate macOS Native Files
         run: flutter create . --platforms=macos --org com.materialvless --project-name material_vless
 
@@ -216,7 +209,7 @@ jobs:
           path: MaterialVless-macOS.zip
 
   # ==========================================
-  # 5. ПУБЛИКАЦИЯ РЕЛИЗА
+  # 5. PUBLISH RELEASE
   # ==========================================
   publish-release:
     name: Publish Release Packages
@@ -248,9 +241,9 @@ jobs:
             Полноценный кроссплатформенный клиент VLESS / Reality / gRPC с ядром Xray-core и интерфейсом Material You (M3).
             
             #### Готовые файлы к загрузке:
-            - **Windows (x64):** `MaterialVless-Windows-x64.zip` (с драйвером `wintun.dll`, `xray.exe`, GeoIP/GeoSite).
-            - **Android:** Split APKs для `arm64-v8a`, `armeabi-v7a`, `x86_64`.
-            - **Linux (x64):** `MaterialVless-Linux-x64.tar.gz`.
-            - **macOS:** `MaterialVless-macOS.zip`.
+            - **Windows (x64):** `MaterialVless-Windows-x64.zip`
+            - **Android:** Split APKs для `arm64-v8a`, `armeabi-v7a`, `x86_64`
+            - **Linux (x64):** `MaterialVless-Linux-x64.tar.gz`
+            - **macOS:** `MaterialVless-macOS.zip`
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
