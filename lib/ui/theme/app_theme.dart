@@ -12,7 +12,7 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: scheme,
       scaffoldBackgroundColor: scheme.surface,
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
@@ -30,7 +30,7 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: scheme,
       scaffoldBackgroundColor: scheme.surface,
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
