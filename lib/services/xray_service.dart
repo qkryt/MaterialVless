@@ -3,10 +3,10 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import '../models/vless_node.dart';
+import '../models/app_settings.dart';
 import 'config_generator.dart';
 
 enum CoreState { disconnected, connecting, connected, disconnecting, error }
-enum NetworkMode { tun, systemProxy }
 
 class XrayService {
   Process? _process;
@@ -35,11 +35,12 @@ class XrayService {
     return 'xray';
   }
 
-  Future<void> start(VlessNode node, NetworkMode mode) async {
+  /// Запуск единого объединенного режима защиты (TUN + Системный прокси)
+  Future<void> start(VlessNode node, AppSettings settings) async {
     _updateState(CoreState.connecting);
 
     try {
-      final configJson = ConfigGenerator.generate(node);
+      final configJson = ConfigGenerator.generate(node, settings);
       final tempDir = await getTemporaryDirectory();
       final configFile = File('${tempDir.path}/material_vless_active.json');
       await configFile.writeAsString(configJson);
@@ -57,7 +58,7 @@ class XrayService {
 
       _process!.exitCode.then((code) {
         if (_state == CoreState.connected) {
-          stop(mode);
+          stop();
         }
       });
 
@@ -66,25 +67,23 @@ class XrayService {
         throw Exception('Xray process exited immediately upon start');
       }
 
-      if (mode == NetworkMode.systemProxy) {
-        await _setWindowsProxy(true, 10809);
-      }
+      // Активация единого системного прокси
+      await _setWindowsProxy(true, 10809);
 
       _startSpeedMonitoring();
       _updateState(CoreState.connected);
     } catch (e) {
-      await stop(mode);
+      await stop();
       _updateState(CoreState.error);
     }
   }
 
-  Future<void> stop(NetworkMode mode) async {
+  Future<void> stop() async {
     _updateState(CoreState.disconnecting);
     _trafficTimer?.cancel();
 
-    if (mode == NetworkMode.systemProxy) {
-      await _setWindowsProxy(false, 10809);
-    }
+    // Отключение системного прокси
+    await _setWindowsProxy(false, 10809);
 
     _process?.kill(ProcessSignal.sigterm);
     _process = null;
