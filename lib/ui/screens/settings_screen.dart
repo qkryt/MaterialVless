@@ -36,7 +36,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         children: [
-          // ==================== РАЗДЕЛ: МАРШРУТИЗАЦИЯ ====================
           _buildSectionHeader('Маршрутизация'),
           Card(
             color: colorScheme.surfaceContainer,
@@ -104,7 +103,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           const SizedBox(height: 16),
 
-          // ==================== РАЗДЕЛ: ПИНГ ====================
           _buildSectionHeader('Пинг и Задержка'),
           Card(
             color: colorScheme.surfaceContainer,
@@ -160,7 +158,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           const SizedBox(height: 16),
 
-          // ==================== РАЗДЕЛ: ТЕМА И ШРИФТ ====================
           _buildSectionHeader('Тема и шрифт'),
           Card(
             color: colorScheme.surfaceContainer,
@@ -218,7 +215,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           const SizedBox(height: 16),
 
-          // ==================== РАЗДЕЛ: ПОДПИСКА ====================
           _buildSectionHeader('Подписка и HWID'),
           Card(
             color: colorScheme.surfaceContainer,
@@ -232,7 +228,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     underline: const SizedBox(),
                     items: const [
                       DropdownMenuItem(value: 'MaterialVless', child: Text('MaterialVless')),
-                      DropdownMenuItem(value: 'Happ', child: Text('Happ-Client')),
+                      DropdownMenuItem(value: 'v2rayN', child: Text('v2rayN')),
                       DropdownMenuItem(value: 'Clash.Meta', child: Text('Clash.Meta')),
                       DropdownMenuItem(value: 'Sing-box', child: Text('Sing-box')),
                     ],
