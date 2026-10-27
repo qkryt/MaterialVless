@@ -76,7 +76,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     );
   }
 
-  // ==================== ЛЕВАЯ ПАНЕЛЬ: ПОДПИСКИ И СЕРВЕРЫ ====================
   Widget _buildServersListPane(BuildContext context) {
     final vpn = ref.watch(vpnProvider);
     final theme = Theme.of(context);
@@ -104,7 +103,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
               ],
             ),
           ),
-          // Поле поиска (как на скриншоте Happ)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             child: TextField(
@@ -127,13 +125,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               children: [
-                // Карточки подписок
                 for (final sub in vpn.subscriptions) ...[
                   _buildSubscriptionCard(context, sub),
                   const SizedBox(height: 12),
                 ],
-
-                // Список серверов
                 if (vpn.filteredNodes.isEmpty)
                   Padding(
                     padding: const EdgeInsets.all(32.0),
@@ -265,7 +260,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     );
   }
 
-  // ==================== ПРАВАЯ ПАНЕЛЬ: КНОПКА ПОДКЛЮЧЕНИЯ И СТАТУС ====================
   Widget _buildConnectionControlPane(BuildContext context) {
     final vpn = ref.watch(vpnProvider);
     final theme = Theme.of(context);
@@ -278,7 +272,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
       padding: const EdgeInsets.all(24.0),
       child: Column(
         children: [
-          // Единый режим: TUN + Системный прокси
           Align(
             alignment: Alignment.topRight,
             child: Container(
@@ -297,10 +290,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
               ),
             ),
           ),
-
           const Spacer(),
-
-          // Большая интерактивная кнопка в стиле скриншота Happ
           AnimatedBuilder(
             animation: _pulseAnimation,
             builder: (context, child) {
@@ -337,9 +327,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
               );
             },
           ),
-
           const SizedBox(height: 20),
-
           Text(
             isConnecting ? 'Подключение к защищенной сети...' : isConnected ? 'Подключено' : 'Отключено',
             style: theme.textTheme.titleMedium?.copyWith(
@@ -347,10 +335,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
               color: isConnected ? colorScheme.primary : colorScheme.onSurfaceVariant,
             ),
           ),
-
           const Spacer(),
-
-          // Выбранный сервер и флаг снизу
           if (vpn.selectedNode != null) ...[
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -365,8 +350,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             ),
             const SizedBox(height: 12),
           ],
-
-          // Кнопка «Тест пинга» прямо под выбранным сервером (в точности как на скриншоте Happ)
           SizedBox(
             width: 200,
             height: 44,
@@ -392,7 +375,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
   String _getCountryFlag(String title) {
     final lower = title.toLowerCase();
-    if (lower.contains('вела') || lower.contains('австрия') || lower.contains('vienna')) return '🇦🇹';
+    if (lower.contains('вена') || lower.contains('австрия') || lower.contains('vienna')) return '🇦🇹';
     if (lower.contains('франкфурт') || lower.contains('германия') || lower.contains('germany')) return '🇩🇪';
     if (lower.contains('амстердам') || lower.contains('нидерланды') || lower.contains('netherlands')) return '🇳🇱';
     if (lower.contains('варшава') || lower.contains('польша') || lower.contains('poland')) return '🇵🇱';
