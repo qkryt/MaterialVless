@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'package:crypto/crypto.dart';
+import '../utils/country_flag_helper.dart';
 
 enum ProxyProtocol { vless, vmess, trojan, shadowsocks, hysteria, hysteria2, unknown }
 
@@ -7,22 +9,23 @@ class VlessNode {
   final ProxyProtocol protocol;
   final String address;
   final int port;
-  final String uuid; // or password for trojan/ss/hy2
+  final String uuid;
   final String flow;
   final String encryption;
-  final String streamType; // tcp, grpc, ws, xhttp, splithttp, udp
-  final String security;   // reality, tls, none
+  final String streamType;
+  final String security;
   final String sni;
-  final String fingerprint; // chrome, android, safari, etc.
+  final String fingerprint;
   final String alpn;
   final String host;
-  final String publicKey;  // Reality pbk
-  final String shortId;    // Reality sid
+  final String publicKey;
+  final String shortId;
   final String spiderX;
-  final String serviceName; // gRPC
-  final String path;        // WebSocket / xhttp path
+  final String serviceName;
+  final String path;
   final String remark;
   final String subscriptionId;
+  final String rawUri;
   int? pingMs;
   int? downloadSpeedMs;
   int? uploadSpeedMs;
@@ -48,37 +51,45 @@ class VlessNode {
     this.path = '',
     required this.remark,
     this.subscriptionId = 'manual',
+    this.rawUri = '',
     this.pingMs,
     this.downloadSpeedMs,
     this.uploadSpeedMs,
   });
 
-  /// Универсальный парсер ссылок (vless, vmess, trojan, ss, hysteria, hysteria2)
-  factory VlessNode.fromUri(String rawUri, {String subscriptionId = 'manual'}) {
+  /// Гарантированная уникальность ID для каждого сервера
+  static String generateUniqueId(String uri, String subId, int index) {
+    final hash = sha256.convert(utf8.encode('$subId:$index:$uri')).toString().substring(0, 16);
+    return '${subId}_${index}_$hash';
+  }
+
+  factory VlessNode.fromUri(String rawUri, {String subscriptionId = 'manual', int index = 0}) {
     final clean = rawUri.trim();
+    final uniqueId = generateUniqueId(clean, subscriptionId, index);
 
     if (clean.startsWith('vless://')) {
-      return _parseVless(clean, subscriptionId);
+      return _parseVless(clean, subscriptionId, uniqueId);
     } else if (clean.startsWith('vmess://')) {
-      return _parseVmess(clean, subscriptionId);
+      return _parseVmess(clean, subscriptionId, uniqueId);
     } else if (clean.startsWith('trojan://')) {
-      return _parseTrojan(clean, subscriptionId);
+      return _parseTrojan(clean, subscriptionId, uniqueId);
     } else if (clean.startsWith('ss://')) {
-      return _parseShadowsocks(clean, subscriptionId);
+      return _parseShadowsocks(clean, subscriptionId, uniqueId);
     } else if (clean.startsWith('hysteria://') || clean.startsWith('hysteria2://') || clean.startsWith('hy2://')) {
-      return _parseHysteria(clean, subscriptionId);
+      return _parseHysteria(clean, subscriptionId, uniqueId);
     }
 
     throw FormatException('Неизвестный протокол ссылки: $clean');
   }
 
-  static VlessNode _parseVless(String rawUri, String subId) {
+  static VlessNode _parseVless(String rawUri, String subId, String uniqueId) {
     final uri = Uri.parse(rawUri);
     final q = uri.queryParameters;
-    final remark = Uri.decodeComponent(uri.fragment.isNotEmpty ? uri.fragment : '${uri.host}:${uri.port}');
+    final rawRemark = Uri.decodeComponent(uri.fragment.isNotEmpty ? uri.fragment : '${uri.host}:${uri.port}');
+    final cleanRemark = CountryFlagHelper.cleanRemark(rawRemark);
 
     return VlessNode(
-      id: '${uri.host}:${uri.port}_${uri.userInfo}_${DateTime.now().microsecondsSinceEpoch}',
+      id: uniqueId,
       protocol: ProxyProtocol.vless,
       address: uri.host,
       port: uri.port,
@@ -96,18 +107,20 @@ class VlessNode {
       spiderX: q['spx'] ?? '',
       serviceName: q['serviceName'] ?? '',
       path: q['path'] ?? '',
-      remark: remark,
+      remark: cleanRemark,
       subscriptionId: subId,
+      rawUri: rawUri,
     );
   }
 
-  static VlessNode _parseVmess(String rawUri, String subId) {
+  static VlessNode _parseVmess(String rawUri, String subId, String uniqueId) {
     final b64Part = rawUri.substring('vmess://'.length);
     final decoded = utf8.decode(base64.decode(base64.normalize(b64Part)));
     final json = jsonDecode(decoded) as Map<String, dynamic>;
+    final cleanRemark = CountryFlagHelper.cleanRemark(json['ps']?.toString() ?? 'VMess Server');
 
     return VlessNode(
-      id: '${json['add']}:${json['port']}_${json['id']}',
+      id: uniqueId,
       protocol: ProxyProtocol.vmess,
       address: json['add']?.toString() ?? '',
       port: int.tryParse(json['port']?.toString() ?? '443') ?? 443,
@@ -118,34 +131,38 @@ class VlessNode {
       sni: json['sni']?.toString() ?? json['host']?.toString() ?? '',
       host: json['host']?.toString() ?? '',
       path: json['path']?.toString() ?? '',
-      remark: json['ps']?.toString() ?? 'VMess Server',
+      remark: cleanRemark,
       subscriptionId: subId,
+      rawUri: rawUri,
     );
   }
 
-  static VlessNode _parseTrojan(String rawUri, String subId) {
+  static VlessNode _parseTrojan(String rawUri, String subId, String uniqueId) {
     final uri = Uri.parse(rawUri);
     final q = uri.queryParameters;
-    final remark = Uri.decodeComponent(uri.fragment.isNotEmpty ? uri.fragment : 'Trojan Server');
+    final rawRemark = Uri.decodeComponent(uri.fragment.isNotEmpty ? uri.fragment : 'Trojan Server');
+    final cleanRemark = CountryFlagHelper.cleanRemark(rawRemark);
 
     return VlessNode(
-      id: '${uri.host}:${uri.port}_${uri.userInfo}',
+      id: uniqueId,
       protocol: ProxyProtocol.trojan,
       address: uri.host,
       port: uri.port,
-      uuid: uri.userInfo, // trojan password
+      uuid: uri.userInfo,
       streamType: q['type'] ?? 'tcp',
       security: q['security'] ?? 'tls',
       sni: q['sni'] ?? uri.host,
       alpn: q['alpn'] ?? '',
-      remark: remark,
+      remark: cleanRemark,
       subscriptionId: subId,
+      rawUri: rawUri,
     );
   }
 
-  static VlessNode _parseShadowsocks(String rawUri, String subId) {
+  static VlessNode _parseShadowsocks(String rawUri, String subId, String uniqueId) {
     final uri = Uri.parse(rawUri);
-    final remark = Uri.decodeComponent(uri.fragment.isNotEmpty ? uri.fragment : 'Shadowsocks');
+    final rawRemark = Uri.decodeComponent(uri.fragment.isNotEmpty ? uri.fragment : 'Shadowsocks');
+    final cleanRemark = CountryFlagHelper.cleanRemark(rawRemark);
     String userInfo = uri.userInfo;
     if (!userInfo.contains(':')) {
       try {
@@ -157,25 +174,27 @@ class VlessNode {
     final password = parts.length > 1 ? parts[1] : '';
 
     return VlessNode(
-      id: '${uri.host}:${uri.port}_ss',
+      id: uniqueId,
       protocol: ProxyProtocol.shadowsocks,
       address: uri.host,
       port: uri.port,
       uuid: password,
       encryption: method,
-      remark: remark,
+      remark: cleanRemark,
       subscriptionId: subId,
+      rawUri: rawUri,
     );
   }
 
-  static VlessNode _parseHysteria(String rawUri, String subId) {
+  static VlessNode _parseHysteria(String rawUri, String subId, String uniqueId) {
     final uri = Uri.parse(rawUri);
     final isHy2 = rawUri.startsWith('hysteria2://') || rawUri.startsWith('hy2://');
     final q = uri.queryParameters;
-    final remark = Uri.decodeComponent(uri.fragment.isNotEmpty ? uri.fragment : 'Hysteria');
+    final rawRemark = Uri.decodeComponent(uri.fragment.isNotEmpty ? uri.fragment : 'Hysteria');
+    final cleanRemark = CountryFlagHelper.cleanRemark(rawRemark);
 
     return VlessNode(
-      id: '${uri.host}:${uri.port}_hy',
+      id: uniqueId,
       protocol: isHy2 ? ProxyProtocol.hysteria2 : ProxyProtocol.hysteria,
       address: uri.host,
       port: uri.port,
@@ -184,10 +203,68 @@ class VlessNode {
       security: 'tls',
       sni: q['sni'] ?? uri.host,
       alpn: q['alpn'] ?? '',
-      remark: remark,
+      remark: cleanRemark,
       subscriptionId: subId,
+      rawUri: rawUri,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'protocol': protocol.name,
+        'address': address,
+        'port': port,
+        'uuid': uuid,
+        'flow': flow,
+        'encryption': encryption,
+        'streamType': streamType,
+        'security': security,
+        'sni': sni,
+        'fingerprint': fingerprint,
+        'alpn': alpn,
+        'host': host,
+        'publicKey': publicKey,
+        'shortId': shortId,
+        'spiderX': spiderX,
+        'serviceName': serviceName,
+        'path': path,
+        'remark': remark,
+        'subscriptionId': subscriptionId,
+        'rawUri': rawUri,
+        'pingMs': pingMs,
+        'downloadSpeedMs': downloadSpeedMs,
+        'uploadSpeedMs': uploadSpeedMs,
+      };
+
+  factory VlessNode.fromJson(Map<String, dynamic> json) => VlessNode(
+        id: json['id'] ?? '',
+        protocol: ProxyProtocol.values.firstWhere(
+          (e) => e.name == json['protocol'],
+          orElse: () => ProxyProtocol.vless,
+        ),
+        address: json['address'] ?? '',
+        port: json['port'] ?? 443,
+        uuid: json['uuid'] ?? '',
+        flow: json['flow'] ?? '',
+        encryption: json['encryption'] ?? 'none',
+        streamType: json['streamType'] ?? 'tcp',
+        security: json['security'] ?? 'none',
+        sni: json['sni'] ?? '',
+        fingerprint: json['fingerprint'] ?? 'chrome',
+        alpn: json['alpn'] ?? '',
+        host: json['host'] ?? '',
+        publicKey: json['publicKey'] ?? '',
+        shortId: json['shortId'] ?? '',
+        spiderX: json['spiderX'] ?? '',
+        serviceName: json['serviceName'] ?? '',
+        path: json['path'] ?? '',
+        remark: json['remark'] ?? '',
+        subscriptionId: json['subscriptionId'] ?? 'manual',
+        rawUri: json['rawUri'] ?? '',
+        pingMs: json['pingMs'],
+        downloadSpeedMs: json['downloadSpeedMs'],
+        uploadSpeedMs: json['uploadSpeedMs'],
+      );
 
   VlessNode copyWith({
     int? pingMs,
@@ -216,6 +293,7 @@ class VlessNode {
       path: path,
       remark: remark ?? this.remark,
       subscriptionId: subscriptionId,
+      rawUri: rawUri,
       pingMs: pingMs ?? this.pingMs,
       downloadSpeedMs: downloadSpeedMs ?? this.downloadSpeedMs,
       uploadSpeedMs: uploadSpeedMs ?? this.uploadSpeedMs,
