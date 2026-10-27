@@ -84,133 +84,7 @@ jobs:
           path: MaterialVless-Windows-*.zip
 
   # ==========================================
-  # 2. ANDROID BUILD (All APKs)
-  # ==========================================
-  build-android:
-    name: Build Android APKs (All ABIs)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Setup Java JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
-
-      - name: Generate Android Native Files
-        run: flutter create . --platforms=android --org com.materialvless --project-name material_vless
-
-      - name: Fix Android CompileSdk
-        run: |
-          echo 'allprojects { subprojects { afterEvaluate { project -> if (project.hasProperty("android")) { project.android { compileSdkVersion 34 } } } } }' >> android/build.gradle || true
-
-      - name: Install Dependencies
-        run: flutter pub get
-
-      - name: Compile Android APKs via Gradle
-        run: |
-          # Сборка через Gradle напрямую во избежание сбоев поиска путей во Flutter CLI
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon || true
-          cd ..
-          
-          # Сборка Flutter Release APK
-          flutter build apk --release --no-tree-shake-icons || true
-
-      - name: Collect and Organize Android APKs
-        run: |
-          mkdir -p "$GITHUB_WORKSPACE/output_apks"
-          find "$GITHUB_WORKSPACE" -type f -name "*.apk" -exec cp -v {} "$GITHUB_WORKSPACE/output_apks/" \;
-          
-          cd "$GITHUB_WORKSPACE/output_apks"
-          ls -la
-          
-          # Стандартизация названий файлов для релиза
-          for f in *.apk; do
-            if [[ "$f" == *"arm64-v8a"* ]]; then cp "$f" "MaterialVless-Android-arm64-v8a.apk"
-            elif [[ "$f" == *"armeabi-v7a"* ]]; then cp "$f" "MaterialVless-Android-armeabi-v7a.apk"
-            elif [[ "$f" == *"x86_64"* ]]; then cp "$f" "MaterialVless-Android-x86_64.apk"
-            elif [[ "$f" == *"app-release"* ]]; then cp "$f" "MaterialVless-Android-Universal.apk"
-            fi
-          done
-          
-          # Если имя не переименовалось, гарантируем наличие главного APK
-          if [ ! -f "MaterialVless-Android-Universal.apk" ]; then
-            first_apk=$(ls -1 *.apk 2>/dev/null | head -n 1)
-            [ -n "$first_apk" ] && cp "$first_apk" "MaterialVless-Android-Universal.apk"
-          fi
-          
-          ls -la
-
-      - name: Upload Android Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: MaterialVless-Android-APKs
-          path: output_apks/*.apk
-
-  # ==========================================
-  # 3. IOS BUILD (.ipa via Xcode)
-  # ==========================================
-  build-ios:
-    name: Build iOS IPA (MaterialVless)
-    runs-on: macos-14
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
-
-      - name: Generate iOS Native Files
-        run: flutter create . --platforms=ios --org com.materialvless --project-name material_vless
-
-      - name: Install Dependencies
-        run: flutter pub get
-
-      - name: Prepare iOS Config
-        run: flutter build ios --config-only
-
-      - name: Build App via xcodebuild
-        run: |
-          # Сборка через Xcode без требования учетной записи разработчика
-          xcodebuild -workspace ios/Runner.xcworkspace \
-                     -scheme Runner \
-                     -sdk iphoneos \
-                     -configuration Release \
-                     -derivedDataPath build \
-                     CODE_SIGN_IDENTITY="" \
-                     CODE_SIGNING_REQUIRED=NO \
-                     CODE_SIGNING_ALLOWED=NO
-
-      - name: Package IPA
-        run: |
-          mkdir -p Payload
-          cp -R build/Build/Products/Release-iphoneos/Runner.app Payload/
-          zip -r MaterialVless-iOS.ipa Payload
-
-      - name: Upload iOS IPA Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: MaterialVless-iOS-IPA
-          path: MaterialVless-iOS.ipa
-
-  # ==========================================
-  # 4. LINUX BUILD (x64 and x86)
+  # 2. LINUX BUILD (x64 and x86)
   # ==========================================
   build-linux:
     name: Build Linux (x64 / x86)
@@ -270,7 +144,7 @@ jobs:
           path: MaterialVless-Linux-*.tar.gz
 
   # ==========================================
-  # 5. MACOS BUILD
+  # 3. MACOS BUILD
   # ==========================================
   build-macos:
     name: Build macOS (MaterialVless)
@@ -314,12 +188,12 @@ jobs:
           path: MaterialVless-macOS.zip
 
   # ==========================================
-  # 6. PUBLISH RELEASE & GEO DATA
+  # 4. PUBLISH RELEASE & GEO DATA
   # ==========================================
   publish-release:
     name: Publish Release Packages
-    needs: [build-windows, build-android, build-linux, build-macos, build-ios]
-    if: always() && startsWith(github.ref, 'refs/tags/v')
+    needs: [build-windows, build-linux, build-macos]
+    if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Download Build Artifacts
@@ -336,29 +210,36 @@ jobs:
       - name: Prepare Final Files
         run: |
           find release_staging -type f -exec mv {} final_assets/ \;
+          ls -la final_assets/
+
+      - name: Determine Tag Name
+        id: tag_info
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=v1.1.0" >> $GITHUB_OUTPUT
+          fi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: MaterialVless ${{ github.ref_name }}
+          tag_name: ${{ steps.tag_info.outputs.tag }}
+          name: MaterialVless ${{ steps.tag_info.outputs.tag }}
           draft: false
           prerelease: false
           files: final_assets/*
           body: |
-            ### MaterialVless Client — Релиз ${{ github.ref_name }}
+            ### MaterialVless Client — Релиз ${{ steps.tag_info.outputs.tag }}
             
-            Полноценный кроссплатформенный клиент VLESS / Reality / gRPC / Hysteria с ядром Xray-core и интерфейсом Material You.
+            Кроссплатформенный клиент VLESS / Reality / gRPC / Hysteria с ядром Xray-core и интерфейсом Material You.
             
-            #### Поддерживаемые платформы и архитектуры:
+            #### Поддерживаемые десктопные платформы:
             - **Windows (x64):** `MaterialVless-Windows-x64.zip` (Xray x64 + Wintun x64)
             - **Windows (x86):** `MaterialVless-Windows-x86.zip` (Xray 32-bit x86 + Wintun x86)
-            - **Android (Universal):** `MaterialVless-Android-Universal.apk` (Универсальный APK для всех процессоров)
-            - **Android (Splits):** `arm64-v8a`, `armeabi-v7a`, `x86_64`
-            - **iOS (.ipa):** `MaterialVless-iOS.ipa` (для Sideloadly / TrollStore / AltStore / Scarlet)
-            - **Linux (x64):** `MaterialVless-Linux-x64.tar.gz`
-            - **Linux (x86):** `MaterialVless-Linux-x86.tar.gz`
-            - **macOS:** `MaterialVless-macOS.zip` (Universal Apple Silicon + Intel)
-            - **Базы правил:** `geoip.dat` и `geosite.dat` прикреплены прямо к релизу для автономной работы
+            - **Linux (x64):** `MaterialVless-Linux-x64.tar.gz` (Xray 64-bit)
+            - **Linux (x86):** `MaterialVless-Linux-x86.tar.gz` (Xray 32-bit)
+            - **macOS:** `MaterialVless-macOS.zip` (Apple Silicon & Intel)
+            - **Базы маршрутизации:** `geoip.dat` и `geosite.dat` прикреплены прямо к релизу для автономной работы
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
