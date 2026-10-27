@@ -12,7 +12,7 @@ class AppSettings {
   String themeMode; // system, light, dark, amoled
 
   // Подписка
-  String userAgent; // MaterialVless, Happ, Clash.Meta, Sing-box
+  String userAgent; // MaterialVless, Clash.Meta, Sing-box, v2rayN
   bool sendHwid;
   bool autoUpdateOnStart;
   int autoUpdateIntervalHours; // 0 = off, 6, 12, 24
