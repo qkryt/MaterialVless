@@ -99,7 +99,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
   }
 
   Future<void> _init() async {
-    // 1. Загрузка сохраненных данных из файла material_vless_data.json
     final (savedSubs, savedManual, savedSelectedId, savedSettings) =
         await StorageService.loadData();
 
@@ -131,7 +130,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
       selectedNode: restoredSelectedNode,
     );
 
-    // 2. Автообновление Geo-баз при старте
     if (currentSettings.autoUpdateRulesOnStart) {
       SubscriptionService.updateGeoDatabases(
         targetDir: '.',
@@ -140,7 +138,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
       );
     }
 
-    // 3. Проверка интервалов автообновления подписок
     _checkSubscriptionsAutoUpdate();
     _autoUpdateCheckTimer = Timer.periodic(const Duration(minutes: 15), (_) {
       _checkSubscriptionsAutoUpdate();
@@ -196,9 +193,19 @@ class VpnNotifier extends StateNotifier<VpnState> {
     state = state.copyWith(searchQuery: query);
   }
 
-  void selectNode(VlessNode node) {
+  /// Выбор сервера: если VPN уже подключен, автоматически отключается, меняет узел и переподключается на лету
+  Future<void> selectNode(VlessNode node) async {
+    final wasConnected = state.status == CoreState.connected;
+    final isDifferentNode = state.selectedNode?.id != node.id;
+
     state = state.copyWith(selectedNode: node);
-    _persist();
+    await _persist();
+
+    if (wasConnected && isDifferentNode) {
+      await _xrayService.stop();
+      await Future.delayed(const Duration(milliseconds: 300));
+      await _xrayService.start(node, state.settings);
+    }
   }
 
   void updateSettings(AppSettings newSettings) {
@@ -210,7 +217,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
     final cleanSource = source.trim();
     if (cleanSource.isEmpty) return;
 
-    // Проверяем, это одиночный vless/vmess/trojan/ss/hy2 узел или подписка
     final isSingleNode = cleanSource.startsWith('vless://') ||
         cleanSource.startsWith('vmess://') ||
         cleanSource.startsWith('trojan://') ||
@@ -293,7 +299,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
       final updatedSubs = List<SubscriptionModel>.from(state.subscriptions);
       updatedSubs[index] = updatedSub;
 
-      // Если выбранный узел был из этой подписки, актуализируем ссылку
       VlessNode? newSelected = state.selectedNode;
       if (state.selectedNode?.subscriptionId == id) {
         final match = nodes.where((n) => n.id == state.selectedNode!.id);
@@ -369,7 +374,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
   }
 
   Future<void> pingAllNodes() async {
-    // Согласно требованию: перед пингом серверов отключаем активное VPN соединение
     if (state.status == CoreState.connected) {
       await _xrayService.stop();
       await Future.delayed(const Duration(milliseconds: 300));
