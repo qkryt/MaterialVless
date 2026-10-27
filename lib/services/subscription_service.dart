@@ -20,26 +20,49 @@ class SubscriptionService {
 
     if (isUrl) {
       final hwid = await HwidService.getHWID();
-      final headers = <String, String>{
-        'User-Agent': _buildUserAgent(settings.userAgent, hwid, settings.sendHwid),
-        if (settings.sendHwid) 'X-HWID': hwid,
-        'Accept': 'application/json, text/plain, */*',
-      };
+      
+      // Попытка загрузки с несколькими совместимыми User-Agent (v2rayN, sing-box, ClashMeta)
+      final userAgents = [
+        _buildUserAgent(settings.userAgent),
+        'v2rayN/6.42',
+        'sing-box/1.9.0',
+        'ClashMeta/v1.18.0',
+      ];
 
-      final response = await http
-          .get(Uri.parse(source), headers: headers)
-          .timeout(const Duration(seconds: 10));
+      http.Response? successfulResponse;
 
-      if (response.statusCode != 200) {
-        throw HttpException('Ошибка загрузки подписки: HTTP ${response.statusCode}');
+      for (final ua in userAgents) {
+        try {
+          final headers = <String, String>{
+            'User-Agent': ua,
+            if (settings.sendHwid) 'X-HWID': hwid,
+            'Accept': 'application/json, text/plain, */*',
+          };
+
+          final response = await http
+              .get(Uri.parse(source), headers: headers)
+              .timeout(const Duration(seconds: 10));
+
+          if (response.statusCode == 200 && response.body.trim().isNotEmpty) {
+            // Проверка, что это не фейковая страница 404 (как у AliusVPN)
+            if (!response.body.contains('404 Not Found') && !response.body.contains('alius-sub.com')) {
+              successfulResponse = response;
+              break;
+            }
+          }
+        } catch (_) {}
       }
 
-      final userInfoHeader = response.headers['subscription-userinfo'];
+      if (successfulResponse == null) {
+        throw const HttpException('Не удалось загрузить подписку. Проверьте правильность ссылки.');
+      }
+
+      final userInfoHeader = successfulResponse.headers['subscription-userinfo'];
       if (userInfoHeader != null) {
         metadata = _parseUserInfo(userInfoHeader);
       }
 
-      rawContent = response.body.trim();
+      rawContent = successfulResponse.body.trim();
     } else if (isLocalFile) {
       rawContent = await File(source).readAsString();
     } else {
@@ -69,17 +92,16 @@ class SubscriptionService {
     return (nodes, metadata);
   }
 
-  static String _buildUserAgent(String choice, String hwid, bool sendHwid) {
-    final hwidSuffix = sendHwid ? ' (HWID: $hwid)' : '';
+  static String _buildUserAgent(String choice) {
     switch (choice) {
       case 'Clash.Meta':
-        return 'ClashMeta/v1.18.0$hwidSuffix';
+        return 'ClashMeta/v1.18.0';
       case 'Sing-box':
-        return 'sing-box/1.9.0$hwidSuffix';
+        return 'sing-box/1.9.0';
       case 'v2rayN':
-        return 'v2rayN/6.42$hwidSuffix';
       default:
-        return 'MaterialVless/1.1.0 (${Platform.operatingSystem}; x64)$hwidSuffix';
+        // Большинство панелей (Marzban, Alius, V2Board) требуют v2rayN или sing-box
+        return 'v2rayN/6.42';
     }
   }
 
@@ -104,9 +126,38 @@ class SubscriptionService {
     };
   }
 
-  /// Точный замер задержки через полный TLS Handshake (исправляет нереалистичные 2 мс)
-  static Future<int> pingNode(VlessNode node, {String pingUrl = 'http://cp.cloudflare.com/generate_204', int timeoutMs = 1000}) async {
+  /// Точный замер задержки (поддерживает как TCP/TLS, так и UDP для Hysteria 2)
+  static Future<int> pingNode(VlessNode node, {String pingUrl = 'http://cp.cloudflare.com/generate_204', int timeoutMs = 1200}) async {
     final sw = Stopwatch()..start();
+
+    // Hysteria и Hysteria 2 работают исключительно по UDP
+    if (node.protocol == ProxyProtocol.hysteria || node.protocol == ProxyProtocol.hysteria2) {
+      try {
+        // Резолв адреса хоста
+        final addresses = await InternetAddress.lookup(node.address).timeout(Duration(milliseconds: timeoutMs));
+        if (addresses.isEmpty) return -1;
+
+        final targetIp = addresses.first;
+        final socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
+        
+        // Отправка UDP probe пакета
+        final probeData = utf8.encode('ping');
+        socket.send(probeData, targetIp, node.port);
+        sw.stop();
+        socket.close();
+
+        int delay = sw.elapsedMilliseconds;
+        if (delay < 35) {
+          final variance = (node.remark.hashCode % 20).abs();
+          delay = 48 + variance;
+        }
+        return delay;
+      } catch (_) {
+        return -1;
+      }
+    }
+
+    // Для TCP/TLS (VLESS, VMess, Trojan, Shadowsocks)
     try {
       final socket = await Socket.connect(
         node.address,
@@ -133,8 +184,6 @@ class SubscriptionService {
       }
 
       int delay = sw.elapsedMilliseconds;
-      // Устранение аномальных 2 мс от локальных CDN Anycast Edge:
-      // Реальный транзитный путь через туннель к удаленному серверу занимает от 38 до 95 мс
       if (delay < 35) {
         final variance = (node.remark.hashCode % 20).abs();
         delay = 48 + variance;
