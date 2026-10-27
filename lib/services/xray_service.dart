@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import '../models/vless_node.dart';
@@ -19,6 +20,21 @@ class XrayService {
   Stream<(int, int)> get speedStream => _speedController.stream;
   CoreState get currentState => _state;
 
+  static String _resolveXrayBinary() {
+    final exeDir = File(Platform.resolvedExecutable).parent.path;
+    if (Platform.isWindows) {
+      final local = '$exeDir\\xray.exe';
+      return File(local).existsSync() ? local : 'xray.exe';
+    } else if (Platform.isLinux) {
+      final local = '$exeDir/xray';
+      return File(local).existsSync() ? local : 'xray';
+    } else if (Platform.isMacOS) {
+      final local = '${File(Platform.resolvedExecutable).parent.parent.path}/Resources/xray';
+      return File(local).existsSync() ? local : 'xray';
+    }
+    return 'xray';
+  }
+
   Future<void> start(VlessNode node, NetworkMode mode) async {
     _updateState(CoreState.connecting);
 
@@ -28,13 +44,27 @@ class XrayService {
       final configFile = File('${tempDir.path}/material_vless_active.json');
       await configFile.writeAsString(configJson);
 
-      _process = await Process.start('xray', ['run', '-c', configFile.path]);
+      final binaryPath = _resolveXrayBinary();
+      final workingDir = File(binaryPath).existsSync()
+          ? File(binaryPath).parent.path
+          : null;
+
+      _process = await Process.start(
+        binaryPath,
+        ['run', '-c', configFile.path],
+        workingDirectory: workingDir,
+      );
 
       _process!.exitCode.then((code) {
         if (_state == CoreState.connected) {
           stop(mode);
         }
       });
+
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (_process == null) {
+        throw Exception('Xray process exited immediately upon start');
+      }
 
       if (mode == NetworkMode.systemProxy) {
         await _setWindowsProxy(true, 10809);
@@ -70,7 +100,6 @@ class XrayService {
 
   void _startSpeedMonitoring() {
     _trafficTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      // Имитация чтения дельты байтов из StatsService API ядра
       _speedController.add((320000, 2850000));
     });
   }
