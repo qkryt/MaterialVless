@@ -40,17 +40,50 @@ class ConfigGenerator {
     "auto.ru"
   ];
 
+  static const List<String> _telegramDomains = [
+    "telegram.org",
+    "t.me",
+    "telegra.ph",
+    "tdesktop.com",
+    "telesco.pe",
+    "tx.me",
+    "stel.com"
+  ];
+
+  static const List<String> _telegramIps = [
+    "91.108.4.0/22",
+    "91.108.8.0/22",
+    "91.108.12.0/22",
+    "91.108.16.0/22",
+    "91.108.20.0/22",
+    "91.108.56.0/22",
+    "149.154.160.0/20"
+  ];
+
   static String generate(VlessNode node, AppSettings settings) {
     final Map<String, dynamic> outbound = _buildOutbound(node);
 
     final List<Map<String, dynamic>> routeRules = [
       {
-        "action": "sniff",
-        "timeout": "300ms"
+        "port": 53,
+        "action": "hijack-dns"
       },
       {
         "protocol": "dns",
         "action": "hijack-dns"
+      },
+      // Telegram: прямое направление в туннель без задержек сниффинга (MTProto не является TLS)
+      {
+        "ip_cidr": _telegramIps,
+        "outbound": "proxy"
+      },
+      {
+        "domain_suffix": _telegramDomains,
+        "outbound": "proxy"
+      },
+      {
+        "action": "sniff",
+        "timeout": "300ms"
       },
     ];
 
@@ -80,6 +113,13 @@ class ConfigGenerator {
             "detour": "proxy"
           },
           {
+            "tag": "remote-google",
+            "type": "https",
+            "server": "8.8.8.8",
+            "path": "/dns-query",
+            "detour": "proxy"
+          },
+          {
             "tag": "local-dns",
             "type": "local",
             "detour": "direct"
@@ -90,7 +130,11 @@ class ConfigGenerator {
             {
               "domain_suffix": _russianDomains,
               "server": "local-dns"
-            }
+            },
+          {
+            "domain_suffix": _telegramDomains,
+            "server": "remote-dns"
+          }
         ],
         "final": "remote-dns",
         "strategy": "ipv4_only"
@@ -101,9 +145,10 @@ class ConfigGenerator {
           "tag": "tun-in",
           "interface_name": "material-tun",
           "address": ["172.19.0.1/30"],
+          "mtu": 1400,
           "auto_route": true,
           "strict_route": false,
-          "stack": "mixed",
+          "stack": "gvisor",
           "endpoint_independent_nat": true
         },
         {
@@ -159,7 +204,8 @@ class ConfigGenerator {
         "server": node.address,
         "server_port": node.port,
         "uuid": node.uuid,
-        "security": "auto"
+        "security": "auto",
+        "packet_encoding": "xudp"
       };
     }
 
@@ -171,6 +217,7 @@ class ConfigGenerator {
         "server": node.address,
         "server_port": node.port,
         "password": node.uuid,
+        "packet_encoding": "xudp",
         "tls": {
           "enabled": true,
           "server_name": node.sni.isNotEmpty ? node.sni : node.address
@@ -218,6 +265,7 @@ class ConfigGenerator {
       "server": node.address,
       "server_port": node.port,
       "uuid": node.uuid,
+      "packet_encoding": "xudp",
       if (node.flow.isNotEmpty) "flow": node.flow,
       "tls": tls,
     };
