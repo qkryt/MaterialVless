@@ -64,13 +64,21 @@ class ConfigGenerator {
     final Map<String, dynamic> outbound = _buildOutbound(node);
 
     final List<Map<String, dynamic>> routeRules = [
+      // Перехват входящих DNS запросов только от виртуального адаптера tun-in (избегает циклов)
       {
+        "inbound": ["tun-in"],
         "port": 53,
         "action": "hijack-dns"
       },
       {
+        "inbound": ["tun-in"],
         "protocol": "dns",
         "action": "hijack-dns"
+      },
+      // Прямой доступ к локальным DNS серверам
+      {
+        "ip_cidr": ["77.88.8.8/32", "77.88.8.1/32"],
+        "outbound": "direct"
       },
       // Telegram: прямое направление в туннель без задержек сниффинга (MTProto не является TLS)
       {
@@ -121,11 +129,17 @@ class ConfigGenerator {
           },
           {
             "tag": "local-dns",
-            "type": "local",
-            "detour": "direct"
+            "type": "udp",
+            "server": "77.88.8.8"
           }
         ],
         "rules": [
+          // Предотвращение круговой зависимости: адрес самого прокси-сервера всегда резолвится локально
+          if (!RegExp(r'^\d+\.\d+\.\d+\.\d+$').hasMatch(node.address))
+            {
+              "domain": [node.address],
+              "server": "local-dns"
+            },
           if (settings.routingPreset == 'russia')
             {
               "domain_suffix": _russianDomains,
@@ -148,7 +162,7 @@ class ConfigGenerator {
           "mtu": 1400,
           "auto_route": true,
           "strict_route": false,
-          "stack": "gvisor",
+          "stack": "system",
           "endpoint_independent_nat": true
         },
         {
@@ -188,6 +202,7 @@ class ConfigGenerator {
         "server": node.address,
         "server_port": node.port,
         "password": node.uuid,
+        "domain_resolver": "local-dns",
         "tls": {
           "enabled": true,
           "server_name": node.sni.isNotEmpty ? node.sni : node.address,
@@ -205,7 +220,8 @@ class ConfigGenerator {
         "server_port": node.port,
         "uuid": node.uuid,
         "security": "auto",
-        "packet_encoding": "xudp"
+        "packet_encoding": "xudp",
+        "domain_resolver": "local-dns"
       };
     }
 
@@ -218,6 +234,7 @@ class ConfigGenerator {
         "server_port": node.port,
         "password": node.uuid,
         "packet_encoding": "xudp",
+        "domain_resolver": "local-dns",
         "tls": {
           "enabled": true,
           "server_name": node.sni.isNotEmpty ? node.sni : node.address
@@ -233,7 +250,8 @@ class ConfigGenerator {
         "server": node.address,
         "server_port": node.port,
         "method": node.encryption,
-        "password": node.uuid
+        "password": node.uuid,
+        "domain_resolver": "local-dns"
       };
     }
 
@@ -266,6 +284,7 @@ class ConfigGenerator {
       "server_port": node.port,
       "uuid": node.uuid,
       "packet_encoding": "xudp",
+      "domain_resolver": "local-dns",
       if (node.flow.isNotEmpty) "flow": node.flow,
       "tls": tls,
     };
