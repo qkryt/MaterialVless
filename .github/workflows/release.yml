@@ -51,6 +51,11 @@ jobs:
       - name: Compile Windows App
         run: flutter build windows --release
 
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+
       - name: Package Windows x64 and x86 with sing-box and Wintun
         shell: pwsh
         run: |
@@ -102,11 +107,24 @@ jobs:
           Copy-Item "wintun_driver/wintun/bin/x86/wintun.dll" -Destination "dist_x86/wintun.dll" -Force
           Compress-Archive -Path "dist_x86/*" -DestinationPath "MaterialVless-Windows-x86.zip"
 
+          # Сборка Setup установщиков через Inno Setup
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (Test-Path $iscc) {
+            if (Test-Path "windows/installer_x64.iss") {
+              & $iscc "windows/installer_x64.iss"
+            }
+            if (Test-Path "windows/installer_x86.iss") {
+              & $iscc "windows/installer_x86.iss"
+            }
+          }
+
       - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: MaterialVless-Windows
-          path: MaterialVless-Windows-*.zip
+          path: |
+            MaterialVless-Windows-*.zip
+            MaterialVless-Windows-*.exe
 
   # ==========================================
   # 2. LINUX BUILD (x64 and x86)
@@ -244,7 +262,7 @@ jobs:
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
           else
-            echo "tag=v1.0.0" >> $GITHUB_OUTPUT
+            echo "tag=v1.0.1" >> $GITHUB_OUTPUT
           fi
 
       - name: Create GitHub Release
@@ -256,38 +274,33 @@ jobs:
           prerelease: false
           files: final_assets/*
           body: |
-            ### 🌟 MaterialVless Client — Официальный Релиз ${{ steps.tag_info.outputs.tag }}
+            ### ⚡ MaterialVless Client — Релиз ${{ steps.tag_info.outputs.tag }} (Микропатч)
             
-            Первый стабильный релиз полноценного десктопного клиента нового поколения на ядре **sing-box v1.14** со встроенным драйвером виртуальной сетевой карты **Wintun** и дизайном **Material You (Material 3)**.
+            Обновление клиента с поддержкой точечного пинга подписок, защитой геометрии окна и новыми установщиками для Windows.
             
-            #### 🚀 Главные возможности и исправления:
-            - **Полноценная работа Telegram:**
-              - Прямая маршрутизация диапазонов дата-центров Telegram (`91.108.0.0/16`, `149.154.0.0/16`) и доменов напрямую в защищённый туннель.
-              - Поддержка протокола **XUDP** (`packet_encoding: xudp`), обеспечивающая мгновенное подключение Telegram MTProto и голосовых звонков.
-            - **Устранение PR_CONNECT_RESET_ERROR:**
-              - Установлен оптимальный **MTU 1400**, исключающий фрагментацию пакетов и разрывы TCP-сессий (Connection Reset).
-              - Переход на сетевой стек **gVisor** в режиме TUN, гарантирующий надёжную обработку как TCP, так и UDP трафика в пространстве пользователя Windows.
-              - Отказоустойчивый DNS: Cloudflare DoH (`1.1.1.1`) + Google DoH (`8.8.8.8`) внутри зашифрованного туннеля.
-            - **Автоматическая проверка обновлений:**
-              - Всплывающее окно при запуске при выходе новой версии с показом списка изменений и кнопкой загрузки.
-              - Кнопка ручной проверки обновлений в настройках приложения.
-            - **Работа в системном трее (System Tray):**
-              - Контекстное меню из 3 действий: «Открыть», «Перезагрузить ядро», «Выйти».
-              - Окно мягко сворачивается в трей при нажатии `[X]`.
-            - **Обязательный запуск от Администратора (UAC):**
-              - Автоматический запрос повышенных привилегий на Windows. При отказе пользователя — мгновенное завершение процесса без зависаний.
-              - Бесперебойное создание адаптера `material-tun` в сетевых подключениях Windows.
-            - **Закрепление и сортировка подписок:**
-              - Закрепление важных подписок с бейджем «ЗАКРЕПЛЕНО».
-              - Ручное перемещение вверх `↑` и вниз `↓` с сохранением персонального порядка.
-            - **Умная маршрутизация:**
-              - Прямой обход (direct) для всех российских доменов (.ru, .рф, .su, .by, банки, госуслуги, маркетплейсы) и локальной сети (LAN).
+            #### 🌟 Нововведения микропатча:
+            - **⚡ Кнопка пинга подписки:**
+              - Добавлена отдельная кнопка замера скорости для конкретной подписки — теперь можно проверить пинг серверов одной подписки без тестирования всей базы.
+            - **📐 Защита от сжатия окна (Min Size):**
+              - Ограничен минимальный размер окна (`420x560`), предотвращая превращение интерфейса в труху при ресайзе.
+            - **🔄 Адаптивная панель подписки (Overflow):**
+              - При сжатии окна второстепенные кнопки (Закрепить, Переместить выше/ниже) аккуратно сворачиваются в троеточие.
+              - На карточке подписки при максимальном сжатии остаются строго 3 ключевые кнопки: «Обновить», «Пинг» и «Троеточие/Настройки».
+            - **✨ Живые кнопки Material You:**
+              - Добавлен мягкий светящийся круговой M3-hover индикатор при наведении курсора на кнопки управления и шеврон скрытия подписок.
+            - **📦 Официальные инсталляторы (Setup):**
+              - `MaterialVless-Windows-x64-Setup.exe` — полноценный мастер установки Windows 64-bit с ярлыками и деинсталлятором.
+              - `MaterialVless-Windows-x86-Setup.exe` — мастер установки Windows 32-bit.
+            - **👥 Contributors:**
+              - Добавлен официальный раздел участников разработки в репозиторий.
             
-            #### 📦 Поддерживаемые платформы:
-            - **Windows (x64):** `MaterialVless-Windows-x64.zip` (sing-box + Wintun x64)
-            - **Windows (x86):** `MaterialVless-Windows-x86.zip` (sing-box + Wintun x86)
-            - **Linux (x64):** `MaterialVless-Linux-x64.tar.gz` (sing-box 64-bit + AppIndicator)
-            - **Linux (x86):** `MaterialVless-Linux-x86.tar.gz` (sing-box 32-bit)
-            - **macOS:** `MaterialVless-macOS.zip` (Universal sing-box)
+            #### 📦 Файлы релиза:
+            - **Windows (x64) Installer:** `MaterialVless-Windows-x64-Setup.exe`
+            - **Windows (x64) Portable:** `MaterialVless-Windows-x64.zip`
+            - **Windows (x86) Installer:** `MaterialVless-Windows-x86-Setup.exe`
+            - **Windows (x86) Portable:** `MaterialVless-Windows-x86.zip`
+            - **Linux (x64):** `MaterialVless-Linux-x64.tar.gz`
+            - **Linux (x86):** `MaterialVless-Linux-x86.tar.gz`
+            - **macOS:** `MaterialVless-macOS.zip`
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
