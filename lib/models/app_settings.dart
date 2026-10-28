@@ -36,7 +36,7 @@ class AppSettings {
     this.sendHwid = true,
     this.autoUpdateOnStart = true,
     this.autoUpdateIntervalHours = 12,
-    this.routingPreset = 'none',
+    this.routingPreset = 'russia',
     this.geoipUrl = 'https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geoip.dat',
     this.geositeUrl = 'https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geosite.dat',
     this.autoUpdateRulesOnStart = true,
