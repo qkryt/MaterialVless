@@ -4,6 +4,7 @@ import '../../providers/vpn_provider.dart';
 import '../../services/hwid_service.dart';
 import '../../services/subscription_service.dart';
 import '../../services/tray_service.dart';
+import '../../services/update_service.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -14,6 +15,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String _hwid = 'Загрузка...';
+  bool _isCheckingUpdate = false;
 
   @override
   void initState() {
@@ -245,6 +247,49 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ListTile(
                   title: const Text('Аппаратный HWID устройства'),
                   subtitle: SelectableText(_hwid, style: const TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          _buildSectionHeader('О приложении и обновлениях'),
+          Card(
+            color: colorScheme.surfaceContainer,
+            elevation: 0,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: Column(
+              children: [
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  leading: const Icon(Icons.info_outline_rounded),
+                  title: const Text('Версия клиента'),
+                  subtitle: Text('Текущая версия: v${UpdateService.currentVersion}'),
+                  trailing: _isCheckingUpdate
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : FilledButton.tonalIcon(
+                          icon: const Icon(Icons.refresh_rounded, size: 16),
+                          label: const Text('Обновить'),
+                          onPressed: () async {
+                            setState(() => _isCheckingUpdate = true);
+                            final update = await UpdateService.checkForUpdate();
+                            setState(() => _isCheckingUpdate = false);
+                            if (!mounted) return;
+                            if (update != null) {
+                              await UpdateService.showUpdateDialog(context, update);
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('У вас установлена самая актуальная версия (v1.0.0)'),
+                                ),
+                              );
+                            }
+                          },
+                        ),
                 ),
               ],
             ),
