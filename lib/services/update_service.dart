@@ -20,7 +20,7 @@ class UpdateInfo {
 }
 
 class UpdateService {
-  static const String currentVersion = "1.0.0";
+  static const String currentVersion = "1.0.1";
   static const String _repo = "qkryt/MaterialVless";
 
   /// Сравнивает две версии, например "1.1" и "1.0.0" или "2.0" и "1.0.0"
