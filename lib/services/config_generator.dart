@@ -18,7 +18,7 @@ class ConfigGenerator {
 
     if (settings.routingPreset == 'russia') {
       routeRules.add({
-        "domain_suffix": [".ru", ".рф", ".su", ".by"],
+        "domain_suffix": [".ru", ".xn--p1ai", ".su", ".by"],
         "outbound": "direct"
       });
     }
@@ -49,7 +49,7 @@ class ConfigGenerator {
         "rules": [
           if (settings.routingPreset == 'russia')
             {
-              "domain_suffix": [".ru", ".рф", ".su", ".by"],
+              "domain_suffix": [".ru", ".xn--p1ai", ".su", ".by"],
               "server": "local-dns"
             }
         ],
