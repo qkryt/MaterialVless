@@ -189,6 +189,94 @@ class VpnNotifier extends StateNotifier<VpnState> {
     _persist();
   }
 
+  /// Закрепление / открепление подписки (закрепленные перемещаются наверх)
+  Future<void> togglePinSubscription(String subId) async {
+    final updated = List<SubscriptionModel>.from(state.subscriptions);
+    final idx = updated.indexWhere((s) => s.id == subId);
+    if (idx == -1) return;
+
+    final sub = updated[idx];
+    final newPinned = !sub.isPinned;
+    final toggled = sub.copyWith(isPinned: newPinned);
+    updated.removeAt(idx);
+
+    if (newPinned) {
+      // Ищем позицию последней закрепленной подписки
+      final lastPinnedIdx = updated.lastIndexWhere((s) => s.isPinned);
+      if (lastPinnedIdx == -1) {
+        updated.insert(0, toggled);
+      } else {
+        updated.insert(lastPinnedIdx + 1, toggled);
+      }
+    } else {
+      // Переносим вниз после всех закрепленных
+      final firstUnpinnedIdx = updated.indexWhere((s) => !s.isPinned);
+      if (firstUnpinnedIdx == -1) {
+        updated.add(toggled);
+      } else {
+        updated.insert(firstUnpinnedIdx, toggled);
+      }
+    }
+
+    state = state.copyWith(subscriptions: updated);
+    await _persist();
+  }
+
+  /// Перемещение подписки выше в списке
+  Future<void> moveSubscriptionUp(String subId) async {
+    final updated = List<SubscriptionModel>.from(state.subscriptions);
+    final idx = updated.indexWhere((s) => s.id == subId);
+    if (idx <= 0) return;
+
+    // Не перемещаем незакрепленную выше закрепленной
+    if (!updated[idx].isPinned && updated[idx - 1].isPinned) return;
+
+    final item = updated.removeAt(idx);
+    updated.insert(idx - 1, item);
+    state = state.copyWith(subscriptions: updated);
+    await _persist();
+  }
+
+  /// Перемещение подписки ниже в списке
+  Future<void> moveSubscriptionDown(String subId) async {
+    final updated = List<SubscriptionModel>.from(state.subscriptions);
+    final idx = updated.indexWhere((s) => s.id == subId);
+    if (idx == -1 || idx >= updated.length - 1) return;
+
+    // Не перемещаем закрепленную ниже незакрепленной
+    if (updated[idx].isPinned && !updated[idx + 1].isPinned) return;
+
+    final item = updated.removeAt(idx);
+    updated.insert(idx + 1, item);
+    state = state.copyWith(subscriptions: updated);
+    await _persist();
+  }
+
+  /// Свободное изменение порядка подписок (drag & drop)
+  Future<void> reorderSubscriptions(int oldIndex, int newIndex) async {
+    final updated = List<SubscriptionModel>.from(state.subscriptions);
+    if (newIndex > oldIndex) newIndex -= 1;
+    final item = updated.removeAt(oldIndex);
+    updated.insert(newIndex, item);
+    state = state.copyWith(subscriptions: updated);
+    await _persist();
+  }
+
+  /// Перезагрузка ядра VPN с активным сервером
+  Future<void> restartCore() async {
+    final node = state.selectedNode;
+    if (node == null) return;
+    await _xrayService.stop();
+    await Future.delayed(const Duration(milliseconds: 500));
+    await _xrayService.start(node, state.settings);
+  }
+
+  /// Полное выключение клиента: отключение VPN, сброс прокси и выход
+  Future<void> exitApp() async {
+    await _xrayService.stop();
+    exit(0);
+  }
+
   void setSearchQuery(String query) {
     state = state.copyWith(searchQuery: query);
   }
