@@ -81,19 +81,8 @@ jobs:
           Copy-Item "sb_64/sing-box-${{ env.SING_BOX_VERSION }}-windows-amd64/sing-box.exe" -Destination "$ReleaseDir/sing-box.exe"
           Copy-Item "wintun_driver/wintun/bin/amd64/wintun.dll" -Destination "$ReleaseDir/wintun.dll"
 
-          $manifestContent = @"
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
-  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
-    <security>
-      <requestedPrivileges>
-        <requestedExecutionLevel level="requireAdministrator" uiAccess="false"/>
-      </requestedPrivileges>
-    </security>
-  </trustInfo>
-</assembly>
-"@
-          [System.IO.File]::WriteAllText("$ReleaseDir/material_vless.exe.manifest", $manifestContent)
+          $manifest = '<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0"><trustInfo xmlns="urn:schemas-microsoft-com:asm.v3"><security><requestedPrivileges><requestedExecutionLevel level="requireAdministrator" uiAccess="false"/></requestedPrivileges></security></trustInfo></assembly>'
+          [System.IO.File]::WriteAllText("$ReleaseDir/material_vless.exe.manifest", $manifest)
 
           # Embed manifest directly into exe with mt.exe if available
           $mt = (Get-Command mt.exe -ErrorAction SilentlyContinue).Source
@@ -252,7 +241,7 @@ jobs:
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
           else
-            echo "tag=v1.3.0" >> $GITHUB_OUTPUT
+            echo "tag=v1.3.2" >> $GITHUB_OUTPUT
           fi
 
       - name: Create GitHub Release
