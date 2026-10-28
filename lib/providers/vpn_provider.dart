@@ -502,6 +502,38 @@ class VpnNotifier extends StateNotifier<VpnState> {
     await _persist();
   }
 
+  /// Замер пинга всех серверов конкретной подписки
+  Future<void> pingSubscription(String subId) async {
+    final subIndex = state.subscriptions.indexWhere((s) => s.id == subId);
+    if (subIndex == -1) return;
+
+    state = state.copyWith(isTestingPing: true);
+
+    try {
+      final sub = state.subscriptions[subIndex];
+      final updatedNodes = <VlessNode>[];
+      for (final node in sub.nodes) {
+        final ping = await SubscriptionService.pingNode(
+          node,
+          pingUrl: state.settings.pingUrl,
+          timeoutMs: state.settings.pingTimeoutMs,
+        );
+        updatedNodes.add(node.copyWith(pingMs: ping));
+      }
+
+      final updatedSubs = List<SubscriptionModel>.from(state.subscriptions);
+      updatedSubs[subIndex] = sub.copyWith(nodes: updatedNodes);
+
+      state = state.copyWith(
+        subscriptions: updatedSubs,
+        isTestingPing: false,
+      );
+      await _persist();
+    } catch (_) {
+      state = state.copyWith(isTestingPing: false);
+    }
+  }
+
   Future<void> toggleConnection() async {
     if (state.status == CoreState.connected) {
       await _xrayService.stop();
