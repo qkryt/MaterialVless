@@ -28,7 +28,6 @@ class TrayService with TrayListener, WindowListener {
       await windowManager.setPreventClose(true);
 
       // Инициализация системного трея
-      await trayManager.ensureInitialized();
       trayManager.addListener(this);
 
       // Определение пути к иконке приложения
