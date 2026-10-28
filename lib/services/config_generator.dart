@@ -18,11 +18,7 @@ class ConfigGenerator {
 
     if (settings.routingPreset == 'russia') {
       routeRules.add({
-        "geosite": ["ru"],
-        "outbound": "direct"
-      });
-      routeRules.add({
-        "geoip": ["ru"],
+        "domain_suffix": [".ru", ".рф", ".su", ".by"],
         "outbound": "direct"
       });
     }
@@ -50,6 +46,13 @@ class ConfigGenerator {
             "detour": "direct"
           }
         ],
+        "rules": [
+          if (settings.routingPreset == 'russia')
+            {
+              "domain_suffix": [".ru", ".рф", ".su", ".by"],
+              "server": "local-dns"
+            }
+        ],
         "strategy": "ipv4_only"
       },
       "inbounds": [
@@ -60,7 +63,7 @@ class ConfigGenerator {
           "address": ["172.19.0.1/30"],
           "auto_route": true,
           "strict_route": true,
-          "stack": "system"
+          "stack": "mixed"
         },
         {
           "type": "mixed",
