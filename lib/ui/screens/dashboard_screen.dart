@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/vpn_provider.dart';
 import '../../services/xray_service.dart';
+import '../../services/tray_service.dart';
 import '../../models/vless_node.dart';
 import '../../models/subscription_model.dart';
 import '../../utils/country_flag_helper.dart';
@@ -18,6 +19,27 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      TrayService.instance.init(
+        onRestartCore: () async {
+          await ref.read(vpnProvider.notifier).restartCore();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Ядро VPN успешно перезагружено')),
+            );
+          }
+        },
+        onExitApp: () async {
+          await ref.read(vpnProvider.notifier).exitApp();
+          await TrayService.instance.cleanUpAndExit();
+        },
+      );
+    });
+  }
 
   @override
   void dispose() {
@@ -338,8 +360,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return Container(
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.25)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: sub.isPinned
+              ? colorScheme.primary.withOpacity(0.55)
+              : colorScheme.outlineVariant.withOpacity(0.25),
+          width: sub.isPinned ? 1.5 : 1,
+        ),
+        boxShadow: sub.isPinned
+            ? [
+                BoxShadow(
+                  color: colorScheme.primary.withOpacity(0.08),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ]
+            : null,
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -361,22 +397,71 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: Text(
-                          sub.name,
-                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        child: Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                sub.name,
+                                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (sub.isPinned) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.primaryContainer,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.push_pin, size: 11, color: colorScheme.onPrimaryContainer),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      'ЗАКРЕПЛЕНО',
+                                      style: TextStyle(
+                                        color: colorScheme.onPrimaryContainer,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
+                      ),
+                      // Кнопка закрепить / открепить
+                      IconButton(
+                        icon: Icon(
+                          sub.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+                          size: 19,
+                          color: sub.isPinned ? colorScheme.primary : colorScheme.onSurfaceVariant,
+                        ),
+                        tooltip: sub.isPinned ? 'Открепить подписку' : 'Закрепить сверху',
+                        onPressed: () => ref.read(vpnProvider.notifier).togglePinSubscription(sub.id),
+                      ),
+                      // Кнопка переместить выше
+                      IconButton(
+                        icon: const Icon(Icons.arrow_upward_rounded, size: 19),
+                        tooltip: 'Переместить выше',
+                        onPressed: () => ref.read(vpnProvider.notifier).moveSubscriptionUp(sub.id),
+                      ),
+                      // Кнопка переместить ниже
+                      IconButton(
+                        icon: const Icon(Icons.arrow_downward_rounded, size: 19),
+                        tooltip: 'Переместить ниже',
+                        onPressed: () => ref.read(vpnProvider.notifier).moveSubscriptionDown(sub.id),
                       ),
                       IconButton(
                         icon: const Icon(Icons.refresh_rounded, size: 20),
                         tooltip: 'Обновить подписку',
                         onPressed: () => ref.read(vpnProvider.notifier).refreshSubscription(sub.id),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.speed_rounded, size: 20),
-                        tooltip: 'Пинг серверов в подписке',
-                        onPressed: () => ref.read(vpnProvider.notifier).pingAllNodes(),
                       ),
                       IconButton(
                         icon: const Icon(Icons.more_vert_rounded, size: 20),
@@ -554,6 +639,39 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.tonalIcon(
+                        icon: Icon(sub.isPinned ? Icons.push_pin : Icons.push_pin_outlined, size: 18),
+                        label: Text(sub.isPinned ? 'Открепить' : 'Закрепить сверху'),
+                        onPressed: () {
+                          ref.read(vpnProvider.notifier).togglePinSubscription(sub.id);
+                          Navigator.pop(ctx);
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton.filledTonal(
+                      icon: const Icon(Icons.arrow_upward_rounded),
+                      tooltip: 'Переместить выше',
+                      onPressed: () {
+                        ref.read(vpnProvider.notifier).moveSubscriptionUp(sub.id);
+                        Navigator.pop(ctx);
+                      },
+                    ),
+                    const SizedBox(width: 4),
+                    IconButton.filledTonal(
+                      icon: const Icon(Icons.arrow_downward_rounded),
+                      tooltip: 'Переместить ниже',
+                      onPressed: () {
+                        ref.read(vpnProvider.notifier).moveSubscriptionDown(sub.id);
+                        Navigator.pop(ctx);
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
                 TextField(
                   controller: nameController,
                   decoration: const InputDecoration(
