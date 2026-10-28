@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/vpn_provider.dart';
 import '../../services/hwid_service.dart';
 import '../../services/subscription_service.dart';
+import '../../services/tray_service.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -36,24 +37,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         children: [
-          _buildSectionHeader('Маршрутизация'),
+          _buildSectionHeader('Маршрутизация (Трафик)'),
           Card(
             color: colorScheme.surfaceContainer,
+            elevation: 0,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             child: Column(
               children: [
                 ListTile(
-                  title: const Text('Предустановленный пресет'),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  leading: const Icon(Icons.alt_route_rounded),
+                  title: const Text('Режим туннелирования'),
                   subtitle: Text(
-                    settings.routingPreset == 'none'
-                        ? '1. None (по умолчанию - весь трафик через прокси)'
-                        : '2. Russia (обход сайтов РФ и локальных IP)',
+                    settings.routingPreset == 'russia'
+                        ? '🇷🇺 Обход сайтов РФ (Россия напрямую, остальное в VPN)'
+                        : '🌐 Глобальный (100% трафика системы через VPN)',
                   ),
                   trailing: DropdownButton<String>(
                     value: settings.routingPreset,
                     underline: const SizedBox(),
                     items: const [
-                      DropdownMenuItem(value: 'none', child: Text('None (Default)')),
-                      DropdownMenuItem(value: 'russia', child: Text('Russia')),
+                      DropdownMenuItem(
+                        value: 'russia',
+                        child: Text('Обход сайтов РФ'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'none',
+                        child: Text('Глобальный (Все в VPN)'),
+                      ),
                     ],
                     onChanged: (val) {
                       if (val != null) {
@@ -65,37 +76,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                 ),
                 const Divider(height: 1),
-                SwitchListTile(
-                  title: const Text('Автообновление GeoIP и GeoSite'),
-                  subtitle: const Text('Скачивать свежие базы правил Loyalsoldier при входе'),
-                  value: settings.autoUpdateRulesOnStart,
-                  onChanged: (val) {
-                    ref.read(vpnProvider.notifier).updateSettings(
-                          settings.copyWith(autoUpdateRulesOnStart: val),
-                        );
-                  },
-                ),
                 ListTile(
-                  title: const Text('Обновить базы правил сейчас'),
-                  subtitle: const Text('Loyalsoldier v2ray-rules-dat'),
-                  trailing: FilledButton.tonal(
-                    onPressed: () async {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Обновление GeoIP и GeoSite...')),
-                      );
-                      await SubscriptionService.updateGeoDatabases(
-                        targetDir: '.',
-                        geoipUrl: settings.geoipUrl,
-                        geositeUrl: settings.geositeUrl,
-                      );
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Базы GeoIP/GeoSite успешно обновлены!')),
-                        );
-                      }
-                    },
-                    child: const Text('Обновить'),
-                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  leading: const Icon(Icons.dns_rounded),
+                  title: const Text('Защищенный DNS (DoH)'),
+                  subtitle: const Text('DNS-over-HTTPS Cloudflare (1.1.1.1) внутри туннеля'),
+                  trailing: Icon(Icons.check_circle_rounded, color: colorScheme.primary, size: 20),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  leading: const Icon(Icons.lan_rounded),
+                  title: const Text('Обход локальной сети (LAN)'),
+                  subtitle: const Text('Прямой доступ к домашним устройствам и принтерам (192.168.*, 10.*)'),
+                  trailing: Icon(Icons.check_circle_rounded, color: colorScheme.primary, size: 20),
                 ),
               ],
             ),
@@ -251,6 +245,39 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ListTile(
                   title: const Text('Аппаратный HWID устройства'),
                   subtitle: SelectableText(_hwid, style: const TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          _buildSectionHeader('Системный трей и завершение работы'),
+          Card(
+            color: colorScheme.surfaceContainer,
+            elevation: 0,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: Column(
+              children: [
+                const ListTile(
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  leading: Icon(Icons.vertical_split_rounded),
+                  title: Text('Фоновая работа в трее'),
+                  subtitle: Text('При нажатии [X] окно сворачивается в системный трей, сохраняя подключение'),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  leading: const Icon(Icons.power_settings_new_rounded, color: Colors.red),
+                  title: const Text('Полностью выйти из приложения', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                  subtitle: const Text('Отключить VPN, очистить прокси и завершить все процессы'),
+                  trailing: FilledButton.tonal(
+                    style: FilledButton.styleFrom(foregroundColor: Colors.red),
+                    onPressed: () async {
+                      await ref.read(vpnProvider.notifier).exitApp();
+                      await TrayService.instance.cleanUpAndExit();
+                    },
+                    child: const Text('Выйти'),
+                  ),
                 ),
               ],
             ),
