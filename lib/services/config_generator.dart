@@ -6,269 +6,191 @@ class ConfigGenerator {
   static String generate(VlessNode node, AppSettings settings) {
     final Map<String, dynamic> outbound = _buildOutbound(node);
 
-    final List<Map<String, dynamic>> routingRules = [
+    final List<Map<String, dynamic>> routeRules = [
       {
-        "type": "field",
-        "inboundTag": ["api"],
-        "outboundTag": "api"
+        "action": "sniff"
       },
       {
-        "type": "field",
-        "domain": ["geosite:category-ads-all"],
-        "outboundTag": "block"
-      },
-      {
-        "type": "field",
-        "ip": ["geoip:private"],
-        "outboundTag": "direct"
+        "protocol": "dns",
+        "action": "hijack-dns"
       },
     ];
 
     if (settings.routingPreset == 'russia') {
-      routingRules.add({
-        "type": "field",
-        "ip": ["geoip:ru"],
-        "outboundTag": "direct"
+      routeRules.add({
+        "geosite": ["ru"],
+        "outbound": "direct"
       });
-      routingRules.add({
-        "type": "field",
-        "domain": ["geosite:ru"],
-        "outboundTag": "direct"
+      routeRules.add({
+        "geoip": ["ru"],
+        "outbound": "direct"
       });
     }
 
-    routingRules.add({
-      "type": "field",
-      "network": "tcp,udp",
-      "outboundTag": "proxy"
+    routeRules.add({
+      "ip_is_private": true,
+      "outbound": "direct"
     });
 
     final Map<String, dynamic> config = {
-      "log": {"loglevel": "warning"},
-      "api": {
-        "tag": "api",
-        "services": ["StatsService"]
-      },
-      "stats": {},
-      "policy": {
-        "levels": {
-          "0": {
-            "statsUserUplink": true,
-            "statsUserDownlink": true
-          }
-        },
-        "system": {
-          "statsInboundUplink": true,
-          "statsInboundDownlink": true,
-          "statsOutboundUplink": true,
-          "statsOutboundDownlink": true
-        }
+      "log": {
+        "level": "warn"
       },
       "dns": {
-        "hosts": {
-          "geosite:category-ads-all": "127.0.0.1"
-        },
         "servers": [
-          "1.1.1.1",
-          "8.8.8.8",
-          "localhost"
+          {
+            "tag": "remote-dns",
+            "type": "udp",
+            "server": "1.1.1.1",
+            "detour": "proxy"
+          },
+          {
+            "tag": "local-dns",
+            "type": "local",
+            "detour": "direct"
+          }
         ],
-        "queryStrategy": "UseIPv4"
+        "strategy": "ipv4_only"
       },
       "inbounds": [
         {
-          "tag": "socks-in",
-          "port": 10808,
-          "listen": "127.0.0.1",
-          "protocol": "socks",
-          "settings": {"udp": true, "auth": "noauth"},
-          "sniffing": {
-            "enabled": true,
-            "destOverride": ["http", "tls", "quic"],
-            "routeOnly": false
-          }
+          "type": "tun",
+          "tag": "tun-in",
+          "interface_name": "material-tun",
+          "address": ["172.19.0.1/30"],
+          "auto_route": true,
+          "strict_route": true,
+          "stack": "system"
         },
         {
-          "tag": "http-in",
-          "port": 10809,
+          "type": "mixed",
+          "tag": "mixed-in",
           "listen": "127.0.0.1",
-          "protocol": "http",
-          "sniffing": {
-            "enabled": true,
-            "destOverride": ["http", "tls", "quic"],
-            "routeOnly": false
-          }
+          "listen_port": 10808
         }
       ],
       "outbounds": [
         outbound,
         {
-          "tag": "direct",
-          "protocol": "freedom",
-          "settings": {"domainStrategy": "UseIP"}
+          "type": "direct",
+          "tag": "direct"
         },
         {
-          "tag": "block",
-          "protocol": "blackhole",
-          "settings": {
-            "response": {"type": "http"}
-          }
+          "type": "block",
+          "tag": "block"
         }
       ],
-      "routing": {
-        "domainStrategy": "IPIfNonMatch",
-        "rules": routingRules
+      "route": {
+        "default_domain_resolver": "local-dns",
+        "rules": routeRules,
+        "auto_detect_interface": true
       }
     };
 
     return const JsonEncoder.withIndent('  ').convert(config);
   }
 
-  static String generateHysteriaConfig(VlessNode node) {
-    final server = '${node.address}:${node.port}';
-    final auth = node.uuid;
-    final sni = node.sni.isNotEmpty ? node.sni : node.address;
-
-    return '''
-server: $server
-auth: $auth
-tls:
-  sni: $sni
-  insecure: true
-socks5:
-  listen: 127.0.0.1:10808
-http:
-  listen: 127.0.0.1:10809
-''';
-  }
-
   static Map<String, dynamic> _buildOutbound(VlessNode node) {
-    if (node.protocol == ProxyProtocol.vmess) {
+    // 1. Hysteria 2
+    if (node.protocol == ProxyProtocol.hysteria || node.protocol == ProxyProtocol.hysteria2) {
       return {
+        "type": "hysteria2",
         "tag": "proxy",
-        "protocol": "vmess",
-        "settings": {
-          "vnext": [
-            {
-              "address": node.address,
-              "port": node.port,
-              "users": [
-                {
-                  "id": node.uuid,
-                  "alterId": 0,
-                  "security": node.encryption
-                }
-              ]
-            }
-          ]
-        },
-        "streamSettings": {
-          "network": node.streamType,
-          "security": node.security,
-          if (node.security == 'tls')
-            "tlsSettings": {
-              "serverName": node.sni.isNotEmpty ? node.sni : node.address,
-              "allowInsecure": false
-            }
-        }
-      };
-    } else if (node.protocol == ProxyProtocol.trojan) {
-      return {
-        "tag": "proxy",
-        "protocol": "trojan",
-        "settings": {
-          "servers": [
-            {
-              "address": node.address,
-              "port": node.port,
-              "password": node.uuid
-            }
-          ]
-        },
-        "streamSettings": {
-          "network": node.streamType,
-          "security": "tls",
-          "tlsSettings": {
-            "serverName": node.sni.isNotEmpty ? node.sni : node.address
-          }
-        }
-      };
-    } else if (node.protocol == ProxyProtocol.shadowsocks) {
-      return {
-        "tag": "proxy",
-        "protocol": "shadowsocks",
-        "settings": {
-          "servers": [
-            {
-              "address": node.address,
-              "port": node.port,
-              "method": node.encryption,
-              "password": node.uuid
-            }
-          ]
+        "server": node.address,
+        "server_port": node.port,
+        "password": node.uuid,
+        "tls": {
+          "enabled": true,
+          "server_name": node.sni.isNotEmpty ? node.sni : node.address,
+          "insecure": true
         }
       };
     }
 
-    // Default VLESS (Reality, XTLS, gRPC, WS, xhttp)
-    final streamSettings = <String, dynamic>{
-      "network": node.streamType == 'xhttp' ? 'splithttp' : node.streamType,
-      "security": node.security,
+    // 2. VMess
+    if (node.protocol == ProxyProtocol.vmess) {
+      return {
+        "type": "vmess",
+        "tag": "proxy",
+        "server": node.address,
+        "server_port": node.port,
+        "uuid": node.uuid,
+        "security": "auto"
+      };
+    }
+
+    // 3. Trojan
+    if (node.protocol == ProxyProtocol.trojan) {
+      return {
+        "type": "trojan",
+        "tag": "proxy",
+        "server": node.address,
+        "server_port": node.port,
+        "password": node.uuid,
+        "tls": {
+          "enabled": true,
+          "server_name": node.sni.isNotEmpty ? node.sni : node.address
+        }
+      };
+    }
+
+    // 4. Shadowsocks
+    if (node.protocol == ProxyProtocol.shadowsocks) {
+      return {
+        "type": "shadowsocks",
+        "tag": "proxy",
+        "server": node.address,
+        "server_port": node.port,
+        "method": node.encryption,
+        "password": node.uuid
+      };
+    }
+
+    // 5. VLESS (Reality, XTLS, gRPC, WebSocket, TCP)
+    final Map<String, dynamic> tls = {
+      "enabled": node.security == 'reality' || node.security == 'tls',
+      "server_name": node.sni.isNotEmpty ? node.sni : node.address,
     };
 
     if (node.security == 'reality') {
-      streamSettings["realitySettings"] = {
-        "show": false,
-        "fingerprint": node.fingerprint.isNotEmpty ? node.fingerprint : "chrome",
-        "serverName": node.sni,
-        "publicKey": node.publicKey,
-        "shortId": node.shortId,
-        "spiderX": node.spiderX.isNotEmpty ? node.spiderX : "/"
+      tls["utls"] = {
+        "enabled": true,
+        "fingerprint": node.fingerprint.isNotEmpty ? node.fingerprint : "chrome"
       };
-    } else if (node.security == 'tls') {
-      streamSettings["tlsSettings"] = {
-        "serverName": node.sni.isNotEmpty ? node.sni : node.address,
-        if (node.alpn.isNotEmpty) "alpn": node.alpn.split(','),
-        if (node.fingerprint.isNotEmpty) "fingerprint": node.fingerprint,
+      tls["reality"] = {
+        "enabled": true,
+        "public_key": node.publicKey,
+        "short_id": node.shortId
       };
     }
+
+    if (node.security == 'tls' && node.alpn.isNotEmpty) {
+      tls["alpn"] = node.alpn.split(',');
+    }
+
+    final Map<String, dynamic> outbound = {
+      "type": "vless",
+      "tag": "proxy",
+      "server": node.address,
+      "server_port": node.port,
+      "uuid": node.uuid,
+      if (node.flow.isNotEmpty) "flow": node.flow,
+      "tls": tls,
+    };
 
     if (node.streamType == 'grpc') {
-      streamSettings["grpcSettings"] = {
-        "serviceName": node.serviceName,
-        "multiMode": true
+      outbound["transport"] = {
+        "type": "grpc",
+        "service_name": node.serviceName
       };
     } else if (node.streamType == 'ws') {
-      streamSettings["wsSettings"] = {
+      outbound["transport"] = {
+        "type": "ws",
         "path": node.path.isNotEmpty ? node.path : "/",
-        "headers": {"Host": node.host.isNotEmpty ? node.host : node.sni}
-      };
-    } else if (node.streamType == 'xhttp' || node.streamType == 'splithttp') {
-      streamSettings["splithttpSettings"] = {
-        "path": node.path.isNotEmpty ? node.path : "/",
-        "host": node.host.isNotEmpty ? node.host : node.sni
+        if (node.host.isNotEmpty) "headers": {"Host": node.host}
       };
     }
 
-    return {
-      "tag": "proxy",
-      "protocol": "vless",
-      "settings": {
-        "vnext": [
-          {
-            "address": node.address,
-            "port": node.port,
-            "users": [
-              {
-                "id": node.uuid,
-                "encryption": node.encryption.isNotEmpty ? node.encryption : "none",
-                "flow": node.flow
-              }
-            ]
-          }
-        ]
-      },
-      "streamSettings": streamSettings
-    };
+    return outbound;
   }
 }
