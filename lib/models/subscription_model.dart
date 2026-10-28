@@ -14,6 +14,7 @@ class SubscriptionModel {
   final bool autoUpdate;
   final int autoUpdateIntervalHours; // 1, 2, 6, 12, 24
   final bool isExpanded;
+  final bool isPinned;
 
   SubscriptionModel({
     required this.id,
@@ -28,6 +29,7 @@ class SubscriptionModel {
     this.autoUpdate = true,
     this.autoUpdateIntervalHours = 2,
     this.isExpanded = true,
+    this.isPinned = false,
   });
 
   int get usedBytes => uploadBytes + downloadBytes;
@@ -59,6 +61,7 @@ class SubscriptionModel {
         'autoUpdate': autoUpdate,
         'autoUpdateIntervalHours': autoUpdateIntervalHours,
         'isExpanded': isExpanded,
+        'isPinned': isPinned,
         'nodes': nodes.map((n) => n.toJson()).toList(),
       };
 
@@ -76,6 +79,7 @@ class SubscriptionModel {
         autoUpdate: json['autoUpdate'] ?? true,
         autoUpdateIntervalHours: json['autoUpdateIntervalHours'] ?? 2,
         isExpanded: json['isExpanded'] ?? true,
+        isPinned: json['isPinned'] ?? false,
         nodes: (json['nodes'] as List<dynamic>?)
                 ?.map((n) => VlessNode.fromJson(n as Map<String, dynamic>))
                 .toList() ??
@@ -94,6 +98,7 @@ class SubscriptionModel {
     bool? autoUpdate,
     int? autoUpdateIntervalHours,
     bool? isExpanded,
+    bool? isPinned,
   }) {
     return SubscriptionModel(
       id: id,
@@ -108,6 +113,7 @@ class SubscriptionModel {
       autoUpdate: autoUpdate ?? this.autoUpdate,
       autoUpdateIntervalHours: autoUpdateIntervalHours ?? this.autoUpdateIntervalHours,
       isExpanded: isExpanded ?? this.isExpanded,
+      isPinned: isPinned ?? this.isPinned,
     );
   }
 }
