@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/vpn_provider.dart';
 import '../../services/xray_service.dart';
 import '../../services/tray_service.dart';
+import '../../services/update_service.dart';
 import '../../models/vless_node.dart';
 import '../../models/subscription_model.dart';
 import '../../utils/country_flag_helper.dart';
@@ -38,7 +39,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           await TrayService.instance.cleanUpAndExit();
         },
       );
+
+      _checkAppUpdate();
     });
+  }
+
+  Future<void> _checkAppUpdate() async {
+    final update = await UpdateService.checkForUpdate();
+    if (update != null && mounted) {
+      await UpdateService.showUpdateDialog(context, update);
+    }
   }
 
   @override
