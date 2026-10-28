@@ -7,7 +7,7 @@ DefaultGroupName=MaterialVless
 UninstallDisplayIcon={app}\material_vless.exe
 Compression=lzma2/max
 SolidCompression=yes
-OutputDir=.
+OutputDir=..
 OutputBaseFilename=MaterialVless-Windows-x64-Setup
 ArchitecturesInstallIn64BitMode=x64
 PrivilegesRequired=admin
@@ -16,7 +16,7 @@ PrivilegesRequired=admin
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\MaterialVless"; Filename: "{app}\material_vless.exe"
