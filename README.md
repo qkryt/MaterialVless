@@ -75,12 +75,5 @@ flutter run
 
 ---
 
-## 👥 Contributors
-
-- **[qkryt](https://github.com/qkryt)** — Автор и ведущий разработчик (Author & Lead Maintainer)
-- **[Antigravity](https://github.com/google)** — Интеллектуальный AI-ассистент парного программирования от Google DeepMind
-
----
-
 ## 📄 Лицензия
 Проект распространяется под лицензией MIT.
