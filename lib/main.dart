@@ -1,12 +1,23 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'ui/theme/app_theme.dart';
 import 'ui/screens/dashboard_screen.dart';
 import 'providers/vpn_provider.dart';
+import 'utils/admin_helper.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // На Windows строго требуются права Администратора для управления TUN-драйвером Wintun
+  if (Platform.isWindows) {
+    final hasAdmin = await AdminHelper.ensureAdminPrivileges();
+    if (!hasAdmin) {
+      exit(0); // Пользователь отклонил UAC — немедленный выход!
+    }
+  }
+
   runApp(
     const ProviderScope(
       child: MaterialVlessApp(),
