@@ -54,21 +54,30 @@ class XrayService {
       final binaryPath = _resolveBinary();
       final workingDir = File(binaryPath).existsSync() ? File(binaryPath).parent.path : null;
 
+      final logFile = File('${tempDir.path}/material_vless_core.log');
+      final logSink = logFile.openWrite(mode: FileMode.writeOnly);
+
       _process = await Process.start(
         binaryPath,
         ['run', '-c', configFile.path],
         workingDirectory: workingDir,
       );
 
+      _process!.stdout.listen((data) => logSink.add(data));
+      _process!.stderr.listen((data) => logSink.add(data));
+
+      bool hasExited = false;
       _process!.exitCode.then((code) {
+        hasExited = true;
+        try { logSink.close(); } catch (_) {}
         if (_state == CoreState.connected) {
           stop();
         }
       });
 
-      await Future.delayed(const Duration(milliseconds: 700));
-      if (_process == null) {
-        throw Exception('Core process exited immediately upon start');
+      await Future.delayed(const Duration(milliseconds: 900));
+      if (hasExited) {
+        throw Exception('Core process exited immediately upon start. Check ${logFile.path}');
       }
 
       // Дополнительно настраиваем системный прокси для браузеров (порт 10808 mixed)
@@ -88,7 +97,7 @@ class XrayService {
 
     await _setWindowsProxy(false, 10808);
 
-    _process?.kill(ProcessSignal.sigterm);
+    _process?.kill();
     _process = null;
 
     _speedController.add((0, 0));
