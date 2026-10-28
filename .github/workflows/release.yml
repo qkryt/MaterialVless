@@ -186,9 +186,12 @@ jobs:
           RES_DIR="$APP_DIR/Contents/Resources"
           mkdir -p "$RES_DIR"
 
-          curl -L "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-darwin-universal.tar.gz" -o sb_mac.tar.gz
-          tar -xvf sb_mac.tar.gz
-          cp "sing-box-${{ env.SING_BOX_VERSION }}-darwin-universal/sing-box" "$RES_DIR/sing-box"
+          # Sing-box universal binary (arm64 + amd64)
+          curl -L "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-darwin-arm64.tar.gz" -o sb_arm64.tar.gz
+          curl -L "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-darwin-amd64.tar.gz" -o sb_amd64.tar.gz
+          tar -xzf sb_arm64.tar.gz
+          tar -xzf sb_amd64.tar.gz
+          lipo -create "sing-box-${{ env.SING_BOX_VERSION }}-darwin-arm64/sing-box" "sing-box-${{ env.SING_BOX_VERSION }}-darwin-amd64/sing-box" -output "$RES_DIR/sing-box"
           chmod +x "$RES_DIR/sing-box"
 
           curl -L "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geoip.dat" -o "$RES_DIR/geoip.dat"
