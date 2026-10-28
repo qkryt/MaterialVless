@@ -284,7 +284,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('У вас установлена самая актуальная версия (v1.0.0)'),
+                                  content: Text('У вас установлена самая актуальная версия (v${UpdateService.currentVersion})'),
                                 ),
                               );
                             }
