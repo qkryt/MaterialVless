@@ -416,7 +416,7 @@ class VpnNotifier extends StateNotifier<VpnState> {
   Future<void> toggleConnection() async {
     if (state.status == CoreState.connected) {
       await _xrayService.stop();
-    } else if (state.status == CoreState.disconnected && state.selectedNode != null) {
+    } else if (state.selectedNode != null && state.status != CoreState.connecting) {
       await _xrayService.start(state.selectedNode!, state.settings);
     }
   }
