@@ -10,9 +10,9 @@ permissions:
   contents: write
 
 env:
-  XRAY_VERSION: 'v24.11.30'
-  HYSTERIA_VERSION: 'app/v2.13.0'
+  SING_BOX_VERSION: '1.14.4'
   WINTUN_VERSION: '0.14.1'
+  XRAY_VERSION: 'v24.11.30'
 
 jobs:
   # ==========================================
@@ -37,53 +37,55 @@ jobs:
       - name: Generate Windows Native Files
         run: flutter create . --platforms=windows --org com.materialvless --project-name material_vless
 
+      - name: Configure Manifest for Wintun Administrator Privileges
+        shell: pwsh
+        run: |
+          $manifestPath = "windows/runner/runner.exe.manifest"
+          if (Test-Path $manifestPath) {
+            (Get-Content $manifestPath) -replace 'level="asInvoker"', 'level="requireAdministrator"' | Set-Content $manifestPath
+          }
+
       - name: Install Dependencies
         run: flutter pub get
 
       - name: Compile Windows App
         run: flutter build windows --release
 
-      - name: Package Windows x64 and x86
+      - name: Package Windows x64 and x86 with sing-box and Wintun
         shell: pwsh
         run: |
           $ReleaseDir = "build/windows/x64/runner/Release"
           
-          # Загрузка ядра Xray (x64)
-          $Xray64Url = "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-windows-64.zip"
-          Invoke-WebRequest -Uri $Xray64Url -OutFile "xray64.zip"
-          Expand-Archive -Path "xray64.zip" -DestinationPath "xray_64"
-          
-          # Загрузка ядра Hysteria 2 (x64)
-          $Hy64Url = "https://github.com/HyNetworks/hysteria/releases/download/${{ env.HYSTERIA_VERSION }}/hysteria-windows-amd64.exe"
-          Invoke-WebRequest -Uri $Hy64Url -OutFile "hysteria64.exe"
+          # Загрузка sing-box (x64)
+          $Sb64Url = "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-windows-amd64.zip"
+          Invoke-WebRequest -Uri $Sb64Url -OutFile "sb64.zip"
+          Expand-Archive -Path "sb64.zip" -DestinationPath "sb_64"
+
+          # Загрузка sing-box (x86)
+          $Sb32Url = "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-windows-386.zip"
+          Invoke-WebRequest -Uri $Sb32Url -OutFile "sb32.zip"
+          Expand-Archive -Path "sb32.zip" -DestinationPath "sb_32"
 
           # Загрузка драйвера Wintun
           $WintunUrl = "https://www.wintun.net/builds/wintun-${{ env.WINTUN_VERSION }}.zip"
           Invoke-WebRequest -Uri $WintunUrl -OutFile "wintun.zip"
           Expand-Archive -Path "wintun.zip" -DestinationPath "wintun_driver"
 
+          # Загрузка баз GeoIP и GeoSite
+          $GeoipUrl = "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geoip.dat"
+          $GeositeUrl = "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geosite.dat"
+          Invoke-WebRequest -Uri $GeoipUrl -OutFile "$ReleaseDir/geoip.dat"
+          Invoke-WebRequest -Uri $GeositeUrl -OutFile "$ReleaseDir/geosite.dat"
+
           # Формирование Windows x64
-          Copy-Item "xray_64/xray.exe" -Destination "$ReleaseDir"
-          Copy-Item "hysteria64.exe" -Destination "$ReleaseDir/hysteria.exe"
-          Copy-Item "xray_64/geoip.dat" -Destination "$ReleaseDir"
-          Copy-Item "xray_64/geosite.dat" -Destination "$ReleaseDir"
-          Copy-Item "wintun_driver/wintun/bin/amd64/wintun.dll" -Destination "$ReleaseDir"
+          Copy-Item "sb_64/sing-box-${{ env.SING_BOX_VERSION }}-windows-amd64/sing-box.exe" -Destination "$ReleaseDir/sing-box.exe"
+          Copy-Item "wintun_driver/wintun/bin/amd64/wintun.dll" -Destination "$ReleaseDir/wintun.dll"
           Compress-Archive -Path "$ReleaseDir/*" -DestinationPath "MaterialVless-Windows-x64.zip"
 
           # Формирование Windows x86
-          $Xray32Url = "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-windows-32.zip"
-          Invoke-WebRequest -Uri $Xray32Url -OutFile "xray32.zip"
-          Expand-Archive -Path "xray32.zip" -DestinationPath "xray_32"
-          
-          $Hy32Url = "https://github.com/HyNetworks/hysteria/releases/download/${{ env.HYSTERIA_VERSION }}/hysteria-windows-386.exe"
-          Invoke-WebRequest -Uri $Hy32Url -OutFile "hysteria32.exe"
-
           mkdir -p "dist_x86"
           Copy-Item "$ReleaseDir/*" -Destination "dist_x86" -Recurse
-          Copy-Item "xray_32/xray.exe" -Destination "dist_x86" -Force
-          Copy-Item "hysteria32.exe" -Destination "dist_x86/hysteria.exe" -Force
-          Copy-Item "xray_32/geoip.dat" -Destination "dist_x86" -Force
-          Copy-Item "xray_32/geosite.dat" -Destination "dist_x86" -Force
+          Copy-Item "sb_32/sing-box-${{ env.SING_BOX_VERSION }}-windows-386/sing-box.exe" -Destination "dist_x86/sing-box.exe" -Force
           Copy-Item "wintun_driver/wintun/bin/x86/wintun.dll" -Destination "dist_x86/wintun.dll" -Force
           Compress-Archive -Path "dist_x86/*" -DestinationPath "MaterialVless-Windows-x86.zip"
 
@@ -127,28 +129,24 @@ jobs:
         run: |
           DIST="build/linux/x64/release/bundle"
           
-          # x64 package
-          curl -L "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-linux-64.zip" -o xray64.zip
-          unzip xray64.zip -d xray64_temp
-          curl -L "https://github.com/HyNetworks/hysteria/releases/download/${{ env.HYSTERIA_VERSION }}/hysteria-linux-amd64" -o "$DIST/hysteria"
-          cp xray64_temp/xray "$DIST/"
-          cp xray64_temp/geoip.dat "$DIST/"
-          cp xray64_temp/geosite.dat "$DIST/"
-          chmod +x "$DIST/xray"
-          chmod +x "$DIST/hysteria"
+          # Загрузка sing-box (x64)
+          curl -L "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-linux-amd64.tar.gz" -o sb64.tar.gz
+          tar -xvf sb64.tar.gz
+          cp "sing-box-${{ env.SING_BOX_VERSION }}-linux-amd64/sing-box" "$DIST/sing-box"
+          chmod +x "$DIST/sing-box"
+
+          curl -L "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geoip.dat" -o "$DIST/geoip.dat"
+          curl -L "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geosite.dat" -o "$DIST/geosite.dat"
+
           tar -czvf MaterialVless-Linux-x64.tar.gz -C "$DIST" .
 
           # x86 package
           mkdir -p dist_linux_x86
           cp -r "$DIST/"* dist_linux_x86/
-          curl -L "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-linux-32.zip" -o xray32.zip
-          unzip xray32.zip -d xray32_temp
-          curl -L "https://github.com/HyNetworks/hysteria/releases/download/${{ env.HYSTERIA_VERSION }}/hysteria-linux-386" -o "dist_linux_x86/hysteria"
-          cp xray32_temp/xray dist_linux_x86/
-          cp xray32_temp/geoip.dat dist_linux_x86/
-          cp xray32_temp/geosite.dat dist_linux_x86/
-          chmod +x dist_linux_x86/xray
-          chmod +x dist_linux_x86/hysteria
+          curl -L "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-linux-386.tar.gz" -o sb32.tar.gz
+          tar -xvf sb32.tar.gz
+          cp "sing-box-${{ env.SING_BOX_VERSION }}-linux-386/sing-box" dist_linux_x86/sing-box
+          chmod +x dist_linux_x86/sing-box
           tar -czvf MaterialVless-Linux-x86.tar.gz -C dist_linux_x86 .
 
       - name: Upload Linux Artifacts
@@ -186,15 +184,16 @@ jobs:
         run: |
           APP_DIR="build/macos/Build/Products/Release/material_vless.app"
           RES_DIR="$APP_DIR/Contents/Resources"
-          curl -L "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-macos-arm64-v8a.zip" -o xray.zip
-          unzip xray.zip -d xray_temp
           mkdir -p "$RES_DIR"
-          curl -L "https://github.com/HyNetworks/hysteria/releases/download/${{ env.HYSTERIA_VERSION }}/hysteria-darwin-arm64" -o "$RES_DIR/hysteria"
-          cp xray_temp/xray "$RES_DIR/"
-          cp xray_temp/geoip.dat "$RES_DIR/"
-          cp xray_temp/geosite.dat "$RES_DIR/"
-          chmod +x "$RES_DIR/xray"
-          chmod +x "$RES_DIR/hysteria"
+
+          curl -L "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-darwin-universal.tar.gz" -o sb_mac.tar.gz
+          tar -xvf sb_mac.tar.gz
+          cp "sing-box-${{ env.SING_BOX_VERSION }}-darwin-universal/sing-box" "$RES_DIR/sing-box"
+          chmod +x "$RES_DIR/sing-box"
+
+          curl -L "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geoip.dat" -o "$RES_DIR/geoip.dat"
+          curl -L "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geosite.dat" -o "$RES_DIR/geosite.dat"
+
           ditto -c -k --sequesterRsrc --keepParent "$APP_DIR" MaterialVless-macOS.zip
 
       - name: Upload macOS Artifact
@@ -229,7 +228,7 @@ jobs:
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
           else
-            echo "tag=v1.2.0" >> $GITHUB_OUTPUT
+            echo "tag=v1.3.0" >> $GITHUB_OUTPUT
           fi
 
       - name: Create GitHub Release
@@ -241,15 +240,23 @@ jobs:
           prerelease: false
           files: final_assets/*
           body: |
-            ### MaterialVless Client — Релиз ${{ steps.tag_info.outputs.tag }}
+            ### MaterialVless Client — Релиз ${{ steps.tag_info.outputs.tag }} (TUN Edition)
             
-            Кроссплатформенный клиент VLESS / Reality / gRPC / Hysteria 2 с ядрами Xray-core + Hysteria и интерфейсом Material You.
+            Полноценный клиент с настоящим ядром **sing-box v1.14** и встроенным драйвером виртуальной сетевой карты **Wintun**.
+            
+            #### 🌟 Нововведения и исправления:
+            - **Полноценный адаптер `material-tun`:** Создаёт системный TUN-интерфейс в сетевых подключениях Windows, перехватывающий 100% трафика (игры, Telegram, Discord, браузеры, DNS).
+            - **Нативная поддержка Hysteria 2:** Работает прямо в ядре без сторонних костылей.
+            - **Векторные флаги стран:** Высококачественные флаги стран в дизайне Material You, работающие на любой ОС без проблем со шрифтами.
+            - **Мгновенное переподключение на лету:** Автоматическая смена сервера без необходимости ручного отключения и включения VPN.
+            - **Удалена анимация кнопки:** Кнопка подключения статична и мгновенно откликается.
+            - **Поддержка любых подписок:** Корректный импорт AliusVPN и Marzban с автоматическим обходом блокировки User-Agent.
             
             #### Поддерживаемые платформы:
-            - **Windows (x64):** `MaterialVless-Windows-x64.zip` (Xray + Hysteria 2 + Wintun x64 + GeoIP/GeoSite)
-            - **Windows (x86):** `MaterialVless-Windows-x86.zip` (Xray + Hysteria 2 + Wintun x86 + GeoIP/GeoSite)
-            - **Linux (x64):** `MaterialVless-Linux-x64.tar.gz` (Xray + Hysteria 2 + GeoIP/GeoSite)
-            - **Linux (x86):** `MaterialVless-Linux-x86.tar.gz` (Xray + Hysteria 2 + GeoIP/GeoSite)
-            - **macOS:** `MaterialVless-macOS.zip` (Universal)
+            - **Windows (x64):** `MaterialVless-Windows-x64.zip` (sing-box + Wintun x64)
+            - **Windows (x86):** `MaterialVless-Windows-x86.zip` (sing-box + Wintun x86)
+            - **Linux (x64):** `MaterialVless-Linux-x64.tar.gz` (sing-box 64-bit)
+            - **Linux (x86):** `MaterialVless-Linux-x86.tar.gz` (sing-box 32-bit)
+            - **macOS:** `MaterialVless-macOS.zip` (Universal sing-box)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
