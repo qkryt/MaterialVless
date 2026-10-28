@@ -398,87 +398,240 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Icon(
-                        sub.isExpanded ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_right_rounded,
-                        color: colorScheme.onSurfaceVariant,
-                        size: 26,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                sub.name,
-                                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final bool isCompact = constraints.maxWidth < 490;
+
+                      Widget buildM3IconButton({
+                        required IconData icon,
+                        required String tooltip,
+                        required VoidCallback onPressed,
+                        Color? color,
+                        double size = 19,
+                      }) {
+                        return Tooltip(
+                          message: tooltip,
+                          child: Material(
+                            color: Colors.transparent,
+                            shape: const CircleBorder(),
+                            clipBehavior: Clip.antiAlias,
+                            child: InkWell(
+                              onTap: onPressed,
+                              hoverColor: colorScheme.primary.withValues(alpha: 0.12),
+                              highlightColor: colorScheme.primary.withValues(alpha: 0.20),
+                              splashColor: colorScheme.primary.withValues(alpha: 0.25),
+                              customBorder: const CircleBorder(),
+                              child: Padding(
+                                padding: const EdgeInsets.all(7.0),
+                                child: Icon(
+                                  icon,
+                                  size: size,
+                                  color: color ?? colorScheme.onSurfaceVariant,
+                                ),
                               ),
                             ),
-                            if (sub.isPinned) ...[
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: colorScheme.primaryContainer,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.push_pin, size: 11, color: colorScheme.onPrimaryContainer),
-                                    const SizedBox(width: 3),
-                                    Text(
-                                      'ЗАКРЕПЛЕНО',
-                                      style: TextStyle(
-                                        color: colorScheme.onPrimaryContainer,
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                  ],
+                          ),
+                        );
+                      }
+
+                      return Row(
+                        children: [
+                          // Живая кнопка сворачивания/разворачивания с M3 hover-кружком
+                          Material(
+                            color: Colors.transparent,
+                            shape: const CircleBorder(),
+                            clipBehavior: Clip.antiAlias,
+                            child: InkWell(
+                              onTap: () => ref.read(vpnProvider.notifier).toggleSubscriptionExpanded(sub.id),
+                              hoverColor: colorScheme.primary.withValues(alpha: 0.12),
+                              highlightColor: colorScheme.primary.withValues(alpha: 0.20),
+                              splashColor: colorScheme.primary.withValues(alpha: 0.25),
+                              customBorder: const CircleBorder(),
+                              child: Padding(
+                                padding: const EdgeInsets.all(4.0),
+                                child: Icon(
+                                  sub.isExpanded ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_right_rounded,
+                                  color: colorScheme.onSurfaceVariant,
+                                  size: 26,
                                 ),
                               ),
-                            ],
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    sub.name,
+                                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (sub.isPinned) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: colorScheme.primaryContainer,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.push_pin, size: 11, color: colorScheme.onPrimaryContainer),
+                                        const SizedBox(width: 3),
+                                        Text(
+                                          'ЗАКРЕПЛЕНО',
+                                          style: TextStyle(
+                                            color: colorScheme.onPrimaryContainer,
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          // На широком экране: все 6 кнопок (Закрепить, Вверх, Вниз, Обновить, Пинг, Настройки)
+                          if (!isCompact) ...[
+                            buildM3IconButton(
+                              icon: sub.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+                              tooltip: sub.isPinned ? 'Открепить подписку' : 'Закрепить сверху',
+                              color: sub.isPinned ? colorScheme.primary : null,
+                              onPressed: () => ref.read(vpnProvider.notifier).togglePinSubscription(sub.id),
+                            ),
+                            buildM3IconButton(
+                              icon: Icons.arrow_upward_rounded,
+                              tooltip: 'Переместить выше',
+                              onPressed: () => ref.read(vpnProvider.notifier).moveSubscriptionUp(sub.id),
+                            ),
+                            buildM3IconButton(
+                              icon: Icons.arrow_downward_rounded,
+                              tooltip: 'Переместить ниже',
+                              onPressed: () => ref.read(vpnProvider.notifier).moveSubscriptionDown(sub.id),
+                            ),
+                            buildM3IconButton(
+                              icon: Icons.refresh_rounded,
+                              tooltip: 'Обновить подписку',
+                              onPressed: () => ref.read(vpnProvider.notifier).refreshSubscription(sub.id),
+                            ),
+                            buildM3IconButton(
+                              icon: Icons.speed_rounded,
+                              tooltip: 'Замерить пинг подписки',
+                              onPressed: () => ref.read(vpnProvider.notifier).pingSubscription(sub.id),
+                            ),
+                            buildM3IconButton(
+                              icon: Icons.more_vert_rounded,
+                              tooltip: 'Настройки подписки',
+                              onPressed: () => _showSubscriptionOptionsDialog(context, sub),
+                            ),
+                          ]
+                          // При сжатии: ровно 3 кнопки (Обновить, Пинг, Троеточие с настройками и перемещением)
+                          else ...[
+                            buildM3IconButton(
+                              icon: Icons.refresh_rounded,
+                              tooltip: 'Обновить подписку',
+                              onPressed: () => ref.read(vpnProvider.notifier).refreshSubscription(sub.id),
+                            ),
+                            buildM3IconButton(
+                              icon: Icons.speed_rounded,
+                              tooltip: 'Замерить пинг подписки',
+                              onPressed: () => ref.read(vpnProvider.notifier).pingSubscription(sub.id),
+                            ),
+                            Theme(
+                              data: theme.copyWith(
+                                popupMenuTheme: PopupMenuThemeData(
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                  color: colorScheme.surfaceContainerHigh,
+                                ),
+                              ),
+                              child: PopupMenuButton<String>(
+                                tooltip: 'Действия с подпиской',
+                                icon: Icon(Icons.more_vert_rounded, size: 20, color: colorScheme.onSurfaceVariant),
+                                onSelected: (value) {
+                                  switch (value) {
+                                    case 'pin':
+                                      ref.read(vpnProvider.notifier).togglePinSubscription(sub.id);
+                                      break;
+                                    case 'up':
+                                      ref.read(vpnProvider.notifier).moveSubscriptionUp(sub.id);
+                                      break;
+                                    case 'down':
+                                      ref.read(vpnProvider.notifier).moveSubscriptionDown(sub.id);
+                                      break;
+                                    case 'settings':
+                                      _showSubscriptionOptionsDialog(context, sub);
+                                      break;
+                                    case 'delete':
+                                      ref.read(vpnProvider.notifier).deleteSubscription(sub.id);
+                                      break;
+                                  }
+                                },
+                                itemBuilder: (ctx) => [
+                                  PopupMenuItem(
+                                    value: 'pin',
+                                    child: Row(
+                                      children: [
+                                        Icon(sub.isPinned ? Icons.push_pin : Icons.push_pin_outlined, size: 18, color: colorScheme.primary),
+                                        const SizedBox(width: 10),
+                                        Text(sub.isPinned ? 'Открепить' : 'Закрепить сверху'),
+                                      ],
+                                    ),
+                                  ),
+                                  const PopupMenuItem(
+                                    value: 'up',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.arrow_upward_rounded, size: 18),
+                                        SizedBox(width: 10),
+                                        Text('Переместить выше'),
+                                      ],
+                                    ),
+                                  ),
+                                  const PopupMenuItem(
+                                    value: 'down',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.arrow_downward_rounded, size: 18),
+                                        SizedBox(width: 10),
+                                        Text('Переместить ниже'),
+                                      ],
+                                    ),
+                                  ),
+                                  const PopupMenuDivider(),
+                                  const PopupMenuItem(
+                                    value: 'settings',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.settings_outlined, size: 18),
+                                        SizedBox(width: 10),
+                                        Text('Настройки подписки'),
+                                      ],
+                                    ),
+                                  ),
+                                  const PopupMenuItem(
+                                    value: 'delete',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
+                                        SizedBox(width: 10),
+                                        Text('Удалить подписку', style: TextStyle(color: Colors.red)),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ],
-                        ),
-                      ),
-                      // Кнопка закрепить / открепить
-                      IconButton(
-                        icon: Icon(
-                          sub.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
-                          size: 19,
-                          color: sub.isPinned ? colorScheme.primary : colorScheme.onSurfaceVariant,
-                        ),
-                        tooltip: sub.isPinned ? 'Открепить подписку' : 'Закрепить сверху',
-                        onPressed: () => ref.read(vpnProvider.notifier).togglePinSubscription(sub.id),
-                      ),
-                      // Кнопка переместить выше
-                      IconButton(
-                        icon: const Icon(Icons.arrow_upward_rounded, size: 19),
-                        tooltip: 'Переместить выше',
-                        onPressed: () => ref.read(vpnProvider.notifier).moveSubscriptionUp(sub.id),
-                      ),
-                      // Кнопка переместить ниже
-                      IconButton(
-                        icon: const Icon(Icons.arrow_downward_rounded, size: 19),
-                        tooltip: 'Переместить ниже',
-                        onPressed: () => ref.read(vpnProvider.notifier).moveSubscriptionDown(sub.id),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.refresh_rounded, size: 20),
-                        tooltip: 'Обновить подписку',
-                        onPressed: () => ref.read(vpnProvider.notifier).refreshSubscription(sub.id),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.more_vert_rounded, size: 20),
-                        tooltip: 'Настройки подписки',
-                        onPressed: () => _showSubscriptionOptionsDialog(context, sub),
-                      ),
-                    ],
+                        ],
+                      );
+                    },
                   ),
                   Padding(
                     padding: const EdgeInsets.only(left: 34.0),
