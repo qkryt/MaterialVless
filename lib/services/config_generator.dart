@@ -3,12 +3,50 @@ import '../models/vless_node.dart';
 import '../models/app_settings.dart';
 
 class ConfigGenerator {
+  static const List<String> _russianDomains = [
+    ".ru",
+    ".xn--p1ai",
+    ".su",
+    ".by",
+    "vk.com",
+    "vk.me",
+    "userapi.com",
+    "yandex.ru",
+    "yandex.net",
+    "yandex.com",
+    "ya.ru",
+    "dzen.ru",
+    "mail.ru",
+    "ok.ru",
+    "sberbank.ru",
+    "sber.ru",
+    "tinkoff.ru",
+    "tbank.ru",
+    "t-bank.ru",
+    "gosuslugi.ru",
+    "avito.ru",
+    "ozon.ru",
+    "wildberries.ru",
+    "wb.ru",
+    "kinopoisk.ru",
+    "rutube.ru",
+    "2gis.ru",
+    "mos.ru",
+    "hh.ru",
+    "mts.ru",
+    "megafon.ru",
+    "beeline.ru",
+    "tele2.ru",
+    "auto.ru"
+  ];
+
   static String generate(VlessNode node, AppSettings settings) {
     final Map<String, dynamic> outbound = _buildOutbound(node);
 
     final List<Map<String, dynamic>> routeRules = [
       {
-        "action": "sniff"
+        "action": "sniff",
+        "timeout": "300ms"
       },
       {
         "protocol": "dns",
@@ -18,7 +56,7 @@ class ConfigGenerator {
 
     if (settings.routingPreset == 'russia') {
       routeRules.add({
-        "domain_suffix": [".ru", ".xn--p1ai", ".su", ".by"],
+        "domain_suffix": _russianDomains,
         "outbound": "direct"
       });
     }
@@ -36,8 +74,9 @@ class ConfigGenerator {
         "servers": [
           {
             "tag": "remote-dns",
-            "type": "udp",
+            "type": "https",
             "server": "1.1.1.1",
+            "path": "/dns-query",
             "detour": "proxy"
           },
           {
@@ -49,10 +88,11 @@ class ConfigGenerator {
         "rules": [
           if (settings.routingPreset == 'russia')
             {
-              "domain_suffix": [".ru", ".xn--p1ai", ".su", ".by"],
+              "domain_suffix": _russianDomains,
               "server": "local-dns"
             }
         ],
+        "final": "remote-dns",
         "strategy": "ipv4_only"
       },
       "inbounds": [
@@ -62,8 +102,9 @@ class ConfigGenerator {
           "interface_name": "material-tun",
           "address": ["172.19.0.1/30"],
           "auto_route": true,
-          "strict_route": true,
-          "stack": "mixed"
+          "strict_route": false,
+          "stack": "mixed",
+          "endpoint_independent_nat": true
         },
         {
           "type": "mixed",
