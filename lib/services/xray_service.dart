@@ -75,9 +75,13 @@ class XrayService {
         }
       });
 
-      await Future.delayed(const Duration(milliseconds: 900));
+      await Future.delayed(const Duration(milliseconds: 1000));
       if (hasExited) {
-        throw Exception('Core process exited immediately upon start. Check ${logFile.path}');
+        String errMsg = 'Process exited';
+        try {
+          errMsg = await logFile.readAsString();
+        } catch (_) {}
+        throw Exception('Core error: $errMsg');
       }
 
       // Дополнительно настраиваем системный прокси для браузеров (порт 10808 mixed)
@@ -86,12 +90,12 @@ class XrayService {
       _startSpeedMonitoring();
       _updateState(CoreState.connected);
     } catch (e) {
-      await stop();
+      await stop(clearErrorState: false);
       _updateState(CoreState.error);
     }
   }
 
-  Future<void> stop() async {
+  Future<void> stop({bool clearErrorState = true}) async {
     _updateState(CoreState.disconnecting);
     _trafficTimer?.cancel();
 
@@ -101,7 +105,9 @@ class XrayService {
     _process = null;
 
     _speedController.add((0, 0));
-    _updateState(CoreState.disconnected);
+    if (clearErrorState) {
+      _updateState(CoreState.disconnected);
+    }
   }
 
   void _updateState(CoreState state) {
