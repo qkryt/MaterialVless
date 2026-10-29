@@ -50,7 +50,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   final List<String> _popularUserAgents = const [
 
-    'MaterialVless/2.14',
+    'MaterialVless/2.14.1',
 
     'v2rayN/6.42',
 
@@ -1286,40 +1286,60 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                     children: [
 
-                      DropdownButton<String>(
-
-                        value: {...AppTheme.builtInFonts, ...CustomFontService.getAvailableCustomFontFamilies()}.contains(settings.fontFamily)
-
-                            ? settings.fontFamily
-
-                            : null,
-
-                        hint: const Text('Шрифт'),
-
-                        underline: const SizedBox(),
-
-                        items: {...AppTheme.builtInFonts, ...CustomFontService.getAvailableCustomFontFamilies()}
-
-                            .map((f) => DropdownMenuItem(value: f, child: Text(f)))
-
-                            .toList(),
-
-                        onChanged: (val) {
-
-                          if (val != null) {
-
-                            ref.read(vpnProvider.notifier).updateSettings(
-
-                                  settings.copyWith(fontFamily: val),
-
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest.withOpacity(0.6),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.5)),
+                        ),
+                        child: PopupMenuButton<String>(
+                          tooltip: 'Выбрать шрифт',
+                          initialValue: settings.fontFamily,
+                          onSelected: (val) async {
+                            final fontPath = CustomFontService.findFontPathForFamily(val);
+                            await ref.read(vpnProvider.notifier).updateSettings(
+                                  settings.copyWith(
+                                    fontFamily: val,
+                                    customFontPath: fontPath,
+                                  ),
                                 );
-
-                          }
-
-                        },
-
+                            if (fontPath != null) {
+                              try {
+                                final fontFile = File(fontPath);
+                                if (await fontFile.exists()) {
+                                  final bytes = await fontFile.readAsBytes();
+                                  final loader = FontLoader(val);
+                                  loader.addFont(Future.value(ByteData.view(bytes.buffer)));
+                                  await loader.load();
+                                }
+                              } catch (_) {}
+                            }
+                          },
+                          itemBuilder: (ctx) {
+                            final allFonts = {...AppTheme.builtInFonts, ...CustomFontService.getAvailableCustomFontFamilies()};
+                            return allFonts.map((f) => PopupMenuItem(
+                              value: f,
+                              child: Text(f, style: TextStyle(fontFamily: f)),
+                            )).toList();
+                          },
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                settings.fontFamily,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontFamily: settings.fontFamily,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(Icons.arrow_drop_down, size: 20, color: colorScheme.onSurfaceVariant),
+                            ],
+                          ),
+                        ),
                       ),
-
                       const SizedBox(width: 8),
 
                       FilledButton.tonalIcon(
@@ -1918,7 +1938,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                   title: Text(t('client_version')),
 
-                  subtitle: const Text('MaterialVless 2.14 • Релиз 2.14 (v2.14.0)'),
+                  subtitle: const Text('MaterialVless 2.14.1 • Релиз 2.14.1 (v2.14.1)'),
 
                   trailing: _isCheckingUpdate
 
@@ -1958,7 +1978,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                                 const SnackBar(
 
-                                  content: Text('У вас установлена самая актуальная версия (v2.14.0)'),
+                                  content: Text('У вас установлена самая актуальная версия (v2.14.1)'),
 
                                 ),
 
@@ -2122,7 +2142,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                             Text(
 
-                              'Версия 2.14.0 • Релиз 2.14 (Выпуск 2026)',
+                              'Версия 2.14.1 • Релиз 2.14.1 (Выпуск 2026)',
 
                               style: TextStyle(
 
@@ -2198,14 +2218,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                       ),
 
-                      TextButton.icon(
-
-                        icon: const Icon(Icons.code_rounded, size: 16),
-
-                        label: const Text('GitHub Repo'),
-
-                        onPressed: () => UpdateService.openUrl('https://github.com/qkryt/MaterialVless'),
-
+                                            Wrap(
+                        spacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          OutlinedButton.icon(
+                            icon: const Icon(Icons.bug_report_outlined, size: 16),
+                            label: const Text('Нашли ошибку? Сообщи автору'),
+                            onPressed: () => _showFeedbackDialog(context),
+                          ),
+                          TextButton.icon(
+                            icon: const Icon(Icons.code_rounded, size: 16),
+                            label: const Text('GitHub Repo'),
+                            onPressed: () => UpdateService.openUrl('https://github.com/qkryt/MaterialVless'),
+                          ),
+                        ],
                       ),
 
                     ],
@@ -2228,7 +2255,43 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           // ==================== ЗАВЕРШЕНИЕ РАБОТЫ ====================
 
-          _buildSectionHeader('Завершение работы'),
+                    // ==================== АВАРИЙНОЕ ЗАВЕРШЕНИЕ ====================
+          _buildSectionHeader('Аварийное завершение ядра'),
+          Card(
+            color: colorScheme.surfaceContainer,
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.gpp_bad_rounded, color: Colors.red),
+              ),
+              title: const Text('Аварийное выключение процессов', style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: const Text('Принудительно останавливает все фоновые процессы sing-box.exe и сбрасывает сетевой статус'),
+              trailing: FilledButton.tonal(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.red.withOpacity(0.15),
+                  foregroundColor: Colors.red,
+                ),
+                onPressed: () async {
+                  await ref.read(vpnProvider.notifier).emergencyKillAllProcesses();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Все процессы ядра sing-box принудительно завершены!')),
+                    );
+                  }
+                },
+                child: const Text('Завершить всё'),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+_buildSectionHeader('Завершение работы'),
 
           Card(
 

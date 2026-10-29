@@ -48,7 +48,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
   final ScrollController _serverScrollController = ScrollController();
 
-  String _selectedSubId = 'all';
+  String _selectedSubId = '';
 
 
 
@@ -872,150 +872,77 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
 
 
-    final hasMultiple = vpn.subscriptions.length > 1 || (vpn.subscriptions.isNotEmpty && vpn.manualNodes.isNotEmpty);
+    final totalTabs = vpn.subscriptions.length + (vpn.manualNodes.isNotEmpty ? 1 : 0);
+    final hasMultiple = totalTabs > 1;
 
-    if (!hasMultiple && vpn.subscriptions.isNotEmpty && _selectedSubId == 'all') {
-
-      _selectedSubId = vpn.subscriptions.first.id;
-
+    // Автоматический выбор первой валидной подписки или вкладки 'manual'
+    if (_selectedSubId.isEmpty || _selectedSubId == 'all' || (_selectedSubId != 'manual' && !vpn.subscriptions.any((s) => s.id == _selectedSubId))) {
+      if (vpn.subscriptions.isNotEmpty) {
+        _selectedSubId = vpn.subscriptions.first.id;
+      } else if (vpn.manualNodes.isNotEmpty) {
+        _selectedSubId = 'manual';
+      }
     }
-
-
 
     SubscriptionModel? currentSub;
-
-    if (_selectedSubId != 'all' && _selectedSubId != 'manual') {
-
+    if (_selectedSubId != 'manual') {
       final matches = vpn.subscriptions.where((s) => s.id == _selectedSubId);
-
       if (matches.isNotEmpty) {
-
         currentSub = matches.first;
-
       } else if (vpn.subscriptions.isNotEmpty) {
-
         currentSub = vpn.subscriptions.first;
-
         _selectedSubId = currentSub.id;
-
       }
-
     }
-
-
 
     List<VlessNode> displayNodes;
-
-    if (_selectedSubId == 'all') {
-
-      displayNodes = [
-
-        for (final s in vpn.subscriptions) ...s.nodes,
-
-        ...vpn.manualNodes,
-
-      ];
-
-    } else if (_selectedSubId == 'manual') {
-
+    if (_selectedSubId == 'manual') {
       displayNodes = vpn.manualNodes;
-
     } else if (currentSub != null) {
-
       displayNodes = currentSub.nodes;
-
+    } else if (vpn.subscriptions.isNotEmpty) {
+      displayNodes = vpn.subscriptions.first.nodes;
     } else {
-
-      displayNodes = [];
-
+      displayNodes = vpn.manualNodes;
     }
 
-
-
     return Column(
-
       children: [
-
         // 1. Панель переключения подписок (вкладки сверху)
-
         if (hasMultiple) ...[
-
           Container(
-
             height: 48,
-
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-
             child: ListView(
-
               scrollDirection: Axis.horizontal,
-
               children: [
-
-                ChoiceChip(
-
-                  label: Text('Все (${vpn.subscriptions.fold<int>(0, (prev, s) => prev + s.nodes.length) + vpn.manualNodes.length})'),
-
-                  selected: _selectedSubId == 'all',
-
-                  onSelected: (val) {
-
-                    if (val) setState(() => _selectedSubId = 'all');
-
-                  },
-
-                ),
-
-                for (final sub in vpn.subscriptions) ...[
-
-                  const SizedBox(width: 8),
-
+                for (int i = 0; i < vpn.subscriptions.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 8),
                   ChoiceChip(
-
-                    avatar: sub.isPinned ? const Icon(Icons.push_pin, size: 14) : null,
-
-                    label: Text('${sub.name} (${sub.nodes.length})'),
-
-                    selected: _selectedSubId == sub.id,
-
+                    showCheckmark: false,
+                    avatar: vpn.subscriptions[i].isPinned ? const Icon(Icons.push_pin, size: 14) : null,
+                    label: Text('${vpn.subscriptions[i].name} (${vpn.subscriptions[i].nodes.length})'),
+                    selected: _selectedSubId == vpn.subscriptions[i].id,
                     onSelected: (val) {
-
-                      if (val) setState(() => _selectedSubId = sub.id);
-
+                      if (val) setState(() => _selectedSubId = vpn.subscriptions[i].id);
                     },
-
                   ),
-
                 ],
-
                 if (vpn.manualNodes.isNotEmpty) ...[
-
-                  const SizedBox(width: 8),
-
+                  if (vpn.subscriptions.isNotEmpty) const SizedBox(width: 8),
                   ChoiceChip(
-
-                    label: Text('Ручные (${vpn.manualNodes.length})'),
-
+                    showCheckmark: false,
+                    label: Text('Сервера (${vpn.manualNodes.length})'),
                     selected: _selectedSubId == 'manual',
-
                     onSelected: (val) {
-
                       if (val) setState(() => _selectedSubId = 'manual');
-
                     },
-
                   ),
-
                 ],
-
               ],
-
             ),
-
           ),
-
           const Divider(height: 1),
-
         ],
 
 

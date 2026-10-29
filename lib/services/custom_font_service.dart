@@ -4,35 +4,67 @@ import 'package:flutter/services.dart';
 class CustomFontService {
   static final Set<String> _loadedFontFamilies = {};
 
-  /// Возвращает путь к папке /MaterialVless/customfonts
+  /// Возвращает директорию для сохранения кастомных шрифтов
   static Directory getFontsDirectory() {
     final exeDir = File(Platform.resolvedExecutable).parent;
-    final customDir = Directory('${exeDir.path}${Platform.pathSeparator}customfonts');
-    if (!customDir.existsSync()) {
-      try {
-        customDir.createSync(recursive: true);
-      } catch (_) {}
+    final localDir = Directory('${exeDir.path}${Platform.pathSeparator}customfonts');
+    try {
+      if (!localDir.existsSync()) {
+        localDir.createSync(recursive: true);
+      }
+      // Проверка прав на запись
+      final testFile = File('${localDir.path}${Platform.pathSeparator}.write_test');
+      testFile.writeAsStringSync('ok');
+      testFile.deleteSync();
+      return localDir;
+    } catch (_) {
+      // Если прав на запись в Program Files нет, сохраняем в AppData
+      if (Platform.isWindows) {
+        final appData = Platform.environment['APPDATA'] ?? Platform.environment['LOCALAPPDATA'];
+        if (appData != null) {
+          final fallbackDir = Directory('$appData${Platform.pathSeparator}MaterialVless${Platform.pathSeparator}customfonts');
+          try {
+            if (!fallbackDir.existsSync()) fallbackDir.createSync(recursive: true);
+            return fallbackDir;
+          } catch (_) {}
+        }
+      }
+      return localDir;
     }
-    return customDir;
   }
 
-  /// Список установленных файлов шрифтов (.ttf и .otf)
+  /// Список установленных файлов шрифтов (.ttf и .otf) из всех доступных локаций
   static List<File> getInstalledFontFiles() {
-    final dir = getFontsDirectory();
-    if (!dir.existsSync()) return [];
+    final dirs = <Directory>[];
+    final exeDir = File(Platform.resolvedExecutable).parent;
+    dirs.add(Directory('${exeDir.path}${Platform.pathSeparator}customfonts'));
 
-    try {
-      return dir
-          .listSync()
-          .whereType<File>()
-          .where((f) {
-            final ext = f.path.split('.').last.toLowerCase();
-            return ext == 'ttf' || ext == 'otf';
-          })
-          .toList();
-    } catch (_) {
-      return [];
+    if (Platform.isWindows) {
+      final appData = Platform.environment['APPDATA'] ?? Platform.environment['LOCALAPPDATA'];
+      if (appData != null) {
+        dirs.add(Directory('$appData${Platform.pathSeparator}MaterialVless${Platform.pathSeparator}customfonts'));
+      }
     }
+
+    final result = <File>[];
+    final seenNames = <String>{};
+    for (final dir in dirs) {
+      if (!dir.existsSync()) continue;
+      try {
+        final files = dir.listSync().whereType<File>().where((f) {
+          final ext = f.path.split('.').last.toLowerCase();
+          return ext == 'ttf' || ext == 'otf';
+        });
+        for (final f in files) {
+          final name = f.uri.pathSegments.last.toLowerCase();
+          if (!seenNames.contains(name)) {
+            seenNames.add(name);
+            result.add(f);
+          }
+        }
+      } catch (_) {}
+    }
+    return result;
   }
 
   /// Поиск пути к файлу шрифта по названию семейства

@@ -22,8 +22,6 @@ import '../services/storage_service.dart';
 
 import '../services/custom_font_service.dart';
 
-
-
 class VpnState {
 
   final CoreState status;
@@ -47,8 +45,6 @@ class VpnState {
   final int connectedSeconds;
 
   final int currentPingMs;
-
-
 
   VpnState({
 
@@ -76,8 +72,6 @@ class VpnState {
 
   });
 
-
-
   String get formattedTimer {
 
     final hours = connectedSeconds ~/ 3600;
@@ -95,8 +89,6 @@ class VpnState {
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
 
   }
-
-
 
   VpnState copyWith({
 
@@ -154,8 +146,6 @@ class VpnState {
 
 }
 
-
-
 class VpnNotifier extends StateNotifier<VpnState> {
 
   final XrayService _xrayService;
@@ -164,13 +154,9 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
   Timer? _autoUpdateCheckTimer;
 
-
-
   VpnNotifier(this._xrayService) : super(VpnState(settings: AppSettings())) {
 
     _init();
-
-
 
     _xrayService.stateStream.listen((status) {
 
@@ -188,8 +174,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
     });
 
-
-
     _xrayService.speedStream.listen((speeds) {
 
       state = state.copyWith(
@@ -204,43 +188,36 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
   }
 
-
-
   Future<void> _init() async {
 
     final (savedSubs, savedManual, savedSelectedId, savedSettings) =
 
         await StorageService.loadData();
 
-
-
     AppSettings currentSettings = savedSettings ?? state.settings;
 
+    // Загружаем все доступные кастомные шрифты из директории
+    await CustomFontService.loadAllCustomFonts();
 
-
-    if (currentSettings.customFontPath != null) {
-
-      try {
-
-        final fontFile = File(currentSettings.customFontPath!);
-
-        if (await fontFile.exists()) {
-
-          final fontBytes = await fontFile.readAsBytes();
-
-          final fontLoader = FontLoader(currentSettings.fontFamily);
-
-          fontLoader.addFont(Future.value(ByteData.view(fontBytes.buffer)));
-
-          await fontLoader.load();
-
-        }
-
-      } catch (_) {}
-
+    // Восстанавливаем сохраненный кастомный шрифт
+    if (currentSettings.fontFamily != 'Google Sans') {
+      String? fontPath = currentSettings.customFontPath;
+      if (fontPath == null || !File(fontPath).existsSync()) {
+        fontPath = CustomFontService.findFontPathForFamily(currentSettings.fontFamily);
+      }
+      if (fontPath != null) {
+        try {
+          final fontFile = File(fontPath);
+          if (await fontFile.exists()) {
+            final fontBytes = await fontFile.readAsBytes();
+            final fontLoader = FontLoader(currentSettings.fontFamily);
+            fontLoader.addFont(Future.value(ByteData.view(fontBytes.buffer)));
+            await fontLoader.load();
+            currentSettings = currentSettings.copyWith(customFontPath: fontPath);
+          }
+        } catch (_) {}
+      }
     }
-
-
 
     VlessNode? restoredSelectedNode;
 
@@ -270,15 +247,11 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
     }
 
-
-
     if (restoredSelectedNode == null && savedSubs.isNotEmpty && savedSubs.first.nodes.isNotEmpty) {
 
       restoredSelectedNode = savedSubs.first.nodes.first;
 
     }
-
-
 
     state = state.copyWith(
 
@@ -291,8 +264,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
       selectedNode: restoredSelectedNode,
 
     );
-
-
 
     // Действия при открытии программы для каждой подписки
 
@@ -312,8 +283,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
     }
 
-
-
     if (savedSubs.any((s) => s.connectBestOnStart)) {
 
       Future.delayed(const Duration(seconds: 2), () {
@@ -323,8 +292,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
       });
 
     }
-
-
 
     if (currentSettings.autoUpdateRulesOnStart) {
 
@@ -340,8 +307,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
     }
 
-
-
     _checkSubscriptionsAutoUpdate();
 
     _autoUpdateCheckTimer = Timer.periodic(const Duration(minutes: 15), (_) {
@@ -351,8 +316,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
     });
 
   }
-
-
 
   void _checkSubscriptionsAutoUpdate() {
 
@@ -376,8 +339,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
   }
 
-
-
   Future<void> _persist() async {
 
     await StorageService.saveData(
@@ -394,8 +355,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
   }
 
-
-
   void _startTimer() {
 
     _sessionTimer?.cancel();
@@ -410,8 +369,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
   }
 
-
-
   void _stopTimer() {
 
     _sessionTimer?.cancel();
@@ -419,8 +376,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
     state = state.copyWith(connectedSeconds: 0);
 
   }
-
-
 
   /// Сворачивание и разворачивание подписки
 
@@ -438,19 +393,13 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
     }).toList();
 
-
-
     state = state.copyWith(subscriptions: updated);
 
     _persist();
 
   }
 
-
-
   void toggleSubscriptionExpanded(String subId) => toggleSubscriptionExpansion(subId);
-
-
 
   /// Закрепление / открепление подписки (закрепленные перемещаются наверх)
 
@@ -462,8 +411,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
     if (idx == -1) return;
 
-
-
     final sub = updated[idx];
 
     final newPinned = !sub.isPinned;
@@ -471,8 +418,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
     final toggled = sub.copyWith(isPinned: newPinned);
 
     updated.removeAt(idx);
-
-
 
     if (newPinned) {
 
@@ -504,15 +449,11 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
     }
 
-
-
     state = state.copyWith(subscriptions: updated);
 
     await _persist();
 
   }
-
-
 
   /// Перемещение подписки выше в списке
 
@@ -524,11 +465,7 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
     if (idx <= 0) return;
 
-
-
     if (!updated[idx].isPinned && updated[idx - 1].isPinned) return;
-
-
 
     final item = updated.removeAt(idx);
 
@@ -540,8 +477,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
   }
 
-
-
   /// Перемещение подписки ниже в списке
 
   Future<void> moveSubscriptionDown(String subId) async {
@@ -552,11 +487,7 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
     if (idx == -1 || idx >= updated.length - 1) return;
 
-
-
     if (updated[idx].isPinned && !updated[idx + 1].isPinned) return;
-
-
 
     final item = updated.removeAt(idx);
 
@@ -567,8 +498,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
     await _persist();
 
   }
-
-
 
   /// Свободное изменение порядка подписок (drag & drop)
 
@@ -588,8 +517,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
   }
 
-
-
   /// Перезагрузка ядра VPN с активным сервером
 
   Future<void> restartCore() async {
@@ -606,8 +533,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
   }
 
-
-
   /// Полное выключение клиента: отключение VPN, сброс прокси и выход
 
   Future<void> exitApp() async {
@@ -618,15 +543,11 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
   }
 
-
-
   void setSearchQuery(String query) {
 
     state = state.copyWith(searchQuery: query);
 
   }
-
-
 
   /// Выбор сервера: если VPN уже подключен, автоматически переподключается на лету
 
@@ -636,13 +557,9 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
     final isDifferentNode = state.selectedNode?.id != node.id;
 
-
-
     state = state.copyWith(selectedNode: node);
 
     await _persist();
-
-
 
     if (wasConnected && isDifferentNode) {
 
@@ -656,8 +573,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
   }
 
-
-
   void updateSettings(AppSettings newSettings) {
 
     final oldSettings = state.settings;
@@ -665,8 +580,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
     state = state.copyWith(settings: newSettings);
 
     _persist();
-
-
 
     if (state.status == CoreState.connected &&
 
@@ -682,8 +595,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
   }
 
-
-
   /// Импорт пользовательского шрифта TTF/OTF
 
   Future<bool> importCustomFont(String filePath) async {
@@ -697,8 +608,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
       final familyName = await CustomFontService.addCustomFontFromFile(file);
 
       if (familyName == null) return false;
-
-
 
       final targetFile = File('${CustomFontService.getFontsDirectory().path}${Platform.pathSeparator}${file.uri.pathSegments.last}');
 
@@ -721,8 +630,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
     }
 
   }
-
-
 
   /// Аварийное завершение всех процессов ядра sing-box и сброс состояния
   Future<void> emergencyKillAllProcesses() async {
@@ -747,19 +654,13 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
   }
 
-
-
   Future<void> updateSubscription(String url) => addSubscription(url);
-
-
 
   Future<void> addSubscription(String source, {String? customName}) async {
 
     final cleanSource = source.trim();
 
     if (cleanSource.isEmpty) return;
-
-
 
     final isSingleNode = cleanSource.startsWith('vless://') ||
 
@@ -774,8 +675,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
         cleanSource.startsWith('hysteria2://') ||
 
         cleanSource.startsWith('hy2://');
-
-
 
     if (isSingleNode) {
 
@@ -809,8 +708,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
     }
 
-
-
     final (nodes, meta) = await SubscriptionService.loadSubscription(
 
       source: cleanSource,
@@ -821,13 +718,9 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
     );
 
-
-
     final isUrl = cleanSource.startsWith('http://') || cleanSource.startsWith('https://');
 
     final name = customName ?? (isUrl ? Uri.parse(cleanSource).host : 'Импортированные узлы');
-
-
 
     final newSub = SubscriptionModel(
 
@@ -857,11 +750,7 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
     );
 
-
-
     final updatedSubs = List<SubscriptionModel>.from(state.subscriptions)..add(newSub);
-
-
 
     state = state.copyWith(
 
@@ -875,15 +764,11 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
   }
 
-
-
   Future<void> refreshSubscription(String id) async {
 
     final index = state.subscriptions.indexWhere((s) => s.id == id);
 
     if (index == -1) return;
-
-
 
     final target = state.subscriptions[index];
 
@@ -907,8 +792,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
       );
 
-
-
       final updatedSub = target.copyWith(
 
         lastUpdated: DateTime.now(),
@@ -925,13 +808,9 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
       );
 
-
-
       final updatedSubs = List<SubscriptionModel>.from(state.subscriptions);
 
       updatedSubs[index] = updatedSub;
-
-
 
       VlessNode? newSelected = state.selectedNode;
 
@@ -951,8 +830,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
       }
 
-
-
       state = state.copyWith(
 
         subscriptions: updatedSubs,
@@ -966,8 +843,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
     } catch (_) {}
 
   }
-
-
 
   void updateSubscriptionOptions(String id, {
 
@@ -999,8 +874,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
     if (index == -1) return;
 
-
-
     final target = state.subscriptions[index];
 
     final bool urlChanged = newUrl != null && newUrl.trim().isNotEmpty && newUrl.trim() != target.url;
@@ -1031,19 +904,13 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
     );
 
-
-
     final updatedSubs = List<SubscriptionModel>.from(state.subscriptions);
 
     updatedSubs[index] = updatedSub;
 
-
-
     state = state.copyWith(subscriptions: updatedSubs);
 
     _persist();
-
-
 
     if (urlChanged) {
 
@@ -1052,8 +919,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
     }
 
   }
-
-
 
   void deleteSubscription(String id) {
 
@@ -1071,8 +936,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
     }
 
-
-
     state = state.copyWith(
 
       subscriptions: updatedSubs,
@@ -1084,8 +947,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
     _persist();
 
   }
-
-
 
   void deleteManualNode(String id) {
 
@@ -1107,8 +968,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
     }
 
-
-
     state = state.copyWith(
 
       manualNodes: updatedManual,
@@ -1121,8 +980,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
   }
 
-
-
   Future<void> pingAllNodes() async {
 
     if (state.status == CoreState.connected) {
@@ -1133,11 +990,7 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
     }
 
-
-
     state = state.copyWith(isTestingPing: true);
-
-
 
     final updatedSubs = <SubscriptionModel>[];
 
@@ -1165,8 +1018,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
     }
 
-
-
     final updatedManual = <VlessNode>[];
 
     for (final node in state.manualNodes) {
@@ -1185,8 +1036,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
     }
 
-
-
     state = state.copyWith(
 
       subscriptions: updatedSubs,
@@ -1201,8 +1050,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
   }
 
-
-
   /// Замер пинга всех серверов конкретной подписки
 
   Future<void> pingSubscription(String subId) async {
@@ -1211,11 +1058,7 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
     if (subIndex == -1) return;
 
-
-
     state = state.copyWith(isTestingPing: true);
-
-
 
     try {
 
@@ -1239,13 +1082,9 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
       }
 
-
-
       final updatedSubs = List<SubscriptionModel>.from(state.subscriptions);
 
       updatedSubs[subIndex] = sub.copyWith(nodes: updatedNodes);
-
-
 
       state = state.copyWith(
 
@@ -1265,8 +1104,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
   }
 
-
-
   Future<void> connect() async {
 
     if (state.status != CoreState.connected && state.selectedNode != null) {
@@ -1277,8 +1114,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
   }
 
-
-
   Future<void> disconnect() async {
 
     if (state.status == CoreState.connected || state.status == CoreState.connecting) {
@@ -1288,8 +1123,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
     }
 
   }
-
-
 
   Future<void> connectBestNode() async {
 
@@ -1303,11 +1136,7 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
     allNodes.addAll(state.manualNodes);
 
-
-
     if (allNodes.isEmpty) return;
-
-
 
     final valid = allNodes.where((n) => (n.pingMs ?? 0) > 0).toList();
 
@@ -1331,8 +1160,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
   }
 
-
-
   void addCustomRoutingRule(String suffix) {
 
     final clean = suffix.trim().toLowerCase();
@@ -1349,8 +1176,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
   }
 
-
-
   void removeCustomRoutingRule(String suffix) {
 
     final clean = suffix.trim().toLowerCase();
@@ -1361,15 +1186,11 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
   }
 
-
-
   void clearCustomRoutingRules() {
 
     updateSettings(state.settings.copyWith(customRoutingRules: []));
 
   }
-
-
 
   Future<void> toggleConnection() async {
 
@@ -1385,8 +1206,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
   }
 
-
-
   @override
 
   void dispose() {
@@ -1401,15 +1220,10 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
 }
 
-
-
 final xrayServiceProvider = Provider((ref) => XrayService());
-
-
 
 final vpnProvider = StateNotifierProvider<VpnNotifier, VpnState>((ref) {
 
   return VpnNotifier(ref.watch(xrayServiceProvider));
 
 });
-
