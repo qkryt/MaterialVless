@@ -84,6 +84,9 @@ class _MaterialVlessAppState extends ConsumerState<MaterialVlessApp> {
     final fontFamily = vpn.settings.fontFamily;
     final useDynamic = vpn.settings.useDynamicColor;
     final accentColor = vpn.settings.accentColor;
+    final hasBackgroundImage = vpn.settings.hasBackgroundImage;
+    final bgPath = vpn.settings.backgroundImagePath;
+    final bgDimming = vpn.settings.backgroundDimming;
 
     return DynamicColorBuilder(
       builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
@@ -108,15 +111,39 @@ class _MaterialVlessAppState extends ConsumerState<MaterialVlessApp> {
             lightScheme,
             fontFamily: fontFamily,
             accentColor: accentColor,
+            hasBackgroundImage: hasBackgroundImage,
           ),
           darkTheme: AppTheme.dark(
             darkScheme,
             fontFamily: fontFamily,
             isAmoled: themeMode == 'amoled',
             accentColor: accentColor,
+            hasBackgroundImage: hasBackgroundImage,
           ),
           themeMode: mode,
           scrollBehavior: const SmoothScrollBehavior(),
+          builder: (context, child) {
+            if (!hasBackgroundImage || bgPath == null) {
+              return child ?? const SizedBox();
+            }
+            return Stack(
+              children: [
+                Positioned.fill(
+                  child: Image.file(
+                    File(bgPath),
+                    fit: BoxFit.cover,
+                    alignment: Alignment.center,
+                  ),
+                ),
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.black.withOpacity(bgDimming.clamp(0.05, 0.95)),
+                  ),
+                ),
+                if (child != null) child,
+              ],
+            );
+          },
           home: const DashboardScreen(),
         );
       },

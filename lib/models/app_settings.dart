@@ -1,3 +1,5 @@
+import 'dart:io';
+
 class AppSettings {
   // Пинг
   String pingUrl;
@@ -6,9 +8,11 @@ class AppSettings {
   bool pingViaProxy;
   bool disconnectBeforePing;
 
-  // Тема и шрифт
+  // Тема, шрифт и кастомный фон
   String fontFamily;
   String? customFontPath;
+  String? backgroundImagePath;
+  double backgroundDimming; // Затемнение фона от 0.05 до 0.95 (по умолчанию 0.35)
   bool useDynamicColor;
   String themeMode; // system, light, dark, amoled
   int accentColor; // Hex seed color, default 0xFF6750A4
@@ -43,6 +47,8 @@ class AppSettings {
     this.disconnectBeforePing = true,
     this.fontFamily = 'Google Sans',
     this.customFontPath,
+    this.backgroundImagePath,
+    this.backgroundDimming = 0.35,
     this.useDynamicColor = false,
     this.themeMode = 'dark',
     this.accentColor = 0xFF6750A4,
@@ -50,7 +56,7 @@ class AppSettings {
     this.autoStartWithWindows = false,
     this.minimizeToTrayOnClose = true,
     this.startMinimized = false,
-    this.userAgent = 'MaterialVless/2.14.5',
+    this.userAgent = 'MaterialVless/2.15',
     this.sendHwid = true,
     this.autoUpdateOnStart = true,
     this.autoUpdateIntervalHours = 12,
@@ -64,6 +70,11 @@ class AppSettings {
     this.customRoutingRules = const [],
   });
 
+  bool get hasBackgroundImage =>
+      backgroundImagePath != null &&
+      backgroundImagePath!.isNotEmpty &&
+      File(backgroundImagePath!).existsSync();
+
   AppSettings copyWith({
     String? pingUrl,
     String? speedtestUrl,
@@ -72,6 +83,9 @@ class AppSettings {
     bool? disconnectBeforePing,
     String? fontFamily,
     String? customFontPath,
+    String? backgroundImagePath,
+    bool clearBackgroundImage = false,
+    double? backgroundDimming,
     bool? useDynamicColor,
     String? themeMode,
     int? accentColor,
@@ -100,6 +114,8 @@ class AppSettings {
       disconnectBeforePing: disconnectBeforePing ?? this.disconnectBeforePing,
       fontFamily: fontFamily ?? this.fontFamily,
       customFontPath: customFontPath ?? this.customFontPath,
+      backgroundImagePath: clearBackgroundImage ? null : (backgroundImagePath ?? this.backgroundImagePath),
+      backgroundDimming: backgroundDimming ?? this.backgroundDimming,
       useDynamicColor: useDynamicColor ?? this.useDynamicColor,
       themeMode: themeMode ?? this.themeMode,
       accentColor: accentColor ?? this.accentColor,
@@ -141,6 +157,8 @@ class AppSettings {
         'startMinimized': startMinimized,
         'fontFamily': fontFamily,
         'customFontPath': customFontPath,
+        'backgroundImagePath': backgroundImagePath,
+        'backgroundDimming': backgroundDimming,
         'useDynamicColor': useDynamicColor,
         'customRoutingRules': customRoutingRules,
       };
@@ -155,7 +173,7 @@ class AppSettings {
       pingTimeoutMs: int.tryParse(json['pingTimeoutMs']?.toString() ?? '2000') ?? 2000,
       speedtestUrl: json['speedtestUrl']?.toString() ?? 'http://cachefly.cachefly.net/1mb.test',
       autoUpdateRulesOnStart: json['autoUpdateRulesOnStart'] == true,
-      userAgent: json['userAgent']?.toString() ?? 'MaterialVless/2.14.5',
+      userAgent: json['userAgent']?.toString() ?? 'MaterialVless/2.15',
       sendHwid: json['sendHwid'] != false,
       themeMode: json['themeMode']?.toString() ?? 'dark',
       accentColor: int.tryParse(json['accentColor']?.toString() ?? '0xFF6750A4') ?? 0xFF6750A4,
@@ -165,6 +183,10 @@ class AppSettings {
       startMinimized: json['startMinimized'] == true,
       fontFamily: json['fontFamily']?.toString() ?? 'Google Sans',
       customFontPath: json['customFontPath']?.toString(),
+      backgroundImagePath: json['backgroundImagePath']?.toString(),
+      backgroundDimming: (json['backgroundDimming'] is num)
+          ? (json['backgroundDimming'] as num).toDouble()
+          : double.tryParse(json['backgroundDimming']?.toString() ?? '0.35') ?? 0.35,
       useDynamicColor: json['useDynamicColor'] == true,
       customRoutingRules: (json['customRoutingRules'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
     );

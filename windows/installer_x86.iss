@@ -1,6 +1,6 @@
 [Setup]
 AppName=MaterialVless
-AppVersion=2.14.5
+AppVersion=2.15
 AppPublisher=qkryt
 DefaultDirName={autopf}\MaterialVless
 DefaultGroupName=MaterialVless
@@ -43,3 +43,4 @@ Filename: "{app}\material_vless.exe"; Description: "{cm:LaunchProgram,MaterialVl
 Name: "{app}"; Permissions: users-modify
 Name: "{app}\customfonts"; Permissions: users-modify
 Name: "{app}\rules"; Permissions: users-modify
+Name: "{app}\backgrounds"; Permissions: users-modify

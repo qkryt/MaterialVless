@@ -184,9 +184,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
 
     return Scaffold(
-
-      backgroundColor: colorScheme.surface,
-
+      backgroundColor: vpn.settings.hasBackgroundImage ? Colors.transparent : colorScheme.surface,
       appBar: AppBar(
 
         titleSpacing: 0,

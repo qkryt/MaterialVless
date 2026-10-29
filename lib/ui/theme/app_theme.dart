@@ -27,6 +27,7 @@ class AppTheme {
     ColorScheme? dynamicColorScheme, {
     String fontFamily = defaultFontFamily,
     int accentColor = 0xFF6750A4,
+    bool hasBackgroundImage = false,
   }) {
     final scheme = dynamicColorScheme ??
         ColorScheme.fromSeed(
@@ -38,15 +39,15 @@ class AppTheme {
       useMaterial3: true,
       fontFamily: fontFamily,
       colorScheme: scheme,
-      scaffoldBackgroundColor: scheme.surface,
+      scaffoldBackgroundColor: hasBackgroundImage ? Colors.transparent : scheme.surface,
       cardTheme: CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        color: scheme.surfaceContainer,
+        color: hasBackgroundImage ? scheme.surfaceContainer.withOpacity(0.88) : scheme.surfaceContainer,
       ),
       appBarTheme: AppBarTheme(
         centerTitle: false,
-        backgroundColor: scheme.surface,
+        backgroundColor: hasBackgroundImage ? Colors.transparent : scheme.surface,
         elevation: 0,
         titleTextStyle: TextStyle(
           fontFamily: fontFamily,
@@ -79,6 +80,7 @@ class AppTheme {
     String fontFamily = defaultFontFamily,
     bool isAmoled = false,
     int accentColor = 0xFF6750A4,
+    bool hasBackgroundImage = false,
   }) {
     final baseScheme = dynamicColorScheme ??
         ColorScheme.fromSeed(
@@ -94,15 +96,17 @@ class AppTheme {
       useMaterial3: true,
       fontFamily: fontFamily,
       colorScheme: scheme,
-      scaffoldBackgroundColor: isAmoled ? Colors.black : scheme.surface,
+      scaffoldBackgroundColor: hasBackgroundImage ? Colors.transparent : (isAmoled ? Colors.black : scheme.surface),
       cardTheme: CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        color: isAmoled ? const Color(0xFF121212) : scheme.surfaceContainer,
+        color: hasBackgroundImage
+            ? (isAmoled ? const Color(0xFF121212).withOpacity(0.85) : scheme.surfaceContainer.withOpacity(0.85))
+            : (isAmoled ? const Color(0xFF121212) : scheme.surfaceContainer),
       ),
       appBarTheme: AppBarTheme(
         centerTitle: false,
-        backgroundColor: isAmoled ? Colors.black : scheme.surface,
+        backgroundColor: hasBackgroundImage ? Colors.transparent : (isAmoled ? Colors.black : scheme.surface),
         elevation: 0,
         titleTextStyle: TextStyle(
           fontFamily: fontFamily,

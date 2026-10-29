@@ -18,6 +18,7 @@ import '../../services/update_service.dart';
 import '../../services/custom_font_service.dart';
 
 import '../../services/localization_service.dart';
+import '../../services/background_service.dart';
 
 import '../theme/app_theme.dart';
 
@@ -50,7 +51,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   final List<String> _popularUserAgents = const [
 
-    'MaterialVless/2.14.5',
+    'MaterialVless/2.15',
 
     'v2rayN/6.42',
 
@@ -200,14 +201,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
 
     } else if (mounted) {
-
       _showManualFontDialog();
-
     }
-
   }
 
+  Future<void> _pickBackgroundImage() async {
+    final path = await BackgroundService.pickImageFile();
+    if (path != null && mounted) {
+      final success = await ref.read(vpnProvider.notifier).setBackgroundImage(path);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(success ? 'Фоновое изображение успешно установлено!' : 'Не удалось установить изображение'),
+          ),
+        );
+      }
+    }
+  }
 
+  Future<void> _removeBackgroundImage() async {
+    await ref.read(vpnProvider.notifier).removeBackgroundImage();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Фоновое изображение сброшено на стандартный цвет темы')),
+      );
+    }
+  }
 
   void _showFeedbackDialog(BuildContext context) {
     final theme = Theme.of(context);
@@ -1422,27 +1441,82 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ],
 
                     onChanged: (val) {
-
                       if (val != null) {
-
                         ref.read(vpnProvider.notifier).updateSettings(
-
                               settings.copyWith(themeMode: val),
-
                             );
-
                       }
-
                     },
-
                   ),
-
                 ),
 
+                const Divider(height: 1),
+
+                // ==================== ФОНОВОЕ ИЗОБРАЖЕНИЕ ====================
+                ListTile(
+                  leading: const Icon(Icons.wallpaper_rounded),
+                  title: const Text('Фоновое изображение'),
+                  subtitle: Text(
+                    settings.hasBackgroundImage
+                        ? 'Пользовательский фон (любой формат, 800x600)'
+                        : 'Стандартный цвет темы',
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      FilledButton.tonalIcon(
+                        icon: const Icon(Icons.image_outlined, size: 18),
+                        label: Text(settings.hasBackgroundImage ? 'Сменить' : 'Выбрать (800x600)'),
+                        onPressed: _pickBackgroundImage,
+                      ),
+                      if (settings.hasBackgroundImage) ...[
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+                          tooltip: 'Сбросить фон',
+                          onPressed: _removeBackgroundImage,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (settings.hasBackgroundImage) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.brightness_medium_outlined, size: 18),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Затемнение фона: ${(settings.backgroundDimming * 100).toInt()}% (чуть-чуть)',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Slider(
+                          value: settings.backgroundDimming,
+                          min: 0.05,
+                          max: 0.85,
+                          divisions: 16,
+                          label: '${(settings.backgroundDimming * 100).toInt()}%',
+                          onChanged: (val) {
+                            ref.read(vpnProvider.notifier).updateSettings(
+                                  settings.copyWith(backgroundDimming: val),
+                                );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
-
             ),
-
           ),
 
 
@@ -1935,7 +2009,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                   title: Text(t('client_version')),
 
-                  subtitle: const Text('MaterialVless 2.14.5 • Релиз 2.14.5 (v2.14.5)'),
+                  subtitle: const Text('MaterialVless 2.15 • Релиз 2.15 (v2.15)'),
 
                   trailing: _isCheckingUpdate
 
@@ -1975,7 +2049,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                                 const SnackBar(
 
-                                  content: Text('У вас установлена самая актуальная версия (v2.14.5)'),
+                                  content: Text('У вас установлена самая актуальная версия (v2.15)'),
 
                                 ),
 
@@ -2139,7 +2213,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                             Text(
 
-                              'Версия 2.14.5 • Релиз 2.14.5 (Выпуск 2026)',
+                              'Версия 2.15 • Релиз 2.15 (Выпуск 2026)',
 
                               style: TextStyle(
 

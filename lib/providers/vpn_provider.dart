@@ -21,6 +21,7 @@ import '../services/subscription_service.dart';
 import '../services/storage_service.dart';
 
 import '../services/custom_font_service.dart';
+import '../services/background_service.dart';
 
 class VpnState {
 
@@ -636,6 +637,37 @@ class VpnNotifier extends StateNotifier<VpnState> {
     await _xrayService.stop();
     await XrayService.killAllCoreProcesses();
     state = state.copyWith(status: CoreState.disconnected);
+  }
+
+  /// Установка кастомного фонового изображения (любой формат, 800x600)
+  Future<bool> setBackgroundImage(String filePath) async {
+    try {
+      final file = File(filePath);
+      if (!await file.exists()) return false;
+      final savedPath = await BackgroundService.saveBackgroundImage(file);
+      if (savedPath == null) return false;
+
+      final newSettings = state.settings.copyWith(
+        backgroundImagePath: savedPath,
+      );
+      updateSettings(newSettings);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Удаление и сброс фонового изображения на стандартный цвет темы
+  Future<void> removeBackgroundImage() async {
+    try {
+      if (state.settings.backgroundImagePath != null) {
+        await BackgroundService.deleteBackgroundImage(state.settings.backgroundImagePath!);
+      }
+    } catch (_) {}
+    final newSettings = state.settings.copyWith(
+      clearBackgroundImage: true,
+    );
+    updateSettings(newSettings);
   }
 
   /// Сброс шрифта на стандартный

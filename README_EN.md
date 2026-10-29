@@ -1,4 +1,4 @@
-# MaterialVless 2.14.5 (Release 2.14.5)
+# MaterialVless 2.15 (Release 2.15)
 
 <p align="center">
   <b><a href="README_EN.md">English</a> | <a href="README.md">Русский</a></b>
