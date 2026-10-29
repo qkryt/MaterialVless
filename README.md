@@ -1,11 +1,15 @@
-# MaterialVless 2.1 (Micropatch 2.1)
+# MaterialVless 2.1 (Микропатч 2.1)
+
+<p align="center">
+  <b><a href="README.md">Русский</a> | <a href="README_EN.md">English</a></b>
+</p>
 
 <p align="center">
   <img src="assets/icons/app_icon.png" width="128" height="128" alt="MaterialVless Logo" />
 </p>
 
 <p align="center">
-  <b>Modern, high-performance desktop VPN client for VLESS / Reality / gRPC / Hysteria 2 powered by the sing-box core in Google's Material Design 3 (Material You).</b>
+  <b>Современный высокопроизводительный десктопный клиент VPN для VLESS / Reality / gRPC / Hysteria 2 на базе ядра sing-box в дизайне Google Material Design 3 (Material You).</b>
 </p>
 
 <p align="center">
@@ -18,117 +22,118 @@
 
 ---
 
-## 🌟 What's New in Micropatch 2.1
+## 🌟 Нововведения микропатча 2.1
 
-### 🔗 Deep-Linking & Protocol Schemes (`material://` and `happ://`)
-MaterialVless 2.1 registers system-wide protocol handlers for `material://` and `happ://`, enabling full remote control from web browsers, scripts, and automation tools:
+### 🔗 Протокольные URL-схемы и Deep-Linking (`material://` и `happ://`)
+MaterialVless 2.1 регистрирует в системе протокольные обработчики для схем `material://` и `happ://`, позволяя управлять подключением из браузеров, скриптов автоматизации и мессенджеров:
 
-| Action | URL Schemes | Description |
+| Действие | URL-схемы | Описание |
 | :--- | :--- | :--- |
-| **Start Tunnel** | `material://connect`<br>`happ://connect`<br>`material://open`<br>`happ://open` | Connects to the currently selected VPN server |
-| **Stop Tunnel** | `material://disconnect`<br>`happ://disconnect`<br>`material://close`<br>`happ://close` | Disconnects VPN and restores system routing |
-| **Toggle Tunnel** | `material://toggle`<br>`happ://toggle` | Toggles VPN connection on or off |
-| **Add Server / Profile** | `material://add{URL}`<br>`happ://add{URL}`<br>`material://crypt{URL}`<br>`happ://crypt{URL}`<br>`material://crypt2{URL}`<br>`happ://crypt2{URL}` | Automatically imports subscription URL, direct node, or encrypted payload |
-| **Custom Routing** | `material://routing/add/{base64}`<br>`happ://routing/add/{base64}`<br>`material://routing/onadd/{base64}`<br>`happ://routing/onadd/{base64}` | Dynamically adds direct routing rule from base64 string |
-| **Clear Routing** | `material://routing/off`<br>`happ://routing/off` | Clears all dynamic custom routing rules |
+| **Запустить туннель** | `material://connect`<br>`happ://connect`<br>`material://open`<br>`happ://open` | Подключает выбранный VPN-сервер |
+| **Остановить туннель** | `material://disconnect`<br>`happ://disconnect`<br>`material://close`<br>`happ://close` | Разрывает соединение и восстанавливает системную маршрутизацию |
+| **Переключить состояние** | `material://toggle`<br>`happ://toggle` | Переключает соединение (Connect / Disconnect) |
+| **Добавить сервер / подписку** | `material://add{URL}`<br>`happ://add{URL}`<br>`material://crypt{URL}`<br>`happ://crypt{URL}`<br>`material://crypt2{URL}`<br>`happ://crypt2{URL}` | Автоматически импортирует URL подписки, прямую ссылку на узел или зашифрованный профиль |
+| **Добавить маршрут** | `material://routing/add/{base64}`<br>`happ://routing/add/{base64}`<br>`material://routing/onadd/{base64}`<br>`happ://routing/onadd/{base64}` | Динамически добавляет доменное правило прямого обхода из строки base64 |
+| **Сбросить маршруты** | `material://routing/off`<br>`happ://routing/off` | Очищает добавленные динамические правила маршрутизации |
 
-### 🌐 Preferred IP Strategy
-- **Auto (IPv4 / IPv6)**: Dynamically resolves both IPv4 and IPv6 based on network availability.
-- **IPv4 Only**: Forces pure IPv4 resolution and routing for maximum compatibility with networks where IPv6 is degraded.
-- **Prefer IPv6**: Prioritizes IPv6 routes for networks with native IPv6 connectivity.
+### 🌐 Предпочитаемый тип IP (Preferred IP Strategy)
+- **Auto (IPv4 / IPv6)**: Автоматический выбор IP-адреса в зависимости от доступности сети.
+- **Только IPv4 (`ipv4_only`)**: Принудительное разрешение и маршрутизация только по IPv4 (актуально для сетей с нестабильным IPv6).
+- **Предпочитать IPv6 (`prefer_ipv6`)**: Приоритет IPv6 адресов при их наличии на сервере.
 
-### 🎨 Material You Design & Customization
-- **Dynamic Accent Color Seeds**: Pick from 8 curated Material You palettes (*Deep Purple, Electric Blue, Emerald Teal, Forest Green, Sunset Orange, Ruby Crimson, Cyber Pink, Graphite Slate*).
-- **6 Working Built-in Fonts**: Includes `Google Sans`, `Roboto`, `Segoe UI`, `Consolas`, `Arial`, and `Tahoma`.
-- **Custom Font Loader**: Import any `.ttf` or `.otf` font file with instant system-wide preview and application.
-- **Bilingual Interface**: Full English (EN) and Russian (RU) localization switcher.
-- **Theme Modes**: System, Light, Dark, and deep **AMOLED Black** for OLED displays.
+### 🎨 Кастомизация интерфейса и Material You
+- **Палитра семян Material You**: Выбор из 8 гармоничных цветовых акцентов (*Deep Purple, Electric Blue, Emerald Teal, Forest Green, Sunset Orange, Ruby Crimson, Cyber Pink, Graphite Slate*) с анимацией и мгновенным применением.
+- **6 встроенных рабочих шрифтов**: `Google Sans`, `Roboto`, `Segoe UI`, `Consolas`, `Arial` и `Tahoma`.
+- **Импорт шрифтов (.ttf, .otf)**: Возможность загрузить любой собственный шрифт с файловой системы с предпросмотром и кнопкой сброса на системный.
+- **Двуязычный интерфейс**: Переключатель языков интерфейса на лету (Русский / English).
+- **Режимы темы**: Системная, Светлая, Тёмная и глубокая **AMOLED Black** для OLED-экранов.
 
-### ⚙️ Enhanced Subscription & Profile Management
-- **Responsive URL Input**: Smart layout container with multi-line expandability for long subscription and configuration tokens.
-- **Per-Subscription User-Agent**: Set custom HTTP User-Agent per subscription provider while retaining a global fallback.
-- **Automated Startup Triggers**:
-  - Auto-update subscription on application launch.
-  - Auto-ping subscription nodes on launch.
-  - Auto-connect to the lowest ping server on launch.
-- **Hardware ID (HWID) Control**: Toggle `X-HWID` headers with optional custom/alternative hardware identifier per profile.
+### ⚙️ Расширенные настройки подписок
+- **Адаптивное поле ввода адреса**: Контейнер автоматически подстраивается под ширину окна и длину ссылки, поддерживая многострочный ввод.
+- **Пользовательский User-Agent**: Возможность задать уникальный User-Agent для конкретного провайдера подписки с сохранением глобального значения по умолчанию.
+- **Автоматические действия при запуске**:
+  - Обновление подписки при старте приложения.
+  - Пинг серверов подписки при старте.
+  - Автоподключение к узлу с наименьшим пингом при старте.
+- **Управление аппаратным HWID**: Включение/выключение передачи заголовка `X-HWID` и ввод альтернативного аппаратного идентификатора.
 
-### 🛡️ Single Instance & Windows Process Management
-- **Single Instance Enforcement**: Prevents multiple instances via a dedicated loopback IPC server (`127.0.0.1:49281`). Opening an additional instance instantly brings the existing window to the foreground and forwards any deep links.
-- **Stale Instance Recovery**: Automatically cleans up and recovers if a prior instance was terminated abnormally.
-- **Seamless In-App Updater**: Downloads `.exe` updates with a real-time progress bar dialog, launches the installer, and closes the current application cleanly.
+### 🛡️ Управление процессами и Single Instance
+- **Защита от запуска дубликатов**: Встроенный IPC-сервер на порту `127.0.0.1:49281` предотвращает повторный запуск клиента, активирует и выводит уже открытое окно на передний план и передает ему URL-команды.
+- **Восстановление после зависаний**: Автоматически обнаруживает некорректно завершенные процессы и очищает состояние.
+- **Встроенный загрузчик обновлений**: Скачивает официальный установщик `.exe` из релизов GitHub в реальном времени с окном прогресса, запускает его и корректно закрывает приложение.
 
 ---
 
-## 🚀 Key Features
+## 🚀 Основные возможности
 
-- **Sing-box Core v1.14.4 & Wintun Driver v0.14.1**: Kernel-level TUN driver providing ultra-low latency, full UDP forwarding, and wire-speed throughput.
-- **Wide Protocol Support**:
+- **Ядро sing-box v1.14.4 и драйвер Wintun v0.14.1**: Сетевой TUN-драйвер уровня ядра для сверхнизких задержек и высокой скорости передачи.
+- **Поддержка современных протоколов**:
   - `vless://` (Reality, XTLS, Vision, gRPC, WebSocket)
-  - `hysteria2://` / `hy2://` (High-speed UDP obfuscation)
+  - `hysteria2://` / `hy2://` (Высокоскоростной UDP-протокол)
   - `ss://` (Shadowsocks 2022, AEAD)
   - `trojan://`
   - `vmess://`
-  - Encrypted subscription formats (`crypt://`, `crypt2://`)
-- **Smart Routing & Bypass**:
-  - **Secure DNS (DoH)**: Cloudflare (`1.1.1.1`) and Google (`8.8.8.8`) over HTTPS inside the tunnel.
-  - **Bypass LAN**: Automatic exclusion of local subnets (`192.168.0.0/16`, `10.0.0.0/8`, `172.16.0.0/12`).
-  - **Country-based Direct Routing**: Bypass domestic services without speed loss.
-- **Clean System Tray**:
-  - Minimized background operation.
-  - Quick action menu: Open, Restart Core, Exit.
+  - Зашифрованные форматы подписок (`crypt://`, `crypt2://`)
+- **Умная маршрутизация и обход блокировок**:
+  - **Защищенный DNS (DoH)**: Cloudflare (`1.1.1.1`) и Google (`8.8.8.8`) через шифрованный HTTPS-туннель.
+  - **Обход локальной сети (LAN)**: Автоматическое исключение подсетей (`192.168.0.0/16`, `10.0.0.0/8`, `172.16.0.0/12`).
+  - **Пресет обхода сайтов РФ**: Прямой доступ к государственным и банковским ресурсам рунета без замедления.
+- **Системный трей и поведение**:
+  - Автозапуск вместе с Windows (через реестр HKCU Run).
+  - Сворачивание в область уведомлений при закрытии окна.
+  - Быстрое контекстное меню: Открыть, Перезагрузить ядро, Выйти.
 
 ---
 
-## 📥 Downloads
+## 📥 Загрузка готовых сборок
 
-Pre-built binaries are compiled on GitHub Actions:
+Сборки компилируются автоматически через GitHub Actions в разделе **[Releases](https://github.com/qkryt/MaterialVless/releases/latest)**:
 
-| Platform | Download File | Details |
+| Платформа | Файл | Описание |
 | :--- | :--- | :--- |
-| **Windows x64** | `MaterialVless-Windows-x64-Setup.exe` | Recommended installer for 64-bit Windows |
-| **Windows x64** | `MaterialVless-Windows-x64.zip` | Portable version with embedded sing-box & Wintun |
-| **Windows x86** | `MaterialVless-Windows-x86-Setup.exe` | 32-bit Windows installer |
-| **Windows x86** | `MaterialVless-Windows-x86.zip` | 32-bit portable edition |
-| **Linux x64** | `MaterialVless-Linux-x64.tar.gz` | Linux x86_64 binaries (Ubuntu, Debian, Fedora, Arch) |
-| **Linux x86** | `MaterialVless-Linux-x86.tar.gz` | Linux 32-bit edition |
-| **macOS** | `MaterialVless-macOS.zip` | Universal macOS binary (Apple Silicon & Intel) |
+| **Windows x64** | `MaterialVless-Windows-x64-Setup.exe` | Рекомендуемый установщик для 64-битной Windows |
+| **Windows x64** | `MaterialVless-Windows-x64.zip` | Портативная версия с sing-box и Wintun |
+| **Windows x86** | `MaterialVless-Windows-x86-Setup.exe` | Установщик для 32-битной Windows |
+| **Windows x86** | `MaterialVless-Windows-x86.zip` | Портативная версия x86 |
+| **Linux x64** | `MaterialVless-Linux-x64.tar.gz` | Linux x86_64 сборка (Ubuntu, Debian, Fedora, Arch) |
+| **Linux x86** | `MaterialVless-Linux-x86.tar.gz` | Linux 32-bit сборка |
+| **macOS** | `MaterialVless-macOS.zip` | Универсальный архив macOS (Apple Silicon и Intel) |
 
 ---
 
-## 🛠️ Building from Source
+## 🛠️ Сборка из исходников
 
-### Prerequisites
+### Требования
 1. [Flutter SDK](https://flutter.dev/) (>= 3.22.0)
 2. [Go](https://go.dev/) (>= 1.22)
-3. Visual Studio 2022 with Desktop development with C++
-4. [Inno Setup 6](https://jrsoftware.org/isdl.php) (for creating Windows installers)
+3. Visual Studio 2022 с компонентом «Разработка классических приложений на C++»
+4. [Inno Setup 6](https://jrsoftware.org/isdl.php) (для сборки инсталляторов Windows)
 
-### Build Commands
+### Команды сборки
 ```bash
-# Clone the repository
+# Клонирование репозитория
 git clone https://github.com/qkryt/MaterialVless.git
 cd MaterialVless
 
-# Install Flutter dependencies
+# Установка зависимостей Flutter
 flutter pub get
 
-# Build Windows Release binary
+# Сборка Windows Release бинарника
 flutter build windows --release
 
-# Compile Inno Setup installer
+# Компиляция установщика Inno Setup
 iscc windows/installer_x64.iss
 ```
 
 ---
 
-## 👥 Contributors
+## 👥 Авторы и участники
 
-- **qkryt** — Lead Developer & Maintainer.
-- **Google Deepmind / Antigravity Agent** — Core network engine, Wintun integration, Material Design 3 UI, and CI/CD pipelines.
+- **qkryt** — автор проекта и основной разработчик.
+- **Google Deepmind / Antigravity Agent** — разработка сетевого стека, интеграция Wintun, Material Design 3 и CI/CD автоматизация.
 
 ---
 
-## 📄 License
+## 📄 Лицензия
 
-This project is licensed under the [MIT License](LICENSE).
+Проект распространяется под открытой лицензией [MIT License](LICENSE).
