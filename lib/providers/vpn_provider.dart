@@ -206,6 +206,8 @@ class VpnNotifier extends StateNotifier<VpnState> {
     _persist();
   }
 
+  void toggleSubscriptionExpanded(String subId) => toggleSubscriptionExpansion(subId);
+
   /// Закрепление / открепление подписки (закрепленные перемещаются наверх)
   Future<void> togglePinSubscription(String subId) async {
     final updated = List<SubscriptionModel>.from(state.subscriptions);
@@ -354,6 +356,8 @@ class VpnNotifier extends StateNotifier<VpnState> {
     );
     updateSettings(newSettings);
   }
+
+  Future<void> updateSubscription(String url) => addSubscription(url);
 
   Future<void> addSubscription(String source, {String? customName}) async {
     final cleanSource = source.trim();

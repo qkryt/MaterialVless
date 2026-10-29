@@ -150,7 +150,7 @@ class NodeListScreen extends ConsumerWidget {
             onPressed: () {
               final url = controller.text.trim();
               if (url.isNotEmpty) {
-                ref.read(vpnProvider.notifier).updateSubscription(url);
+                ref.read(vpnProvider.notifier).addSubscription(url);
               }
               Navigator.pop(ctx);
             },

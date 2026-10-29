@@ -392,7 +392,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           InkWell(
-            onTap: () => ref.read(vpnProvider.notifier).toggleSubscriptionExpanded(sub.id),
+            onTap: () => ref.read(vpnProvider.notifier).toggleSubscriptionExpansion(sub.id),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
               child: Column(
@@ -442,7 +442,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             shape: const CircleBorder(),
                             clipBehavior: Clip.antiAlias,
                             child: InkWell(
-                              onTap: () => ref.read(vpnProvider.notifier).toggleSubscriptionExpanded(sub.id),
+                              onTap: () => ref.read(vpnProvider.notifier).toggleSubscriptionExpansion(sub.id),
                               hoverColor: colorScheme.primary.withValues(alpha: 0.12),
                               highlightColor: colorScheme.primary.withValues(alpha: 0.20),
                               splashColor: colorScheme.primary.withValues(alpha: 0.25),
