@@ -126,13 +126,6 @@ iscc windows/installer_x64.iss
 
 ---
 
-## 👥 Contributors
-
-- **qkryt** — Lead Developer & Maintainer.
-- **Google Deepmind / Antigravity Agent** — Core network engine, Wintun integration, Material Design 3 UI, and CI/CD pipelines.
-
----
-
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
