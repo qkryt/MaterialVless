@@ -59,7 +59,7 @@ class XrayService {
     _updateState(CoreState.connecting);
 
     LogService.log('--- STARTING VPN CONNECTION ---');
-    LogService.log('Target node: "${node.name}" (${node.protocol.name.toUpperCase()})');
+    LogService.log('Target node: "${node.remark}" (${node.protocol.name.toUpperCase()})');
     LogService.log('Remote host: ${node.address}:${node.port}');
     LogService.log('Parameters: security=${node.security}, streamType=${node.streamType}, flow=${node.flow}, sni=${node.sni}');
 

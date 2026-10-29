@@ -2227,11 +2227,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             icon: const Icon(Icons.bug_report_outlined, size: 16),
                             label: const Text('Нашли ошибку? Сообщи автору'),
                             onPressed: () => _showFeedbackDialog(context),
+                          ),
                           OutlinedButton.icon(
                             icon: const Icon(Icons.description_outlined, size: 16),
                             label: const Text('Открыть log.txt'),
                             onPressed: () => LogService.openLogFile(),
-                          ),
                           ),
                           TextButton.icon(
                             icon: const Icon(Icons.code_rounded, size: 16),
