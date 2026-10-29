@@ -44,10 +44,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     });
   }
 
-  Future<void> _checkAppUpdate() async {
-    final update = await UpdateService.checkForUpdate();
-    if (update != null && mounted) {
-      await UpdateService.showUpdateDialog(context, update);
+  Future<void> _checkAppUpdate({bool manual = false}) async {
+    final result = await UpdateService.checkDetailedUpdate();
+    if (!mounted) return;
+
+    if (result.hasUpdate && result.updateInfo != null) {
+      await UpdateService.showUpdateDialog(context, result.updateInfo!);
+    } else if (manual) {
+      if (result.isSuccess) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'У вас установлена самая актуальная версия (v)',
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.errorMessage ?? 'Не удалось проверить обновления'),
+          ),
+        );
+      }
     }
   }
 
@@ -78,6 +96,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.system_update_rounded),
+            tooltip: 'Проверить обновления',
+            onPressed: () => _checkAppUpdate(manual: true),
+          ),
           IconButton(
             icon: const Icon(Icons.speed_rounded),
             tooltip: 'Проверить пинг всех серверов',

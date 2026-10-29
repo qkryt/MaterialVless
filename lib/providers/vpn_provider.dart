@@ -312,8 +312,16 @@ class VpnNotifier extends StateNotifier<VpnState> {
   }
 
   void updateSettings(AppSettings newSettings) {
+    final oldSettings = state.settings;
     state = state.copyWith(settings: newSettings);
     _persist();
+
+    if (state.status == CoreState.connected &&
+        (oldSettings.secureDnsEnabled != newSettings.secureDnsEnabled ||
+         oldSettings.bypassLanEnabled != newSettings.bypassLanEnabled ||
+         oldSettings.routingPreset != newSettings.routingPreset)) {
+      restartCore();
+    }
   }
 
   /// Импорт пользовательского шрифта TTF/OTF

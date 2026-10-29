@@ -24,12 +24,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     'sing-box/1.11.0',
     'ClashMeta/v1.18.0',
     'Clash.Meta',
+    'ClashVerge/1.7.7',
     'Shadowrocket/1982',
     'QuantumultX/1.0.30',
     'Surge/5.0.0',
     'FlClash/0.8.0',
     'NekoRay/3.26',
-    'MaterialVless',
+    'Karing/1.0.31',
+    'V2Ray/5.14.1',
+    'Hiddify/2.5.7',
+    'Streisand/1.6.4',
+    'Loon/3.2.1',
+    'Foxray/1.4.2',
+    'Wings/1.0.0',
+    'MaterialVless/2.0',
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0.0.0',
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Firefox/132.0',
   ];
@@ -75,7 +83,47 @@ if ($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
           ),
         );
       }
+    } else if (mounted) {
+      _showManualFontDialog();
     }
+  }
+
+  void _showManualFontDialog() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Укажите путь к файлу шрифта'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'Путь к .ttf или .otf',
+            hintText: 'C:\\Windows\\Fonts\\arial.ttf',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Отмена')),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final p = controller.text.trim().replaceAll('"', '');
+              if (p.isNotEmpty) {
+                final success = await ref.read(vpnProvider.notifier).importCustomFont(p);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(success ? 'Шрифт успешно импортирован и применен!' : 'Файл шрифта не найден или некорректен'),
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Применить'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -360,7 +408,7 @@ if ($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   leading: const Icon(Icons.info_outline_rounded),
                   title: const Text('Версия клиента'),
-                  subtitle: Text('MaterialVless 2.0 • v${UpdateService.currentVersion}'),
+                  subtitle: Text('MaterialVless 2.0 • v (Актуальная версия)'),
                   trailing: _isCheckingUpdate
                       ? const SizedBox(
                           width: 24,
@@ -369,23 +417,37 @@ if ($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
                         )
                       : FilledButton.tonalIcon(
                           icon: const Icon(Icons.refresh_rounded, size: 16),
-                          label: const Text('Обновить'),
+                          label: const Text('Проверить'),
                           onPressed: () async {
                             setState(() => _isCheckingUpdate = true);
-                            final update = await UpdateService.checkForUpdate();
+                            final result = await UpdateService.checkDetailedUpdate();
                             setState(() => _isCheckingUpdate = false);
                             if (!mounted) return;
-                            if (update != null) {
-                              await UpdateService.showUpdateDialog(context, update);
-                            } else {
+                            if (result.hasUpdate && result.updateInfo != null) {
+                              await UpdateService.showUpdateDialog(context, result.updateInfo!);
+                            } else if (result.isSuccess) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text('У вас установлена самая актуальная версия (v2.0.0)'),
                                 ),
                               );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(result.errorMessage ?? 'Не удалось проверить обновления'),
+                                ),
+                              );
                             }
                           },
                         ),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.open_in_new_rounded, size: 20),
+                  title: const Text('Релизы и список изменений'),
+                  subtitle: const Text('Открыть официальную страницу на GitHub'),
+                  trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                  onTap: () => UpdateService.openUrl('https://github.com/qkryt/MaterialVless/releases'),
                 ),
               ],
             ),

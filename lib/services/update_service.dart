@@ -19,6 +19,22 @@ class UpdateInfo {
   });
 }
 
+class CheckUpdateResult {
+  final bool hasUpdate;
+  final bool isSuccess;
+  final UpdateInfo? updateInfo;
+  final String latestTagName;
+  final String? errorMessage;
+
+  CheckUpdateResult({
+    required this.hasUpdate,
+    required this.isSuccess,
+    this.updateInfo,
+    this.latestTagName = '',
+    this.errorMessage,
+  });
+}
+
 class UpdateService {
   static const String currentVersion = "2.0.0";
   static const String _repo = "qkryt/MaterialVless";
@@ -43,38 +59,62 @@ class UpdateService {
     return false;
   }
 
-  /// Проверяет наличие обновления через GitHub Releases API
-  static Future<UpdateInfo?> checkForUpdate() async {
+  /// Детальная проверка наличия обновления с возвратом статуса
+  static Future<CheckUpdateResult> checkDetailedUpdate() async {
     try {
       final url = Uri.parse('https://api.github.com/repos/$_repo/releases/latest');
       final response = await http.get(
         url,
         headers: {
           'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'MaterialVless-App',
+          'User-Agent': 'MaterialVless-App/2.0',
         },
-      ).timeout(const Duration(seconds: 5));
+      ).timeout(const Duration(seconds: 6));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final tagName = data['tag_name'] as String? ?? '';
-        final title = data['name'] as String? ?? 'Новая версия';
+        final title = data['name'] as String? ?? 'MaterialVless $tagName';
         final body = data['body'] as String? ?? '';
         final htmlUrl = data['html_url'] as String? ?? 'https://github.com/$_repo/releases';
         final publishedAt = data['published_at'] as String? ?? '';
 
-        if (isNewer(tagName, currentVersion)) {
-          return UpdateInfo(
-            tagName: tagName,
-            title: title,
-            body: body,
-            releaseUrl: htmlUrl,
-            publishedAt: publishedAt,
-          );
-        }
+        final info = UpdateInfo(
+          tagName: tagName,
+          title: title,
+          body: body,
+          releaseUrl: htmlUrl,
+          publishedAt: publishedAt,
+        );
+
+        final bool newer = isNewer(tagName, currentVersion);
+        return CheckUpdateResult(
+          hasUpdate: newer,
+          isSuccess: true,
+          updateInfo: info,
+          latestTagName: tagName,
+        );
+      } else {
+        return CheckUpdateResult(
+          hasUpdate: false,
+          isSuccess: false,
+          errorMessage: 'Ошибка сервера GitHub: код ${response.statusCode}',
+        );
       }
-    } catch (_) {
-      // Игнорируем сетевые сбои при проверке
+    } catch (e) {
+      return CheckUpdateResult(
+        hasUpdate: false,
+        isSuccess: false,
+        errorMessage: 'Ошибка сети: $e',
+      );
+    }
+  }
+
+  /// Проверяет наличие обновления через GitHub Releases API
+  static Future<UpdateInfo?> checkForUpdate() async {
+    final result = await checkDetailedUpdate();
+    if (result.hasUpdate && result.updateInfo != null) {
+      return result.updateInfo;
     }
     return null;
   }
@@ -129,9 +169,9 @@ class UpdateService {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
+                      color: colorScheme.surfaceContainerHighest.withOpacity(0.6),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.4)),
+                      border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.4)),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,

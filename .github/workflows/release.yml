@@ -37,6 +37,14 @@ jobs:
       - name: Generate Windows Native Files
         run: flutter create . --platforms=windows --org com.materialvless --project-name material_vless
 
+      - name: Setup App Icon in Windows Runner
+        shell: pwsh
+        run: |
+          if (Test-Path 'assets/icons/app_icon.ico') {
+            New-Item -ItemType Directory -Path 'windows/runner/resources' -Force
+            Copy-Item 'assets/icons/app_icon.ico' 'windows/runner/resources/app_icon.ico' -Force
+          }
+
       - name: Configure Manifest for Wintun Administrator Privileges
         shell: pwsh
         run: |
