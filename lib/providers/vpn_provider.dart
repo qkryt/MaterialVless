@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 import '../models/vless_node.dart';
 import '../models/subscription_model.dart';
 import '../models/app_settings.dart';
@@ -105,6 +107,18 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
     AppSettings currentSettings = savedSettings ?? state.settings;
 
+    if (currentSettings.customFontPath != null) {
+      try {
+        final fontFile = File(currentSettings.customFontPath!);
+        if (await fontFile.exists()) {
+          final fontBytes = await fontFile.readAsBytes();
+          final fontLoader = FontLoader(currentSettings.fontFamily);
+          fontLoader.addFont(Future.value(ByteData.view(fontBytes.buffer)));
+          await fontLoader.load();
+        }
+      } catch (_) {}
+    }
+
     VlessNode? restoredSelectedNode;
     if (savedSelectedId != null) {
       for (final s in savedSubs) {
@@ -169,7 +183,7 @@ class VpnNotifier extends StateNotifier<VpnState> {
   void _startTimer() {
     _sessionTimer?.cancel();
     state = state.copyWith(connectedSeconds: 0);
-    _sessionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    _sessionTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       state = state.copyWith(connectedSeconds: state.connectedSeconds + 1);
     });
   }
@@ -179,13 +193,15 @@ class VpnNotifier extends StateNotifier<VpnState> {
     state = state.copyWith(connectedSeconds: 0);
   }
 
-  void toggleSubscriptionExpanded(String subId) {
+  /// Сворачивание и разворачивание подписки
+  void toggleSubscriptionExpansion(String subId) {
     final updated = state.subscriptions.map((s) {
       if (s.id == subId) {
         return s.copyWith(isExpanded: !s.isExpanded);
       }
       return s;
     }).toList();
+
     state = state.copyWith(subscriptions: updated);
     _persist();
   }
@@ -202,7 +218,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
     updated.removeAt(idx);
 
     if (newPinned) {
-      // Ищем позицию последней закрепленной подписки
       final lastPinnedIdx = updated.lastIndexWhere((s) => s.isPinned);
       if (lastPinnedIdx == -1) {
         updated.insert(0, toggled);
@@ -210,7 +225,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
         updated.insert(lastPinnedIdx + 1, toggled);
       }
     } else {
-      // Переносим вниз после всех закрепленных
       final firstUnpinnedIdx = updated.indexWhere((s) => !s.isPinned);
       if (firstUnpinnedIdx == -1) {
         updated.add(toggled);
@@ -229,7 +243,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
     final idx = updated.indexWhere((s) => s.id == subId);
     if (idx <= 0) return;
 
-    // Не перемещаем незакрепленную выше закрепленной
     if (!updated[idx].isPinned && updated[idx - 1].isPinned) return;
 
     final item = updated.removeAt(idx);
@@ -244,7 +257,6 @@ class VpnNotifier extends StateNotifier<VpnState> {
     final idx = updated.indexWhere((s) => s.id == subId);
     if (idx == -1 || idx >= updated.length - 1) return;
 
-    // Не перемещаем закрепленную ниже незакрепленной
     if (updated[idx].isPinned && !updated[idx + 1].isPinned) return;
 
     final item = updated.removeAt(idx);
@@ -282,7 +294,7 @@ class VpnNotifier extends StateNotifier<VpnState> {
     state = state.copyWith(searchQuery: query);
   }
 
-  /// Выбор сервера: если VPN уже подключен, автоматически отключается, меняет узел и переподключается на лету
+  /// Выбор сервера: если VPN уже подключен, автоматически переподключается на лету
   Future<void> selectNode(VlessNode node) async {
     final wasConnected = state.status == CoreState.connected;
     final isDifferentNode = state.selectedNode?.id != node.id;
@@ -300,6 +312,47 @@ class VpnNotifier extends StateNotifier<VpnState> {
   void updateSettings(AppSettings newSettings) {
     state = state.copyWith(settings: newSettings);
     _persist();
+  }
+
+  /// Импорт пользовательского шрифта TTF/OTF
+  Future<bool> importCustomFont(String filePath) async {
+    try {
+      final file = File(filePath);
+      if (!await file.exists()) return false;
+      final fileName = file.uri.pathSegments.last;
+      final familyName = fileName.replaceAll(RegExp(r'\.(ttf|otf)$', caseSensitive: false), '');
+
+      final appDir = await getApplicationSupportDirectory();
+      final fontsDir = Directory('${appDir.path}/fonts');
+      if (!await fontsDir.exists()) {
+        await fontsDir.create(recursive: true);
+      }
+      final targetPath = '${fontsDir.path}/$fileName';
+      await file.copy(targetPath);
+
+      final fontBytes = await File(targetPath).readAsBytes();
+      final fontLoader = FontLoader(familyName);
+      fontLoader.addFont(Future.value(ByteData.view(fontBytes.buffer)));
+      await fontLoader.load();
+
+      final newSettings = state.settings.copyWith(
+        fontFamily: familyName,
+        customFontPath: targetPath,
+      );
+      updateSettings(newSettings);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Сброс шрифта на стандартный
+  Future<void> resetDefaultFont() async {
+    final newSettings = state.settings.copyWith(
+      fontFamily: 'Google Sans',
+      customFontPath: null,
+    );
+    updateSettings(newSettings);
   }
 
   Future<void> addSubscription(String source, {String? customName}) async {
@@ -410,15 +463,18 @@ class VpnNotifier extends StateNotifier<VpnState> {
     required int intervalHours,
     required bool autoUpdate,
     String? customName,
+    String? newUrl,
   }) {
     final index = state.subscriptions.indexWhere((s) => s.id == id);
     if (index == -1) return;
 
     final target = state.subscriptions[index];
+    final bool urlChanged = newUrl != null && newUrl.trim().isNotEmpty && newUrl.trim() != target.url;
     final updatedSub = target.copyWith(
       autoUpdateIntervalHours: intervalHours,
       autoUpdate: autoUpdate,
       name: customName ?? target.name,
+      url: urlChanged ? newUrl.trim() : target.url,
     );
 
     final updatedSubs = List<SubscriptionModel>.from(state.subscriptions);
@@ -426,6 +482,10 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
     state = state.copyWith(subscriptions: updatedSubs);
     _persist();
+
+    if (urlChanged) {
+      refreshSubscription(id);
+    }
   }
 
   void deleteSubscription(String id) {

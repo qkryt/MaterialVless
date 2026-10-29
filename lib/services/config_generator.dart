@@ -102,55 +102,65 @@ class ConfigGenerator {
       });
     }
 
-    routeRules.add({
-      "ip_is_private": true,
-      "outbound": "direct"
+    if (settings.bypassLanEnabled) {
+      routeRules.add({
+        "ip_is_private": true,
+        "outbound": "direct"
+      });
+    }
+
+    final dnsServers = <Map<String, dynamic>>[];
+    if (settings.secureDnsEnabled) {
+      dnsServers.addAll([
+        {
+          "tag": "remote-dns",
+          "type": "https",
+          "server": "1.1.1.1",
+          "path": "/dns-query",
+          "detour": "proxy"
+        },
+        {
+          "tag": "remote-google",
+          "type": "https",
+          "server": "8.8.8.8",
+          "path": "/dns-query",
+          "detour": "proxy"
+        },
+      ]);
+    }
+    dnsServers.add({
+      "tag": "local-dns",
+      "type": "udp",
+      "server": "77.88.8.8"
     });
+
+    final dnsRules = <Map<String, dynamic>>[
+      // Предотвращение круговой зависимости: адрес самого прокси-сервера всегда резолвится локально
+      if (!RegExp(r'^\d+\.\d+\.\d+\.\d+$').hasMatch(node.address))
+        {
+          "domain": [node.address],
+          "server": "local-dns"
+        },
+      if (settings.routingPreset == 'russia')
+        {
+          "domain_suffix": _russianDomains,
+          "server": "local-dns"
+        },
+      if (settings.secureDnsEnabled)
+        {
+          "domain_suffix": _telegramDomains,
+          "server": "remote-dns"
+        }
+    ];
 
     final Map<String, dynamic> config = {
       "log": {
         "level": "warn"
       },
       "dns": {
-        "servers": [
-          {
-            "tag": "remote-dns",
-            "type": "https",
-            "server": "1.1.1.1",
-            "path": "/dns-query",
-            "detour": "proxy"
-          },
-          {
-            "tag": "remote-google",
-            "type": "https",
-            "server": "8.8.8.8",
-            "path": "/dns-query",
-            "detour": "proxy"
-          },
-          {
-            "tag": "local-dns",
-            "type": "udp",
-            "server": "77.88.8.8"
-          }
-        ],
-        "rules": [
-          // Предотвращение круговой зависимости: адрес самого прокси-сервера всегда резолвится локально
-          if (!RegExp(r'^\d+\.\d+\.\d+\.\d+$').hasMatch(node.address))
-            {
-              "domain": [node.address],
-              "server": "local-dns"
-            },
-          if (settings.routingPreset == 'russia')
-            {
-              "domain_suffix": _russianDomains,
-              "server": "local-dns"
-            },
-          {
-            "domain_suffix": _telegramDomains,
-            "server": "remote-dns"
-          }
-        ],
-        "final": "remote-dns",
+        "servers": dnsServers,
+        "rules": dnsRules,
+        "final": settings.secureDnsEnabled ? "remote-dns" : "local-dns",
         "strategy": "ipv4_only"
       },
       "inbounds": [
@@ -211,97 +221,136 @@ class ConfigGenerator {
       };
     }
 
-    // 2. VMess
-    if (node.protocol == ProxyProtocol.vmess) {
-      return {
-        "type": "vmess",
-        "tag": "proxy",
-        "server": node.address,
-        "server_port": node.port,
-        "uuid": node.uuid,
-        "security": "auto",
-        "packet_encoding": "xudp",
-        "domain_resolver": "local-dns"
-      };
-    }
-
-    // 3. Trojan
-    if (node.protocol == ProxyProtocol.trojan) {
-      return {
-        "type": "trojan",
-        "tag": "proxy",
-        "server": node.address,
-        "server_port": node.port,
-        "password": node.uuid,
-        "packet_encoding": "xudp",
-        "domain_resolver": "local-dns",
-        "tls": {
-          "enabled": true,
-          "server_name": node.sni.isNotEmpty ? node.sni : node.address
-        }
-      };
-    }
-
-    // 4. Shadowsocks
+    // 2. Shadowsocks
     if (node.protocol == ProxyProtocol.shadowsocks) {
       return {
         "type": "shadowsocks",
         "tag": "proxy",
         "server": node.address,
         "server_port": node.port,
-        "method": node.encryption,
+        "method": node.encryption.isNotEmpty ? node.encryption : "aes-128-gcm",
         "password": node.uuid,
         "domain_resolver": "local-dns"
       };
     }
 
-    // 5. VLESS (Reality, XTLS, gRPC, WebSocket, TCP)
-    final Map<String, dynamic> tls = {
-      "enabled": node.security == 'reality' || node.security == 'tls',
-      "server_name": node.sni.isNotEmpty ? node.sni : node.address,
-    };
-
-    if (node.security == 'reality') {
-      tls["utls"] = {
-        "enabled": true,
-        "fingerprint": node.fingerprint.isNotEmpty ? node.fingerprint : "chrome"
+    // 3. Trojan
+    if (node.protocol == ProxyProtocol.trojan) {
+      final Map<String, dynamic> trojan = {
+        "type": "trojan",
+        "tag": "proxy",
+        "server": node.address,
+        "server_port": node.port,
+        "password": node.uuid,
+        "domain_resolver": "local-dns",
+        "tls": {
+          "enabled": true,
+          "server_name": node.sni.isNotEmpty ? node.sni : node.address,
+        }
       };
-      tls["reality"] = {
-        "enabled": true,
-        "public_key": node.publicKey,
-        "short_id": node.shortId
-      };
+      if (node.streamType == "ws") {
+        trojan["transport"] = {
+          "type": "ws",
+          "path": node.path.isNotEmpty ? node.path : "/",
+          if (node.host.isNotEmpty) "headers": {"Host": node.host}
+        };
+      } else if (node.streamType == "grpc") {
+        trojan["transport"] = {
+          "type": "grpc",
+          "service_name": node.serviceName.isNotEmpty ? node.serviceName : "grpc"
+        };
+      }
+      return trojan;
     }
 
-    if (node.security == 'tls' && node.alpn.isNotEmpty) {
-      tls["alpn"] = node.alpn.split(',');
+    // 4. VMess
+    if (node.protocol == ProxyProtocol.vmess) {
+      final Map<String, dynamic> vmess = {
+        "type": "vmess",
+        "tag": "proxy",
+        "server": node.address,
+        "server_port": node.port,
+        "uuid": node.uuid,
+        "security": "auto",
+        "domain_resolver": "local-dns"
+      };
+      if (node.security == "tls") {
+        vmess["tls"] = {
+          "enabled": true,
+          "server_name": node.sni.isNotEmpty ? node.sni : node.address,
+        };
+      }
+      if (node.streamType == "ws") {
+        vmess["transport"] = {
+          "type": "ws",
+          "path": node.path.isNotEmpty ? node.path : "/",
+          if (node.host.isNotEmpty) "headers": {"Host": node.host}
+        };
+      } else if (node.streamType == "grpc") {
+        vmess["transport"] = {
+          "type": "grpc",
+          "service_name": node.serviceName.isNotEmpty ? node.serviceName : "grpc"
+        };
+      }
+      return vmess;
     }
 
-    final Map<String, dynamic> outbound = {
+    // 5. VLESS (Standard, Reality, Vision, gRPC, WebSocket)
+    final Map<String, dynamic> vless = {
       "type": "vless",
       "tag": "proxy",
       "server": node.address,
       "server_port": node.port,
       "uuid": node.uuid,
       "packet_encoding": "xudp",
-      "domain_resolver": "local-dns",
-      if (node.flow.isNotEmpty) "flow": node.flow,
-      "tls": tls,
+      "domain_resolver": "local-dns"
     };
 
-    if (node.streamType == 'grpc') {
-      outbound["transport"] = {
-        "type": "grpc",
-        "service_name": node.serviceName
+    if (node.flow.isNotEmpty) {
+      vless["flow"] = node.flow;
+    }
+
+    // TLS / Reality
+    if (node.security == "reality") {
+      vless["tls"] = {
+        "enabled": true,
+        "server_name": node.sni.isNotEmpty ? node.sni : node.address,
+        "utls": {
+          "enabled": true,
+          "fingerprint": node.fingerprint.isNotEmpty ? node.fingerprint : "chrome"
+        },
+        "reality": {
+          "enabled": true,
+          "public_key": node.publicKey,
+          "short_id": node.shortId
+        }
       };
-    } else if (node.streamType == 'ws') {
-      outbound["transport"] = {
+    } else if (node.security == "tls") {
+      vless["tls"] = {
+        "enabled": true,
+        "server_name": node.sni.isNotEmpty ? node.sni : node.address,
+        if (node.fingerprint.isNotEmpty)
+          "utls": {
+            "enabled": true,
+            "fingerprint": node.fingerprint
+          }
+      };
+    }
+
+    // Transport (ws, grpc)
+    if (node.streamType == "ws") {
+      vless["transport"] = {
         "type": "ws",
         "path": node.path.isNotEmpty ? node.path : "/",
         if (node.host.isNotEmpty) "headers": {"Host": node.host}
       };
+    } else if (node.streamType == "grpc") {
+      vless["transport"] = {
+        "type": "grpc",
+        "service_name": node.serviceName.isNotEmpty ? node.serviceName : "grpc"
+      };
     }
 
-    return outbound;
+    return vless;
   }
 }

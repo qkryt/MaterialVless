@@ -1,10 +1,11 @@
 [Setup]
 AppName=MaterialVless
-AppVersion=1.0.2
+AppVersion=2.0.0
 AppPublisher=qkryt
 DefaultDirName={autopf}\MaterialVless
 DefaultGroupName=MaterialVless
 UninstallDisplayIcon={app}\material_vless.exe
+SetupIconFile=..\assets\icons\app_icon.ico
 Compression=lzma2/max
 SolidCompression=yes
 OutputDir=..
@@ -16,12 +17,12 @@ PrivilegesRequired=admin
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "..\build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\dist\material_vless\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\MaterialVless"; Filename: "{app}\material_vless.exe"
+Name: "{group}\MaterialVless"; Filename: "{app}\material_vless.exe"; IconFilename: "{app}\assets\icons\app_icon.ico"
 Name: "{group}\{cm:UninstallProgram,MaterialVless}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\MaterialVless"; Filename: "{app}\material_vless.exe"; Tasks: desktopicon
+Name: "{autodesktop}\MaterialVless"; Filename: "{app}\material_vless.exe"; IconFilename: "{app}\assets\icons\app_icon.ico"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\material_vless.exe"; Description: "{cm:LaunchProgram,MaterialVless}"; Flags: nowait postinstall skipifsilent

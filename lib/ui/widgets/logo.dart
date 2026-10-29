@@ -40,7 +40,7 @@ class _LogoPainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
 
-    // Внешний щит / алмазная форма Material Design 3
+    // Внешний щит / шестиугольная защитная форма
     final shieldPath = Path()
       ..moveTo(w * 0.5, h * 0.04)
       ..lineTo(w * 0.94, h * 0.26)
@@ -55,8 +55,8 @@ class _LogoPainter extends CustomPainter {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          primaryColor.withOpacity(0.2),
-          accentColor.withOpacity(0.1),
+          primaryColor.withOpacity(0.25),
+          accentColor.withOpacity(0.08),
         ],
       ).createShader(Rect.fromLTWH(0, 0, w, h))
       ..style = PaintingStyle.fill;
@@ -68,14 +68,14 @@ class _LogoPainter extends CustomPainter {
         colors: [primaryColor, accentColor],
       ).createShader(Rect.fromLTWH(0, 0, w, h))
       ..style = PaintingStyle.stroke
-      ..strokeWidth = w * 0.07
+      ..strokeWidth = w * 0.08
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
 
     canvas.drawPath(shieldPath, bgPaint);
     canvas.drawPath(shieldPath, borderPaint);
 
-    // Внутренний динамический символ "V" (Vless скоростной туннель)
+    // Внутренний символ скоростного туннеля "V"
     final vPath = Path()
       ..moveTo(w * 0.28, h * 0.35)
       ..lineTo(w * 0.5, h * 0.72)
@@ -85,7 +85,7 @@ class _LogoPainter extends CustomPainter {
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [primaryColor, accentColor],
+        colors: [Colors.white, accentColor],
       ).createShader(Rect.fromLTWH(0, 0, w, h))
       ..style = PaintingStyle.stroke
       ..strokeWidth = w * 0.1
@@ -100,6 +100,12 @@ class _LogoPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     canvas.drawCircle(Offset(w * 0.5, h * 0.35), w * 0.07, dotPaint);
+
+    final innerDotPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+
+    canvas.drawCircle(Offset(w * 0.5, h * 0.35), w * 0.035, innerDotPaint);
   }
 
   @override

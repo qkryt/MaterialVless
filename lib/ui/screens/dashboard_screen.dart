@@ -788,6 +788,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     int selectedInterval = sub.autoUpdateIntervalHours;
     bool autoUpdate = sub.autoUpdate;
     final nameController = TextEditingController(text: sub.name);
+    final urlController = TextEditingController(text: sub.url);
 
     final dateStr = '${sub.lastUpdated.day.toString().padLeft(2, '0')}.${sub.lastUpdated.month.toString().padLeft(2, '0')}.${sub.lastUpdated.year} '
         '${sub.lastUpdated.hour.toString().padLeft(2, '0')}:${sub.lastUpdated.minute.toString().padLeft(2, '0')}:${sub.lastUpdated.second.toString().padLeft(2, '0')}';
@@ -838,7 +839,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 TextField(
                   controller: nameController,
                   decoration: const InputDecoration(
-                    labelText: 'Название подписки',
+                    labelText: 'РќР°Р·РІР°РЅРёРµ РїРѕРґРїРёСЃРєРё',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: urlController,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'URL Р°РґСЂРµСЃ РїРѕРґРїРёСЃРєРё',
+                    hintText: 'https://...',
+                    prefixIcon: Icon(Icons.link_rounded),
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -915,6 +927,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       intervalHours: selectedInterval,
                       autoUpdate: autoUpdate,
                       customName: nameController.text.trim().isNotEmpty ? nameController.text.trim() : null,
+                      newUrl: urlController.text.trim().isNotEmpty ? urlController.text.trim() : null,
                     );
                 Navigator.pop(ctx);
               },

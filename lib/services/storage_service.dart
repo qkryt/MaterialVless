@@ -34,25 +34,13 @@ class StorageService {
   }) async {
     try {
       final data = {
-        'version': 1,
+        'version': 2,
         'appName': 'MaterialVless',
         'updatedAt': DateTime.now().toIso8601String(),
         'selectedNodeId': selectedNodeId,
         'subscriptions': subscriptions.map((s) => s.toJson()).toList(),
         'manualNodes': manualNodes.map((n) => n.toJson()).toList(),
-        if (settings != null)
-          'settings': {
-            'routingPreset': settings.routingPreset,
-            'pingUrl': settings.pingUrl,
-            'pingTimeoutMs': settings.pingTimeoutMs,
-            'speedtestUrl': settings.speedtestUrl,
-            'autoUpdateRulesOnStart': settings.autoUpdateRulesOnStart,
-            'userAgent': settings.userAgent,
-            'sendHwid': settings.sendHwid,
-            'themeMode': settings.themeMode,
-            'fontFamily': settings.fontFamily,
-            'useDynamicColor': settings.useDynamicColor,
-          },
+        if (settings != null) 'settings': settings.toJson(),
       };
 
       final jsonString = const JsonEncoder.withIndent('  ').convert(data);
@@ -103,18 +91,7 @@ class StorageService {
       AppSettings? settings;
       if (json['settings'] != null) {
         final sJson = json['settings'] as Map<String, dynamic>;
-        settings = AppSettings(
-          routingPreset: sJson['routingPreset']?.toString() ?? 'none',
-          pingUrl: sJson['pingUrl']?.toString() ?? 'http://cp.cloudflare.com/',
-          pingTimeoutMs: int.tryParse(sJson['pingTimeoutMs']?.toString() ?? '1000') ?? 1000,
-          speedtestUrl: sJson['speedtestUrl']?.toString() ?? 'http://cachefly.cachefly.net/1mb.test',
-          autoUpdateRulesOnStart: sJson['autoUpdateRulesOnStart'] == true,
-          userAgent: sJson['userAgent']?.toString() ?? 'MaterialVless',
-          sendHwid: sJson['sendHwid'] != false,
-          themeMode: sJson['themeMode']?.toString() ?? 'system',
-          fontFamily: sJson['fontFamily']?.toString() ?? 'Google Sans',
-          useDynamicColor: sJson['useDynamicColor'] != false,
-        );
+        settings = AppSettings.fromJson(sJson);
       }
 
       return (subs, nodes, selectedNodeId, settings);

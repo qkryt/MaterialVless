@@ -25,3 +25,8 @@ macos/Flutter/ephemeral/
 *_active.json
 *.zip
 *.tar.gz
+__pycache__/
+*.pyc
+build/
+dist/
+*.spec
