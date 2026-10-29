@@ -23,7 +23,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late final TextEditingController _customUaController;
 
   final List<String> _popularUserAgents = const [
-    'MaterialVless/2.11',
+    'MaterialVless/2.12',
     'v2rayN/6.42',
     'v2rayN/6.23',
     'sing-box/1.14.4',
@@ -691,7 +691,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   leading: const Icon(Icons.system_update_rounded),
                   title: Text(t('client_version')),
-                  subtitle: const Text('MaterialVless 2.11 • Патч 2.11 (v2.11.0)'),
+                  subtitle: const Text('MaterialVless 2.12 • Патч 2.12 (v2.12.0)'),
                   trailing: _isCheckingUpdate
                       ? const SizedBox(
                           width: 24,
@@ -711,7 +711,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             } else if (result.isSuccess) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('У вас установлена самая актуальная версия (v2.11.0)'),
+                                  content: Text('У вас установлена самая актуальная версия (v2.12.0)'),
                                 ),
                               );
                             } else {
@@ -793,7 +793,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Версия 2.11.0 • Патч 2.11 (Выпуск 2026)',
+                              'Версия 2.12.0 • Патч 2.12 (Выпуск 2026)',
                               style: TextStyle(
                                 fontSize: 13,
                                 color: colorScheme.onSurfaceVariant,

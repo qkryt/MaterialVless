@@ -65,7 +65,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'У вас установлена самая актуальная версия (v2.11.0)',
+              'У вас установлена самая актуальная версия (v2.12.0)',
             ),
           ),
         );

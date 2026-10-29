@@ -42,6 +42,7 @@ class AppTheme {
       cardTheme: CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        color: scheme.surfaceContainer,
       ),
       appBarTheme: AppBarTheme(
         centerTitle: false,
@@ -81,6 +82,7 @@ class AppTheme {
       cardTheme: CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        color: isAmoled ? const Color(0xFF121212) : scheme.surfaceContainer,
       ),
       appBarTheme: AppBarTheme(
         centerTitle: false,

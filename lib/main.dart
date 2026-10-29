@@ -87,9 +87,10 @@ class _MaterialVlessAppState extends ConsumerState<MaterialVlessApp> {
         }
 
         return MaterialApp(
-          key: ValueKey('mv_app_${accentColor}_${themeMode}_$fontFamily'),
           title: 'MaterialVless',
           debugShowCheckedModeBanner: false,
+          themeAnimationDuration: const Duration(milliseconds: 350),
+          themeAnimationCurve: Curves.easeInOutCubic,
           theme: AppTheme.light(
             lightScheme,
             fontFamily: fontFamily,
