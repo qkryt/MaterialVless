@@ -9,13 +9,19 @@ import 'utils/admin_helper.dart';
 import 'services/single_instance_service.dart';
 import 'services/url_scheme_service.dart';
 import 'services/custom_font_service.dart';
+import 'services/log_service.dart';
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // 0. Инициализация записи логов в log.txt
+  await LogService.init();
+  LogService.log('Application starting with arguments: $args');
+
   // 1. Проверка на единственный запущенный экземпляр программы
   final isPrimary = await SingleInstanceService.ensureSingleInstance(args);
   if (!isPrimary) {
+    LogService.log('Another primary instance detected, closing secondary process.');
     exit(0); // Рабочий инстанс уже запущен и активирован
   }
 
@@ -23,6 +29,7 @@ void main(List<String> args) async {
   if (Platform.isWindows) {
     final hasAdmin = await AdminHelper.ensureAdminPrivileges();
     if (!hasAdmin) {
+      LogService.log('Admin privileges not granted, exiting.');
       exit(0);
     }
     // Регистрация URL-схем material:// и happ://
@@ -53,6 +60,7 @@ class _MaterialVlessAppState extends ConsumerState<MaterialVlessApp> {
     super.initState();
     // Слушатель сообщений от последующих инстансов (URL-схемы / активация окна)
     SingleInstanceService.setMessageHandler((msg) {
+      LogService.log('Received message from another instance: $msg');
       if (msg.startsWith('material://') || msg.startsWith('happ://')) {
         UrlSchemeService.handleUrl(msg, ref.read(vpnProvider.notifier));
       }

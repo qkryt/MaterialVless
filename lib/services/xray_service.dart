@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import '../models/vless_node.dart';
 import '../models/app_settings.dart';
 import 'config_generator.dart';
+import 'log_service.dart';
 
 enum CoreState { disconnected, connecting, connected, disconnecting, error }
 
@@ -41,6 +42,7 @@ class XrayService {
 
   /// Принудительное завершение всех процессов sing-box в системе
   static Future<void> killAllCoreProcesses() async {
+    LogService.log('Terminating any running sing-box processes...');
     if (Platform.isWindows) {
       try {
         await Process.run('taskkill', ['/F', '/IM', 'sing-box.exe', '/T']);
@@ -56,6 +58,11 @@ class XrayService {
   Future<void> start(VlessNode node, AppSettings settings) async {
     _updateState(CoreState.connecting);
 
+    LogService.log('--- STARTING VPN CONNECTION ---');
+    LogService.log('Target node: "${node.name}" (${node.protocol.name.toUpperCase()})');
+    LogService.log('Remote host: ${node.address}:${node.port}');
+    LogService.log('Parameters: security=${node.security}, streamType=${node.streamType}, flow=${node.flow}, sni=${node.sni}');
+
     // Завершаем любые зависшие или старые процессы ядра перед стартом
     await killAllCoreProcesses();
     await Future.delayed(const Duration(milliseconds: 150));
@@ -67,25 +74,39 @@ class XrayService {
       
       // Запись строго без UTF-8 BOM
       await configFile.writeAsBytes(utf8.encode(configJson));
+      LogService.log('Generated sing-box config saved to: ${configFile.path}');
+      LogService.log('Active JSON configuration:\n$configJson');
 
       final binaryPath = _resolveBinary();
+      LogService.log('Target sing-box binary: $binaryPath (exists: ${File(binaryPath).existsSync()})');
+
       final workingDir = File(binaryPath).existsSync() ? File(binaryPath).parent.path : null;
 
       final logFile = File('${tempDir.path}/material_vless_core.log');
       final logSink = logFile.openWrite(mode: FileMode.writeOnly);
 
+      LogService.log('Launching sing-box process with run -c ${configFile.path} ...');
       _process = await Process.start(
         binaryPath,
         ['run', '-c', configFile.path],
         workingDirectory: workingDir,
       );
+      final pid = _process!.pid;
+      LogService.log('sing-box process started with PID: $pid');
 
-      _process!.stdout.listen((data) => logSink.add(data));
-      _process!.stderr.listen((data) => logSink.add(data));
+      _process!.stdout.transform(utf8.decoder).listen((data) {
+        logSink.add(utf8.encode(data));
+        LogService.logProcessOutput('sing-box:stdout', data);
+      });
+      _process!.stderr.transform(utf8.decoder).listen((data) {
+        logSink.add(utf8.encode(data));
+        LogService.logProcessOutput('sing-box:stderr', data);
+      });
 
       bool hasExited = false;
       _process!.exitCode.then((code) {
         hasExited = true;
+        LogService.log('sing-box (PID $pid) terminated with exit code: $code');
         try { logSink.close(); } catch (_) {}
         if (_state == CoreState.connected) {
           stop();
@@ -94,25 +115,30 @@ class XrayService {
 
       await Future.delayed(const Duration(milliseconds: 1000));
       if (hasExited) {
-        String errMsg = 'Process exited';
+        String errMsg = 'Process exited immediately';
         try {
           errMsg = await logFile.readAsString();
         } catch (_) {}
+        LogService.logError('sing-box startup failed. Output: $errMsg');
         throw Exception('Core error: $errMsg');
       }
 
       // Дополнительно настраиваем системный прокси для браузеров (порт 10808 mixed)
+      LogService.log('Configuring Windows system proxy (127.0.0.1:10808)...');
       await _setWindowsProxy(true, 10808);
 
       _startSpeedMonitoring();
       _updateState(CoreState.connected);
-    } catch (e) {
+      LogService.log('--- VPN CONNECTED SUCCESSFULLY (State: CoreState.connected) ---');
+    } catch (e, stack) {
+      LogService.logError('Failed to establish VPN connection', e, stack);
       await stop(clearErrorState: false);
       _updateState(CoreState.error);
     }
   }
 
   Future<void> stop({bool clearErrorState = true}) async {
+    LogService.log('--- STOPPING VPN CONNECTION ---');
     _updateState(CoreState.disconnecting);
     _trafficTimer?.cancel();
 
@@ -128,6 +154,7 @@ class XrayService {
     if (clearErrorState) {
       _updateState(CoreState.disconnected);
     }
+    LogService.log('--- VPN DISCONNECTED (State: CoreState.disconnected) ---');
   }
 
   void _updateState(CoreState state) {

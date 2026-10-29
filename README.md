@@ -1,4 +1,4 @@
-# MaterialVless 2.14.1 (Релиз 2.14.1)
+# MaterialVless 2.14.2 (Релиз 2.14.2)
 
 <p align="center">
   <b><a href="README.md">Русский</a> | <a href="README_EN.md">English</a></b>

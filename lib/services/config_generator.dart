@@ -204,7 +204,8 @@ class ConfigGenerator {
 
     final Map<String, dynamic> config = {
       "log": {
-        "level": "warn"
+        "level": "info",
+        "timestamp": true
       },
       "dns": {
         "servers": dnsServers,

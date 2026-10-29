@@ -1,6 +1,6 @@
 [Setup]
 AppName=MaterialVless
-AppVersion=2.14.1
+AppVersion=2.14.2
 AppPublisher=qkryt
 DefaultDirName={autopf}\MaterialVless
 DefaultGroupName=MaterialVless
@@ -37,3 +37,7 @@ Root: HKCR; Subkey: "happ\shell\open\command"; ValueType: string; ValueName: "";
 
 [Run]
 Filename: "{app}\material_vless.exe"; Description: "{cm:LaunchProgram,MaterialVless}"; Flags: nowait postinstall skipifsilent
+
+[Dirs]
+Name: "{app}"; Permissions: users-modify
+Name: "{app}\customfonts"; Permissions: users-modify
