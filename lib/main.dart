@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'ui/theme/app_theme.dart';
 import 'ui/screens/dashboard_screen.dart';
+import 'ui/widgets/smooth_scroll.dart';
 import 'providers/vpn_provider.dart';
 import 'utils/admin_helper.dart';
 import 'services/single_instance_service.dart';
@@ -115,6 +116,7 @@ class _MaterialVlessAppState extends ConsumerState<MaterialVlessApp> {
             accentColor: accentColor,
           ),
           themeMode: mode,
+          scrollBehavior: const SmoothScrollBehavior(),
           home: const DashboardScreen(),
         );
       },

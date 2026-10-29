@@ -49,7 +49,7 @@ class LogService {
       final header = '''
 
 ================================================================================
-MaterialVless 2.14.4 Log Session Started: $now
+MaterialVless 2.14.5 Log Session Started: $now
 Platform: ${Platform.operatingSystem} ${Platform.operatingSystemVersion}
 Executable: ${Platform.resolvedExecutable}
 Root Directory: ${File(Platform.resolvedExecutable).parent.path}

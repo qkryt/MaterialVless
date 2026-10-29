@@ -21,6 +21,8 @@ import '../../services/localization_service.dart';
 
 import '../theme/app_theme.dart';
 
+import '../widgets/smooth_scroll.dart';
+
 
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -38,20 +40,17 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-
+  final SmoothScrollController _settingsScrollController = SmoothScrollController();
   String _hwid = 'Загрузка...';
-
   bool _isCheckingUpdate = false;
-
   bool _isSelectingCustomUa = false;
-
   late final TextEditingController _customUaController;
 
 
 
   final List<String> _popularUserAgents = const [
 
-    'MaterialVless/2.14.4',
+    'MaterialVless/2.14.5',
 
     'v2rayN/6.42',
 
@@ -140,13 +139,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
 
   @override
-
   void dispose() {
-
     _customUaController.dispose();
-
+    _settingsScrollController.dispose();
     super.dispose();
-
   }
 
 
@@ -866,7 +862,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
 
       body: ListView(
-
+        controller: _settingsScrollController,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
 
         children: [
@@ -1939,7 +1935,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                   title: Text(t('client_version')),
 
-                  subtitle: const Text('MaterialVless 2.14.4 • Релиз 2.14.4 (v2.14.4)'),
+                  subtitle: const Text('MaterialVless 2.14.5 • Релиз 2.14.5 (v2.14.5)'),
 
                   trailing: _isCheckingUpdate
 
@@ -1979,7 +1975,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                                 const SnackBar(
 
-                                  content: Text('У вас установлена самая актуальная версия (v2.14.4)'),
+                                  content: Text('У вас установлена самая актуальная версия (v2.14.5)'),
 
                                 ),
 
@@ -2143,7 +2139,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                             Text(
 
-                              'Версия 2.14.4 • Релиз 2.14.4 (Выпуск 2026)',
+                              'Версия 2.14.5 • Релиз 2.14.5 (Выпуск 2026)',
 
                               style: TextStyle(
 

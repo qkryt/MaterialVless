@@ -20,6 +20,8 @@ import '../widgets/logo.dart';
 
 import '../widgets/country_flag_widget.dart';
 
+import '../widgets/smooth_scroll.dart';
+
 import 'settings_screen.dart';
 
 
@@ -46,22 +48,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
   final TextEditingController _searchController = TextEditingController();
 
-  final ScrollController _serverScrollController = ScrollController();
+  final SmoothScrollController _serverScrollController = SmoothScrollController();
+  final SmoothScrollController _subscriptionScrollController = SmoothScrollController();
 
   String _selectedSubId = '';
 
-
-
   @override
-
   void dispose() {
-
     _spinController.dispose();
-
     _searchController.dispose();
-
+    _subscriptionScrollController.dispose();
     _serverScrollController.dispose();
-
     super.dispose();
 
   }
@@ -908,37 +905,92 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
     return Column(
       children: [
-        // 1. Панель переключения подписок (вкладки сверху)
+        // 1. Панель переключения подписок (вкладки сверху с поддержкой плавного горизонтального скроллинга)
         if (hasMultiple) ...[
           Container(
-            height: 48,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            child: ListView(
-              scrollDirection: Axis.horizontal,
+            height: 52,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: Row(
               children: [
-                for (int i = 0; i < vpn.subscriptions.length; i++) ...[
-                  if (i > 0) const SizedBox(width: 8),
-                  ChoiceChip(
-                    showCheckmark: false,
-                    avatar: vpn.subscriptions[i].isPinned ? const Icon(Icons.push_pin, size: 14) : null,
-                    label: Text('${vpn.subscriptions[i].name} (${vpn.subscriptions[i].nodes.length})'),
-                    selected: _selectedSubId == vpn.subscriptions[i].id,
-                    onSelected: (val) {
-                      if (val) setState(() => _selectedSubId = vpn.subscriptions[i].id);
-                    },
+                IconButton(
+                  icon: const Icon(Icons.chevron_left_rounded, size: 22),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  tooltip: 'Прокрутить влево',
+                  onPressed: () {
+                    if (_subscriptionScrollController.hasClients) {
+                      final target = (_subscriptionScrollController.offset - 220).clamp(
+                        0.0,
+                        _subscriptionScrollController.position.maxScrollExtent,
+                      );
+                      _subscriptionScrollController.animateTo(
+                        target,
+                        duration: const Duration(milliseconds: 250),
+                        curve: Curves.easeOutCubic,
+                      );
+                    }
+                  },
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: HorizontalSmoothScroll(
+                    controller: _subscriptionScrollController,
+                    child: Scrollbar(
+                      controller: _subscriptionScrollController,
+                      thumbVisibility: false,
+                      child: ListView(
+                        controller: _subscriptionScrollController,
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                        children: [
+                          for (int i = 0; i < vpn.subscriptions.length; i++) ...[
+                            if (i > 0) const SizedBox(width: 8),
+                            ChoiceChip(
+                              showCheckmark: false,
+                              avatar: vpn.subscriptions[i].isPinned ? const Icon(Icons.push_pin, size: 14) : null,
+                              label: Text('${vpn.subscriptions[i].name} (${vpn.subscriptions[i].nodes.length})'),
+                              selected: _selectedSubId == vpn.subscriptions[i].id,
+                              onSelected: (val) {
+                                if (val) setState(() => _selectedSubId = vpn.subscriptions[i].id);
+                              },
+                            ),
+                          ],
+                          if (vpn.manualNodes.isNotEmpty) ...[
+                            if (vpn.subscriptions.isNotEmpty) const SizedBox(width: 8),
+                            ChoiceChip(
+                              showCheckmark: false,
+                              label: Text('Сервера (${vpn.manualNodes.length})'),
+                              selected: _selectedSubId == 'manual',
+                              onSelected: (val) {
+                                if (val) setState(() => _selectedSubId = 'manual');
+                              },
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
                   ),
-                ],
-                if (vpn.manualNodes.isNotEmpty) ...[
-                  if (vpn.subscriptions.isNotEmpty) const SizedBox(width: 8),
-                  ChoiceChip(
-                    showCheckmark: false,
-                    label: Text('Сервера (${vpn.manualNodes.length})'),
-                    selected: _selectedSubId == 'manual',
-                    onSelected: (val) {
-                      if (val) setState(() => _selectedSubId = 'manual');
-                    },
-                  ),
-                ],
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right_rounded, size: 22),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  tooltip: 'Прокрутить вправо',
+                  onPressed: () {
+                    if (_subscriptionScrollController.hasClients) {
+                      final target = (_subscriptionScrollController.offset + 220).clamp(
+                        0.0,
+                        _subscriptionScrollController.position.maxScrollExtent,
+                      );
+                      _subscriptionScrollController.animateTo(
+                        target,
+                        duration: const Duration(milliseconds: 250),
+                        curve: Curves.easeOutCubic,
+                      );
+                    }
+                  },
+                ),
               ],
             ),
           ),
