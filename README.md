@@ -127,13 +127,6 @@ iscc windows/installer_x64.iss
 
 ---
 
-## 👥 Авторы и участники
-
-- **qkryt** — автор проекта и основной разработчик.
-- **Google Deepmind / Antigravity Agent** — разработка сетевого стека, интеграция Wintun, Material Design 3 и CI/CD автоматизация.
-
----
-
 ## 📄 Лицензия
 
 Проект распространяется под открытой лицензией [MIT License](LICENSE).
