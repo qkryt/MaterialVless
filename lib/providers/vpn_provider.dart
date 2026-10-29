@@ -661,13 +661,16 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
     if (allNodes.isEmpty) return;
 
-    final valid = allNodes.where((n) => n.pingMs > 0).toList();
+    final valid = allNodes.where((n) => (n.pingMs ?? 0) > 0).toList();
+    VlessNode best;
     if (valid.isNotEmpty) {
-      valid.sort((a, b) => a.pingMs.compareTo(b.pingMs));
-      await selectAndConnectNode(valid.first);
+      valid.sort((a, b) => (a.pingMs ?? 99999).compareTo(b.pingMs ?? 99999));
+      best = valid.first;
     } else {
-      await selectAndConnectNode(allNodes.first);
+      best = allNodes.first;
     }
+    await selectNode(best);
+    await connect();
   }
 
   void addCustomRoutingRule(String suffix) {
