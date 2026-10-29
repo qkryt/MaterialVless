@@ -87,6 +87,7 @@ class _MaterialVlessAppState extends ConsumerState<MaterialVlessApp> {
         }
 
         return MaterialApp(
+          key: ValueKey('mv_app_${accentColor}_${themeMode}_$fontFamily'),
           title: 'MaterialVless',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light(

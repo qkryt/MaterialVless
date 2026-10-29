@@ -19,8 +19,11 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String _hwid = 'Загрузка...';
   bool _isCheckingUpdate = false;
+  bool _isSelectingCustomUa = false;
+  late final TextEditingController _customUaController;
 
   final List<String> _popularUserAgents = const [
+    'MaterialVless/2.11',
     'v2rayN/6.42',
     'v2rayN/6.23',
     'sing-box/1.14.4',
@@ -40,7 +43,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     'Loon/3.2.1',
     'Foxray/1.4.2',
     'Wings/1.0.0',
-    'MaterialVless/2.1',
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0.0.0',
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Firefox/132.0',
   ];
@@ -59,9 +61,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+    _customUaController = TextEditingController();
     HwidService.getHWID().then((val) {
       if (mounted) setState(() => _hwid = val);
     });
+  }
+
+  @override
+  void dispose() {
+    _customUaController.dispose();
+    super.dispose();
   }
 
   Future<void> _pickAndImportFont() async {
@@ -155,6 +164,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final lang = settings.appLanguage;
 
     String t(String key) => AppStrings.t(key, lang);
+
+    final bool isKnownPreset = _popularUserAgents.contains(settings.userAgent);
+    final bool showCustomInput = !isKnownPreset || _isSelectingCustomUa;
+    if (!isKnownPreset && _customUaController.text != settings.userAgent && !_customUaController.selection.isValid) {
+      _customUaController.text = settings.userAgent;
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -317,14 +332,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           final int val = item['value'] as int;
                           final Color color = item['color'] as Color;
                           final String name = item['name'] as String;
-                          final bool isSelected = settings.accentColor == val;
+                          final bool isSelected = settings.accentColor == val && !settings.useDynamicColor;
 
                           return Tooltip(
                             message: name,
                             child: InkWell(
                               onTap: () {
                                 ref.read(vpnProvider.notifier).updateSettings(
-                                      settings.copyWith(accentColor: val),
+                                      settings.copyWith(
+                                        accentColor: val,
+                                        useDynamicColor: false,
+                                      ),
                                     );
                               },
                               borderRadius: BorderRadius.circular(24),
@@ -575,12 +593,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Card(
             color: colorScheme.surfaceContainer,
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ListTile(
                   title: const Text('Глобальный User-Agent'),
                   subtitle: Text(settings.userAgent),
                   trailing: DropdownButton<String>(
-                    value: _popularUserAgents.contains(settings.userAgent) ? settings.userAgent : 'Custom',
+                    value: (!isKnownPreset || _isSelectingCustomUa) ? 'Custom' : settings.userAgent,
                     underline: const SizedBox(),
                     items: [
                       ..._popularUserAgents.map((ua) => DropdownMenuItem(value: ua, child: Text(ua))),
@@ -588,17 +607,50 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ],
                     onChanged: (val) {
                       if (val == 'Custom') {
-                        _editStringDialog('Пользовательский User-Agent', settings.userAgent, (customUa) {
-                          if (customUa.isNotEmpty) {
-                            ref.read(vpnProvider.notifier).updateSettings(settings.copyWith(userAgent: customUa));
-                          }
+                        setState(() {
+                          _isSelectingCustomUa = true;
+                          _customUaController.text = !isKnownPreset ? settings.userAgent : '';
                         });
                       } else if (val != null) {
+                        setState(() => _isSelectingCustomUa = false);
                         ref.read(vpnProvider.notifier).updateSettings(settings.copyWith(userAgent: val));
                       }
                     },
                   ),
                 ),
+                if (showCustomInput) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: TextField(
+                      controller: _customUaController,
+                      decoration: InputDecoration(
+                        labelText: 'Пользовательский User-Agent',
+                        hintText: 'Например: MyCustomClient/1.0',
+                        prefixIcon: const Icon(Icons.edit_note_rounded),
+                        border: const OutlineInputBorder(),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.check_circle_outline_rounded),
+                          tooltip: 'Применить',
+                          onPressed: () {
+                            final customUa = _customUaController.text.trim();
+                            if (customUa.isNotEmpty) {
+                              ref.read(vpnProvider.notifier).updateSettings(settings.copyWith(userAgent: customUa));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Пользовательский User-Agent применен')),
+                              );
+                            }
+                          },
+                        ),
+                      ),
+                      onChanged: (val) {
+                        final clean = val.trim();
+                        if (clean.isNotEmpty) {
+                          ref.read(vpnProvider.notifier).updateSettings(settings.copyWith(userAgent: clean));
+                        }
+                      },
+                    ),
+                  ),
+                ],
                 const Divider(height: 1),
                 SwitchListTile(
                   title: const Text('Отправлять аппаратный ID (HWID)'),
@@ -639,7 +691,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   leading: const Icon(Icons.system_update_rounded),
                   title: Text(t('client_version')),
-                  subtitle: const Text('MaterialVless 2.1.0 • Micropatch 2.1 (v2.1.0)'),
+                  subtitle: const Text('MaterialVless 2.11 • Патч 2.11 (v2.11.0)'),
                   trailing: _isCheckingUpdate
                       ? const SizedBox(
                           width: 24,
@@ -659,7 +711,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             } else if (result.isSuccess) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('У вас установлена самая актуальная версия (v2.1.0)'),
+                                  content: Text('У вас установлена самая актуальная версия (v2.11.0)'),
                                 ),
                               );
                             } else {
@@ -741,7 +793,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Версия 2.1.0 • Выпуск 2026',
+                              'Версия 2.11.0 • Патч 2.11 (Выпуск 2026)',
                               style: TextStyle(
                                 fontSize: 13,
                                 color: colorScheme.onSurfaceVariant,

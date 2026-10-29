@@ -38,7 +38,7 @@ class CheckUpdateResult {
 }
 
 class UpdateService {
-  static const String currentVersion = "2.1.0";
+  static const String currentVersion = "2.11.0";
   static const String _repo = "qkryt/MaterialVless";
 
   /// Сравнивает две версии, например "2.1" и "2.0.0" или "2.1.0" и "2.0.0"
@@ -69,7 +69,7 @@ class UpdateService {
         url,
         headers: {
           'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'MaterialVless-App/2.1',
+          'User-Agent': 'MaterialVless-App/2.11',
         },
       ).timeout(const Duration(seconds: 6));
 
@@ -180,7 +180,7 @@ class UpdateService {
 
     try {
       final request = http.Request('GET', Uri.parse(setupUrl));
-      request.headers['User-Agent'] = 'MaterialVless-App/2.1';
+      request.headers['User-Agent'] = 'MaterialVless-App/2.11';
       final response = await http.Client().send(request);
 
       totalBytes = response.contentLength ?? 0;

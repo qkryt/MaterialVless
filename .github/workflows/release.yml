@@ -282,34 +282,23 @@ jobs:
           prerelease: false
           files: final_assets/*
           body: |
-            ### MaterialVless 2.1 (Micropatch 2.1)
+            ### MaterialVless 2.11 (Патч 2.11 / Patch 2.11)
 
-            Release 2.1 brings deep-linking protocol schemes (material:// & happ://), preferred IP strategies (IPv4/IPv6/Auto), single-instance protection, in-app installer updater with progress bar, Material You dynamic seed palette picker, 6 working fonts, responsive inputs, and complete English localization.
+            Обновление 2.11 исправляет применение цветовой палитры Material You, делает кнопку подключения по-настоящему живой и отзывчивой к курсору мыши, добавляет активную орбитальную анимацию при замере пинга и подключении, переводит дефолтный User-Agent на наш клиент и добавляет встроенное поле для кастомного User-Agent.
 
-            #### What's New in Micropatch 2.1:
-            - **URL Schemes & Deep-Linking**:
-              - Complete support for material:// and happ:// protocols.
-              - Control commands: connect, open, disconnect, close, toggle.
-              - Import commands: material://add{URL}, material://crypt{URL}, material://crypt2{URL}.
-              - Dynamic routing: material://routing/add/{base64}, material://routing/off.
-            - **Preferred IP Strategy**:
-              - Choose between Auto (IPv4 / IPv6), IPv4 Only, and Prefer IPv6 for Sing-box routing and DNS.
-            - **Material You Dynamic Color Seeds**:
-              - Pick from 8 curated accent palette seeds (Deep Purple, Electric Blue, Emerald Teal, Forest Green, Sunset Orange, Ruby Crimson, Cyber Pink, Graphite Slate).
-            - **6 Built-in Fonts & Custom Font Importer**:
-              - Google Sans, Roboto, Segoe UI, Consolas, Arial, and Tahoma + .ttf / .otf file loader.
-            - **Single-Instance Enforcement**:
-              - Loopback IPC server on port 49281 prevents duplicates, auto-focuses active window, and forwards deep links.
-            - **In-App Auto-Updater**:
-              - Download setup installer .exe directly inside the app with a real-time progress bar.
-            - **Full English Localization**:
-              - Bilingual switcher (EN / RU) across all dialogs and screens.
-            - **Enhanced Subscription Options**:
-              - Adaptive multi-line URL field, per-subscription User-Agent, HWID & alternative HWID, and auto-actions on startup (update, ping, connect to fastest server).
-            - **English Documentation**:
-              - Fully modernized and comprehensive English README.md.
+            #### Что нового в версии 2.11:
+            - **Исправлена цветовая палитра Material You**:
+              - Теперь выбор любого из 8 акцентных цветов мгновенно преобразует всю тему приложения без блокировок системным акцентом Windows.
+            - **Живая кнопка подключения**:
+              - Убрано статичное неоновое свечение при включенном VPN.
+              - Кнопка стала живой и плавно увеличивается/анимируется при наведении курсора (`hover`, `splash` и `ripple` в стиле Material 3).
+            - **Орбитальная анимация при пинге и подключении**:
+              - Во время проверки пинга серверов или установки VPN-соединения вокруг кнопки плавно вращается красивое градиентное кольцо-радар.
+            - **Обновление User-Agent**:
+              - По умолчанию установлен фирменный User-Agent: `MaterialVless/2.11`.
+              - При выборе варианта «Пользовательский...» поле для ввода строки появляется прямо под списком без модальных окон.
 
-            #### Release Binaries:
+            #### Release Binaries / Файлы релиза:
             - **Windows (x64) Installer:** MaterialVless-Windows-x64-Setup.exe
             - **Windows (x64) Portable:** MaterialVless-Windows-x64.zip
             - **Windows (x86) Installer:** MaterialVless-Windows-x86-Setup.exe

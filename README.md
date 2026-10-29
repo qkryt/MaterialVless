@@ -1,4 +1,4 @@
-# MaterialVless 2.1 (Микропатч 2.1)
+# MaterialVless 2.11 (Патч 2.11)
 
 <p align="center">
   <b><a href="README.md">Русский</a> | <a href="README_EN.md">English</a></b>

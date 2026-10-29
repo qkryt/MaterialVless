@@ -18,12 +18,22 @@ class DashboardScreen extends ConsumerStatefulWidget {
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTickerProviderStateMixin {
+  late final AnimationController _spinController;
+  bool _isButtonHovered = false;
   final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _spinController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
     super.initState();
+    _spinController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400));
     WidgetsBinding.instance.addPostFrameCallback((_) {
       TrayService.instance.init(
         onRestartCore: () async {
@@ -55,7 +65,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'У вас установлена самая актуальная версия (v)',
+              'У вас установлена самая актуальная версия (v2.11.0)',
             ),
           ),
         );
@@ -178,59 +188,130 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             const Spacer(),
           ],
 
-          // Статичная, четкая круглая кнопка включения в дизайне Material You
+          final isBusy = isConnecting || vpn.isTestingPing;
+          if (isBusy && !_spinController.isAnimating) {
+            _spinController.repeat();
+          } else if (!isBusy && _spinController.isAnimating) {
+            _spinController.stop();
+            _spinController.reset();
+          }
+
+          // Живая круглая кнопка включения в дизайне Material You с анимацией при пинге/подключении
           Center(
-            child: GestureDetector(
-              onTap: () => ref.read(vpnProvider.notifier).toggleConnection(),
-              child: Container(
-                width: size,
-                height: size,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isConnected ? colorScheme.primary : colorScheme.surfaceContainerHighest,
-                  boxShadow: [
-                    BoxShadow(
-                      color: (isConnected ? colorScheme.primary : colorScheme.outlineVariant).withOpacity(0.3),
-                      blurRadius: isConnected ? 28 : 10,
-                      spreadRadius: isConnected ? 4 : 1,
+            child: SizedBox(
+              width: size + 28,
+              height: size + 28,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Вращающееся кольцо анимации при пинге или подключении
+                  if (isBusy) ...[
+                    AnimatedBuilder(
+                      animation: _spinController,
+                      builder: (context, child) {
+                        return Transform.rotate(
+                          angle: _spinController.value * 2 * 3.1415926535,
+                          child: CustomPaint(
+                            size: Size(size + 24, size + 24),
+                            painter: _BusyRingPainter(
+                              color: colorScheme.primary,
+                              secondaryColor: colorScheme.tertiary,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
-                ),
-                child: Center(
-                  child: isConnecting
-                      ? CircularProgressIndicator(color: colorScheme.onPrimary, strokeWidth: 4)
-                      : Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.power_settings_new_rounded,
-                              size: isCompact ? 46 : 64,
-                              color: isConnected ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
+
+                  // Живая кнопка: отклик на наведение курсора без неонового свечения
+                  MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    onEnter: (_) => setState(() => _isButtonHovered = true),
+                    onExit: (_) => setState(() => _isButtonHovered = false),
+                    child: AnimatedScale(
+                      scale: _isButtonHovered ? 1.04 : 1.0,
+                      duration: const Duration(milliseconds: 180),
+                      curve: Curves.easeOutCubic,
+                      child: Material(
+                        color: isConnected ? colorScheme.primary : colorScheme.surfaceContainerHighest,
+                        shape: const CircleBorder(),
+                        elevation: _isButtonHovered ? 4 : (isConnected ? 2 : 1),
+                        shadowColor: Colors.black.withOpacity(0.3),
+                        clipBehavior: Clip.antiAlias,
+                        child: InkWell(
+                          onTap: () => ref.read(vpnProvider.notifier).toggleConnection(),
+                          customBorder: const CircleBorder(),
+                          hoverColor: isConnected
+                              ? Colors.white.withOpacity(0.12)
+                              : colorScheme.primary.withOpacity(0.12),
+                          highlightColor: isConnected
+                              ? Colors.white.withOpacity(0.20)
+                              : colorScheme.primary.withOpacity(0.20),
+                          splashColor: isConnected
+                              ? Colors.white.withOpacity(0.25)
+                              : colorScheme.primary.withOpacity(0.25),
+                          child: SizedBox(
+                            width: size,
+                            height: size,
+                            child: Center(
+                              child: isConnecting
+                                  ? Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        CircularProgressIndicator(
+                                          color: isConnected ? colorScheme.onPrimary : colorScheme.primary,
+                                          strokeWidth: 3.5,
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Text(
+                                          'ПОДКЛЮЧЕНИЕ...',
+                                          style: TextStyle(
+                                            color: isConnected ? colorScheme.onPrimary : colorScheme.primary,
+                                            fontSize: isCompact ? 10 : 11,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 1.0,
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.power_settings_new_rounded,
+                                          size: isCompact ? 46 : 64,
+                                          color: isConnected ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          isConnected ? 'ПОДКЛЮЧЕНО' : 'ПОДКЛЮЧИТЬ',
+                                          style: TextStyle(
+                                            color: isConnected ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
+                                            fontSize: isCompact ? 11 : 13,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 1.1,
+                                          ),
+                                        ),
+                                        if (isConnected) ...[
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            vpn.formattedTimer,
+                                            style: TextStyle(
+                                              color: colorScheme.onPrimary.withOpacity(0.95),
+                                              fontSize: isCompact ? 13 : 15,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
                             ),
-                            const SizedBox(height: 6),
-                            Text(
-                              isConnected ? 'ПОДКЛЮЧЕНО' : 'ПОДКЛЮЧИТЬ',
-                              style: TextStyle(
-                                color: isConnected ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
-                                fontSize: isCompact ? 11 : 13,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.1,
-                              ),
-                            ),
-                            if (isConnected) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                vpn.formattedTimer,
-                                style: TextStyle(
-                                  color: colorScheme.onPrimary.withOpacity(0.95),
-                                  fontSize: isCompact ? 13 : 15,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ],
+                          ),
                         ),
-                ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -1142,4 +1223,36 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ),
     );
   }
+}
+
+
+class _BusyRingPainter extends CustomPainter {
+  final Color color;
+  final Color secondaryColor;
+
+  _BusyRingPainter({required this.color, required this.secondaryColor});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.5
+      ..strokeCap = StrokeCap.round
+      ..shader = SweepGradient(
+        colors: [
+          color.withOpacity(0.0),
+          color,
+          secondaryColor,
+          color.withOpacity(0.0),
+        ],
+        stops: const [0.0, 0.45, 0.75, 1.0],
+      ).createShader(rect);
+
+    canvas.drawArc(rect.deflate(2), 0, 3.1415926535 * 1.6, false, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _BusyRingPainter oldDelegate) =>
+      color != oldDelegate.color || secondaryColor != oldDelegate.secondaryColor;
 }
