@@ -1,4 +1,4 @@
-# MaterialVless 2.12 (Патч 2.12)
+# MaterialVless 2.13 (Релиз 2.13)
 
 <p align="center">
   <b><a href="README.md">Русский</a> | <a href="README_EN.md">English</a></b>

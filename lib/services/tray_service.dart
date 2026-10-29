@@ -27,6 +27,7 @@ class TrayService with TrayListener, WindowListener {
       windowManager.addListener(this);
       await windowManager.setPreventClose(true);
       await windowManager.setMinimumSize(const Size(420, 560));
+      await windowManager.setTitle('MaterialVless');
 
       // Инициализация системного трея
       trayManager.addListener(this);

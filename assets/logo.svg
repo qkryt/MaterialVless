@@ -1,40 +1,52 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
-    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#3574F0"/>
-      <stop offset="50%" stop-color="#2563EB"/>
-      <stop offset="100%" stop-color="#00D2FF"/>
+    <!-- Material You Soft Gradient Background -->
+    <linearGradient id="myBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6750A4"/>
+      <stop offset="100%" stop-color="#8E3C5A"/>
     </linearGradient>
-    <linearGradient id="shieldBg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#3574F0" stop-opacity="0.3"/>
-      <stop offset="100%" stop-color="#00D2FF" stop-opacity="0.08"/>
-    </linearGradient>
-    <linearGradient id="vGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#FFFFFF"/>
-      <stop offset="100%" stop-color="#38BDF8"/>
-    </linearGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#3574F0" flood-opacity="0.45"/>
+
+    <!-- Organic Pastel Accent Glows -->
+    <radialGradient id="goldBlob" cx="80%" cy="10%" r="55%">
+      <stop offset="0%" stop-color="#FFDA64" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#6750A4" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="roseBlob" cx="15%" cy="85%" r="55%">
+      <stop offset="0%" stop-color="#F8BDC4" stop-opacity="0.38"/>
+      <stop offset="100%" stop-color="#8E3C5A" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Ribbon Drop Shadow -->
+    <filter id="ribbonShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#1E0A24" flood-opacity="0.4"/>
     </filter>
   </defs>
 
-  <!-- Hexagonal Shield Background & Border -->
-  <polygon points="256,20 480,132 480,317 256,492 32,317 32,132"
-           fill="url(#shieldBg)"
-           stroke="url(#shieldGrad)"
-           stroke-width="26"
-           stroke-linejoin="round"
-           filter="url(#shadow)"/>
+  <!-- 1. Material You Rounded Squircle -->
+  <rect x="16" y="16" width="480" height="480" rx="136" ry="136" fill="url(#myBgGrad)"/>
 
-  <!-- High-Speed Tunnel V Symbol -->
-  <path d="M 144,180 L 256,368 L 368,180"
+  <!-- 2. Ambient Pastel Color Blobs -->
+  <rect x="16" y="16" width="480" height="480" rx="136" ry="136" fill="url(#goldBlob)"/>
+  <rect x="16" y="16" width="480" height="480" rx="136" ry="136" fill="url(#roseBlob)"/>
+
+  <!-- 3. Central Material Core / Shield Keyhole -->
+  <circle cx="256" cy="204" r="56" fill="#FFE082" filter="url(#ribbonShadow)"/>
+  <circle cx="256" cy="204" r="28" fill="#6750A4"/>
+
+  <!-- 4. Fluid Material You Ribbon: M & V Tunnel -->
+  <path d="M 112,184 C 130,250 170,310 256,390 C 342,310 382,250 400,184"
         fill="none"
-        stroke="url(#vGrad)"
-        stroke-width="38"
+        stroke="#FFFFFF"
+        stroke-width="54"
         stroke-linecap="round"
-        stroke-linejoin="round"/>
+        stroke-linejoin="round"
+        filter="url(#ribbonShadow)"/>
 
-  <!-- Dynamic Cyber Pulse Node -->
-  <circle cx="256" cy="180" r="32" fill="#00D2FF"/>
-  <circle cx="256" cy="180" r="16" fill="#FFFFFF"/>
+  <!-- 5. Dynamic Energy Arc -->
+  <path d="M 174,184 C 205,220 226,242 256,242 C 286,242 307,220 338,184"
+        fill="none"
+        stroke="#FFE082"
+        stroke-width="18"
+        stroke-linecap="round"
+        stroke-opacity="0.9"/>
 </svg>

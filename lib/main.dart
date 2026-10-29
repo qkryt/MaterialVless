@@ -8,6 +8,7 @@ import 'providers/vpn_provider.dart';
 import 'utils/admin_helper.dart';
 import 'services/single_instance_service.dart';
 import 'services/url_scheme_service.dart';
+import 'services/custom_font_service.dart';
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,6 +28,9 @@ void main(List<String> args) async {
     // Регистрация URL-схем material:// и happ://
     UrlSchemeService.registerWindowsProtocolHandlers();
   }
+
+  // 3. Загрузка кастомных шрифтов
+  await CustomFontService.loadAllCustomFonts();
 
   runApp(
     ProviderScope(

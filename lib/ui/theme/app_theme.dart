@@ -55,6 +55,22 @@ class AppTheme {
           color: scheme.onSurface,
         ),
       ),
+      scrollbarTheme: ScrollbarThemeData(
+        thumbVisibility: const WidgetStatePropertyAll(true),
+        trackVisibility: const WidgetStatePropertyAll(false),
+        minThumbLength: 48,
+        thickness: const WidgetStatePropertyAll(7),
+        radius: const Radius.circular(8),
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.dragged)) {
+            return scheme.primary;
+          }
+          if (states.contains(WidgetState.hovered)) {
+            return scheme.primary.withOpacity(0.8);
+          }
+          return scheme.onSurfaceVariant.withOpacity(0.35);
+        }),
+      ),
     );
   }
 
@@ -94,6 +110,22 @@ class AppTheme {
           fontWeight: FontWeight.bold,
           color: scheme.onSurface,
         ),
+      ),
+      scrollbarTheme: ScrollbarThemeData(
+        thumbVisibility: const WidgetStatePropertyAll(true),
+        trackVisibility: const WidgetStatePropertyAll(false),
+        minThumbLength: 48,
+        thickness: const WidgetStatePropertyAll(7),
+        radius: const Radius.circular(8),
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.dragged)) {
+            return scheme.primary;
+          }
+          if (states.contains(WidgetState.hovered)) {
+            return scheme.primary.withOpacity(0.8);
+          }
+          return scheme.onSurfaceVariant.withOpacity(0.35);
+        }),
       ),
     );
   }

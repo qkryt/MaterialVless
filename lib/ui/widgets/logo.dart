@@ -18,7 +18,7 @@ class MaterialVlessLogo extends StatelessWidget {
 
     return CustomPaint(
       size: Size(size, size),
-      painter: _LogoPainter(
+      painter: _MaterialYouLogoPainter(
         primaryColor: primary,
         accentColor: tertiary,
       ),
@@ -26,11 +26,11 @@ class MaterialVlessLogo extends StatelessWidget {
   }
 }
 
-class _LogoPainter extends CustomPainter {
+class _MaterialYouLogoPainter extends CustomPainter {
   final Color primaryColor;
   final Color accentColor;
 
-  _LogoPainter({
+  _MaterialYouLogoPainter({
     required this.primaryColor,
     required this.accentColor,
   });
@@ -40,76 +40,68 @@ class _LogoPainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
 
-    // Внешний щит / шестиугольная защитная форма
-    final shieldPath = Path()
-      ..moveTo(w * 0.5, h * 0.04)
-      ..lineTo(w * 0.94, h * 0.26)
-      ..lineTo(w * 0.94, h * 0.62)
-      ..lineTo(w * 0.5, h * 0.96)
-      ..lineTo(w * 0.06, h * 0.62)
-      ..lineTo(w * 0.06, h * 0.26)
-      ..close();
+    // 1. Скругленный плавный Squircle в стиле Material You
+    final r = w * 0.28;
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, w, h),
+      Radius.circular(r),
+    );
 
     final bgPaint = Paint()
       ..shader = LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          primaryColor.withOpacity(0.25),
-          accentColor.withOpacity(0.08),
+          primaryColor,
+          accentColor,
         ],
       ).createShader(Rect.fromLTWH(0, 0, w, h))
       ..style = PaintingStyle.fill;
 
-    final borderPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [primaryColor, accentColor],
-      ).createShader(Rect.fromLTWH(0, 0, w, h))
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = w * 0.08
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
+    canvas.drawRRect(rrect, bgPaint);
 
-    canvas.drawPath(shieldPath, bgPaint);
-    canvas.drawPath(shieldPath, borderPaint);
-
-    // Внутренний символ скоростного туннеля "V"
-    final vPath = Path()
-      ..moveTo(w * 0.28, h * 0.35)
-      ..lineTo(w * 0.5, h * 0.72)
-      ..lineTo(w * 0.72, h * 0.35);
-
-    final vPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [Colors.white, accentColor],
-      ).createShader(Rect.fromLTWH(0, 0, w, h))
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = w * 0.1
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    canvas.drawPath(vPath, vPaint);
-
-    // Центральная точка узла связи
-    final dotPaint = Paint()
-      ..color = accentColor
+    // 2. Мягкие пастельные блики
+    final blobPaint = Paint()
+      ..color = Colors.white.withOpacity(0.18)
       ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(w * 0.75, h * 0.25), w * 0.35, blobPaint);
 
-    canvas.drawCircle(Offset(w * 0.5, h * 0.35), w * 0.07, dotPaint);
+    // 3. Центральное ядро / точка соединения
+    final corePaint = Paint()
+      ..color = Colors.white.withOpacity(0.95)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(w * 0.50, h * 0.40), w * 0.12, corePaint);
 
-    final innerDotPaint = Paint()
+    final innerCorePaint = Paint()
+      ..color = primaryColor
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(w * 0.50, h * 0.40), w * 0.06, innerCorePaint);
+
+    // 4. Плавная лента Material You "M" и "V"
+    final ribbonPath = Path()
+      ..moveTo(w * 0.22, h * 0.36)
+      ..cubicTo(w * 0.26, h * 0.56, w * 0.38, h * 0.76, w * 0.50, h * 0.76)
+      ..cubicTo(w * 0.62, h * 0.76, w * 0.74, h * 0.56, w * 0.78, h * 0.36);
+
+    final ribbonShadowPaint = Paint()
+      ..color = Colors.black.withOpacity(0.20)
+      ..strokeWidth = w * 0.13
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(ribbonPath, ribbonShadowPaint);
+
+    final ribbonPaint = Paint()
       ..color = Colors.white
-      ..style = PaintingStyle.fill;
-
-    canvas.drawCircle(Offset(w * 0.5, h * 0.35), w * 0.035, innerDotPaint);
+      ..strokeWidth = w * 0.105
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(ribbonPath, ribbonPaint);
   }
 
   @override
-  bool shouldRepaint(covariant _LogoPainter oldDelegate) {
+  bool shouldRepaint(covariant _MaterialYouLogoPainter oldDelegate) {
     return oldDelegate.primaryColor != primaryColor || oldDelegate.accentColor != accentColor;
   }
 }
