@@ -1298,7 +1298,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           initialValue: settings.fontFamily,
                           onSelected: (val) async {
                             final fontPath = CustomFontService.findFontPathForFamily(val);
-                            await ref.read(vpnProvider.notifier).updateSettings(
+                            ref.read(vpnProvider.notifier).updateSettings(
                                   settings.copyWith(
                                     fontFamily: val,
                                     customFontPath: fontPath,
