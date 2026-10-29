@@ -79,11 +79,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     }
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -160,6 +156,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     final isConnecting = vpn.status == CoreState.connecting;
     final size = isCompact ? 144.0 : 190.0;
 
+    final isBusy = isConnecting || vpn.isTestingPing;
+    if (isBusy && !_spinController.isAnimating) {
+      _spinController.repeat();
+    } else if (!isBusy && _spinController.isAnimating) {
+      _spinController.stop();
+      _spinController.reset();
+    }
+
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 20, vertical: isCompact ? 16 : 28),
       color: colorScheme.surface,
@@ -187,14 +191,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             ),
             const Spacer(),
           ],
-
-          final isBusy = isConnecting || vpn.isTestingPing;
-          if (isBusy && !_spinController.isAnimating) {
-            _spinController.repeat();
-          } else if (!isBusy && _spinController.isAnimating) {
-            _spinController.stop();
-            _spinController.reset();
-          }
 
           // Живая круглая кнопка включения в дизайне Material You с анимацией при пинге/подключении
           Center(
