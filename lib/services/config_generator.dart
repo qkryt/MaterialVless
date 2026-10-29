@@ -109,6 +109,13 @@ class ConfigGenerator {
       });
     }
 
+    if (settings.customRoutingRules.isNotEmpty) {
+      routeRules.add({
+        "domain_suffix": settings.customRoutingRules,
+        "outbound": "direct"
+      });
+    }
+
     final dnsServers = <Map<String, dynamic>>[];
     if (settings.secureDnsEnabled) {
       dnsServers.addAll([
@@ -150,8 +157,27 @@ class ConfigGenerator {
         {
           "domain_suffix": _telegramDomains,
           "server": "remote-dns"
+        },
+      if (settings.customRoutingRules.isNotEmpty)
+        {
+          "domain_suffix": settings.customRoutingRules,
+          "server": "local-dns"
         }
     ];
+
+    String dnsStrategy;
+    switch (settings.ipStrategy) {
+      case 'ipv4':
+        dnsStrategy = "ipv4_only";
+        break;
+      case 'ipv6':
+        dnsStrategy = "prefer_ipv6";
+        break;
+      case 'auto':
+      default:
+        dnsStrategy = "prefer_ipv4";
+        break;
+    }
 
     final Map<String, dynamic> config = {
       "log": {
@@ -161,7 +187,7 @@ class ConfigGenerator {
         "servers": dnsServers,
         "rules": dnsRules,
         "final": settings.secureDnsEnabled ? "remote-dns" : "local-dns",
-        "strategy": "ipv4_only"
+        "strategy": dnsStrategy
       },
       "inbounds": [
         {

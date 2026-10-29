@@ -282,28 +282,34 @@ jobs:
           prerelease: false
           files: final_assets/*
           body: |
-            ### MaterialVless 2.0
+            ### MaterialVless 2.1 (Micropatch 2.1)
 
-            Крупное обновление клиента с поддержкой редактирования адреса подписок, активных переключателей DNS и локальной сети, слайдера пинга и пользовательских шрифтов.
+            Release 2.1 brings deep-linking protocol schemes (material:// & happ://), preferred IP strategies (IPv4/IPv6/Auto), single-instance protection, in-app installer updater with progress bar, Material You dynamic seed palette picker, 6 working fonts, responsive inputs, and complete English localization.
 
-            #### Нововведения версии 2.0:
-            - **Активные переключатели DNS и LAN**:
-              - Защищенный DNS (DoH через Cloudflare 1.1.1.1 и Google 8.8.8.8) внутри туннеля теперь можно включать и выключать в настройках.
-              - Обход локальной сети (LAN): настраиваемый прямой доступ к домашним устройствам (192.168.*, 10.*, 172.16.*).
-            - **Настраиваемый таймаут пинга**:
-              - Интерактивный слайдер задержки от 1 до 5 секунд.
-            - **Импорт пользовательских шрифтов (.ttf, .otf)**:
-              - Возможность загрузить свой файл шрифта в настройках с мгновенным применением.
-            - **Расширенный каталог User-Agent**:
-              - Выбор из более чем 14 вариантов (v2rayN, sing-box, ClashMeta, Shadowrocket, QuantumultX, Surge, FlClash, NekoRay, Chrome, Firefox) + ввод своего.
-            - **Редактирование адреса подписки**:
-              - В настройках подписки теперь доступно редактируемое текстовое поле URL адреса.
-            - **Единый официальный логотип**:
-              - Установлен векторный фирменный логотип для окна, трея, установщика и репозитория.
-            - **Очистка системного трея**:
-              - Меню трея строго из 3 кнопок («Открыть», «Перезагрузить ядро», «Выйти»).
+            #### What's New in Micropatch 2.1:
+            - **URL Schemes & Deep-Linking**:
+              - Complete support for material:// and happ:// protocols.
+              - Control commands: connect, open, disconnect, close, toggle.
+              - Import commands: material://add{URL}, material://crypt{URL}, material://crypt2{URL}.
+              - Dynamic routing: material://routing/add/{base64}, material://routing/off.
+            - **Preferred IP Strategy**:
+              - Choose between Auto (IPv4 / IPv6), IPv4 Only, and Prefer IPv6 for Sing-box routing and DNS.
+            - **Material You Dynamic Color Seeds**:
+              - Pick from 8 curated accent palette seeds (Deep Purple, Electric Blue, Emerald Teal, Forest Green, Sunset Orange, Ruby Crimson, Cyber Pink, Graphite Slate).
+            - **6 Built-in Fonts & Custom Font Importer**:
+              - Google Sans, Roboto, Segoe UI, Consolas, Arial, and Tahoma + .ttf / .otf file loader.
+            - **Single-Instance Enforcement**:
+              - Loopback IPC server on port 49281 prevents duplicates, auto-focuses active window, and forwards deep links.
+            - **In-App Auto-Updater**:
+              - Download setup installer .exe directly inside the app with a real-time progress bar.
+            - **Full English Localization**:
+              - Bilingual switcher (EN / RU) across all dialogs and screens.
+            - **Enhanced Subscription Options**:
+              - Adaptive multi-line URL field, per-subscription User-Agent, HWID & alternative HWID, and auto-actions on startup (update, ping, connect to fastest server).
+            - **English Documentation**:
+              - Fully modernized and comprehensive English README.md.
 
-            #### Файлы релиза:
+            #### Release Binaries:
             - **Windows (x64) Installer:** MaterialVless-Windows-x64-Setup.exe
             - **Windows (x64) Portable:** MaterialVless-Windows-x64.zip
             - **Windows (x86) Installer:** MaterialVless-Windows-x86-Setup.exe

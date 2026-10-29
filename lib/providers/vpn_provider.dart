@@ -145,6 +145,22 @@ class VpnNotifier extends StateNotifier<VpnState> {
       selectedNode: restoredSelectedNode,
     );
 
+    // Действия при открытии программы для каждой подписки
+    for (final s in savedSubs) {
+      if (s.updateOnStart) {
+        refreshSubscription(s.id);
+      }
+      if (s.pingOnStart) {
+        pingSubscription(s.id);
+      }
+    }
+
+    if (savedSubs.any((s) => s.connectBestOnStart)) {
+      Future.delayed(const Duration(seconds: 2), () {
+        connectBestNode();
+      });
+    }
+
     if (currentSettings.autoUpdateRulesOnStart) {
       SubscriptionService.updateGeoDatabases(
         targetDir: '.',
@@ -439,6 +455,10 @@ class VpnNotifier extends StateNotifier<VpnState> {
         source: target.url,
         settings: state.settings,
         customName: target.name,
+        customUserAgent: target.customUserAgent,
+        sendHwid: target.sendHwid,
+        useAltHwid: target.useAltHwid,
+        altHwid: target.altHwid,
       );
 
       final updatedSub = target.copyWith(
@@ -476,6 +496,13 @@ class VpnNotifier extends StateNotifier<VpnState> {
     required bool autoUpdate,
     String? customName,
     String? newUrl,
+    String? customUserAgent,
+    bool? updateOnStart,
+    bool? pingOnStart,
+    bool? connectBestOnStart,
+    bool? sendHwid,
+    bool? useAltHwid,
+    String? altHwid,
   }) {
     final index = state.subscriptions.indexWhere((s) => s.id == id);
     if (index == -1) return;
@@ -487,6 +514,13 @@ class VpnNotifier extends StateNotifier<VpnState> {
       autoUpdate: autoUpdate,
       name: customName ?? target.name,
       url: urlChanged ? newUrl.trim() : target.url,
+      customUserAgent: customUserAgent,
+      updateOnStart: updateOnStart ?? target.updateOnStart,
+      pingOnStart: pingOnStart ?? target.pingOnStart,
+      connectBestOnStart: connectBestOnStart ?? target.connectBestOnStart,
+      sendHwid: sendHwid ?? target.sendHwid,
+      useAltHwid: useAltHwid ?? target.useAltHwid,
+      altHwid: altHwid,
     );
 
     final updatedSubs = List<SubscriptionModel>.from(state.subscriptions);
@@ -604,6 +638,55 @@ class VpnNotifier extends StateNotifier<VpnState> {
     } catch (_) {
       state = state.copyWith(isTestingPing: false);
     }
+  }
+
+  Future<void> connect() async {
+    if (state.status != CoreState.connected && state.selectedNode != null) {
+      await _xrayService.start(state.selectedNode!, state.settings);
+    }
+  }
+
+  Future<void> disconnect() async {
+    if (state.status == CoreState.connected || state.status == CoreState.connecting) {
+      await _xrayService.stop();
+    }
+  }
+
+  Future<void> connectBestNode() async {
+    final allNodes = <VlessNode>[];
+    for (final s in state.subscriptions) {
+      allNodes.addAll(s.nodes);
+    }
+    allNodes.addAll(state.manualNodes);
+
+    if (allNodes.isEmpty) return;
+
+    final valid = allNodes.where((n) => n.pingMs > 0).toList();
+    if (valid.isNotEmpty) {
+      valid.sort((a, b) => a.pingMs.compareTo(b.pingMs));
+      await selectAndConnectNode(valid.first);
+    } else {
+      await selectAndConnectNode(allNodes.first);
+    }
+  }
+
+  void addCustomRoutingRule(String suffix) {
+    final clean = suffix.trim().toLowerCase();
+    if (clean.isEmpty) return;
+    if (!state.settings.customRoutingRules.contains(clean)) {
+      final updated = List<String>.from(state.settings.customRoutingRules)..add(clean);
+      updateSettings(state.settings.copyWith(customRoutingRules: updated));
+    }
+  }
+
+  void removeCustomRoutingRule(String suffix) {
+    final clean = suffix.trim().toLowerCase();
+    final updated = state.settings.customRoutingRules.where((r) => r != clean).toList();
+    updateSettings(state.settings.copyWith(customRoutingRules: updated));
+  }
+
+  void clearCustomRoutingRules() {
+    updateSettings(state.settings.copyWith(customRoutingRules: []));
   }
 
   Future<void> toggleConnection() async {

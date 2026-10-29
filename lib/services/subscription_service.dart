@@ -11,6 +11,10 @@ class SubscriptionService {
     required String source,
     required AppSettings settings,
     String? customName,
+    String? customUserAgent,
+    bool? sendHwid,
+    bool? useAltHwid,
+    String? altHwid,
   }) async {
     String rawContent = '';
     Map<String, dynamic> metadata = {};
@@ -19,13 +23,20 @@ class SubscriptionService {
     final isLocalFile = source.endsWith('.txt') && File(source).existsSync();
 
     if (isUrl) {
-      final hwid = await HwidService.getHWID();
-      
-      // Попытка загрузки с несколькими совместимыми User-Agent (v2rayN, sing-box, ClashMeta)
+      final defaultHwid = await HwidService.getHWID();
+      final bool shouldSendHwid = sendHwid ?? settings.sendHwid;
+      final String effectiveHwid = (useAltHwid == true && altHwid != null && altHwid.trim().isNotEmpty)
+          ? altHwid.trim()
+          : defaultHwid;
+
+      final preferredUa = (customUserAgent != null && customUserAgent.trim().isNotEmpty)
+          ? customUserAgent.trim()
+          : settings.userAgent;
+
       final userAgents = [
-        _buildUserAgent(settings.userAgent),
+        _buildUserAgent(preferredUa),
         'v2rayN/6.42',
-        'sing-box/1.9.0',
+        'sing-box/1.14.4',
         'ClashMeta/v1.18.0',
       ];
 
@@ -35,7 +46,7 @@ class SubscriptionService {
         try {
           final headers = <String, String>{
             'User-Agent': ua,
-            if (settings.sendHwid) 'X-HWID': hwid,
+            if (shouldSendHwid) 'X-HWID': effectiveHwid,
             'Accept': 'application/json, text/plain, */*',
           };
 

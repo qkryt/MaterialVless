@@ -810,8 +810,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   void _showSubscriptionOptionsDialog(BuildContext context, SubscriptionModel sub) {
     int selectedInterval = sub.autoUpdateIntervalHours;
     bool autoUpdate = sub.autoUpdate;
+    bool updateOnStart = sub.updateOnStart;
+    bool pingOnStart = sub.pingOnStart;
+    bool connectBestOnStart = sub.connectBestOnStart;
+    bool sendHwid = sub.sendHwid;
+    bool useAltHwid = sub.useAltHwid;
+
     final nameController = TextEditingController(text: sub.name);
     final urlController = TextEditingController(text: sub.url);
+    final uaController = TextEditingController(text: sub.customUserAgent ?? '');
+    final altHwidController = TextEditingController(text: sub.altHwid ?? '');
 
     final dateStr = '${sub.lastUpdated.day.toString().padLeft(2, '0')}.${sub.lastUpdated.month.toString().padLeft(2, '0')}.${sub.lastUpdated.year} '
         '${sub.lastUpdated.hour.toString().padLeft(2, '0')}:${sub.lastUpdated.minute.toString().padLeft(2, '0')}:${sub.lastUpdated.second.toString().padLeft(2, '0')}';
@@ -820,118 +828,198 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Опции подписки'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.tonalIcon(
-                        icon: Icon(sub.isPinned ? Icons.push_pin : Icons.push_pin_outlined, size: 18),
-                        label: Text(sub.isPinned ? 'Открепить' : 'Закрепить сверху'),
+          title: Row(
+            children: const [
+              Icon(Icons.tune_rounded),
+              SizedBox(width: 10),
+              Expanded(child: Text('Опции подписки', overflow: TextOverflow.ellipsis)),
+            ],
+          ),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520, minWidth: 360),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.tonalIcon(
+                          icon: Icon(sub.isPinned ? Icons.push_pin : Icons.push_pin_outlined, size: 18),
+                          label: Text(sub.isPinned ? 'Открепить' : 'Закрепить сверху'),
+                          onPressed: () {
+                            ref.read(vpnProvider.notifier).togglePinSubscription(sub.id);
+                            Navigator.pop(ctx);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton.filledTonal(
+                        icon: const Icon(Icons.arrow_upward_rounded),
+                        tooltip: 'Переместить выше',
                         onPressed: () {
-                          ref.read(vpnProvider.notifier).togglePinSubscription(sub.id);
+                          ref.read(vpnProvider.notifier).moveSubscriptionUp(sub.id);
                           Navigator.pop(ctx);
                         },
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton.filledTonal(
-                      icon: const Icon(Icons.arrow_upward_rounded),
-                      tooltip: 'Переместить выше',
-                      onPressed: () {
-                        ref.read(vpnProvider.notifier).moveSubscriptionUp(sub.id);
-                        Navigator.pop(ctx);
-                      },
-                    ),
-                    const SizedBox(width: 4),
-                    IconButton.filledTonal(
-                      icon: const Icon(Icons.arrow_downward_rounded),
-                      tooltip: 'Переместить ниже',
-                      onPressed: () {
-                        ref.read(vpnProvider.notifier).moveSubscriptionDown(sub.id);
-                        Navigator.pop(ctx);
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Название подписки',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: urlController,
-                  maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'URL адрес подписки',
-                    hintText: 'https://...',
-                    prefixIcon: Icon(Icons.link_rounded),
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Последнее обновление из файла:',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        dateStr,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      const SizedBox(width: 4),
+                      IconButton.filledTonal(
+                        icon: const Icon(Icons.arrow_downward_rounded),
+                        tooltip: 'Переместить ниже',
+                        onPressed: () {
+                          ref.read(vpnProvider.notifier).moveSubscriptionDown(sub.id);
+                          Navigator.pop(ctx);
+                        },
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 14),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Автообновление'),
-                  subtitle: const Text('Периодически загружать свежие узлы'),
-                  value: autoUpdate,
-                  onChanged: (val) {
-                    setDialogState(() => autoUpdate = val);
-                  },
-                ),
-                if (autoUpdate) ...[
-                  const SizedBox(height: 8),
-                  const Text('Интервал обновления:', style: TextStyle(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 8,
-                    children: [1, 2, 6, 12, 24].map((hours) {
-                      final isSel = selectedInterval == hours;
-                      return ChoiceChip(
-                        label: Text('$hours ч.'),
-                        selected: isSel,
-                        onSelected: (sel) {
-                          if (sel) setDialogState(() => selectedInterval = hours);
-                        },
-                      );
-                    }).toList(),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Название подписки',
+                      prefixIcon: Icon(Icons.label_outline_rounded),
+                      border: OutlineInputBorder(),
+                    ),
                   ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: urlController,
+                    minLines: 1,
+                    maxLines: 4,
+                    decoration: InputDecoration(
+                      labelText: 'URL адрес подписки',
+                      hintText: 'https://...',
+                      prefixIcon: const Icon(Icons.link_rounded),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.clear_rounded, size: 18),
+                        onPressed: () => urlController.clear(),
+                      ),
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: uaController,
+                    decoration: const InputDecoration(
+                      labelText: 'Кастомный User-Agent (необязательно)',
+                      hintText: 'По умолчанию: глобальный User-Agent',
+                      prefixIcon: Icon(Icons.web_rounded),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.access_time_rounded, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Последнее обновление из источника:',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                dateStr,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Theme.of(context).colorScheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Автообновление по расписанию'),
+                    subtitle: const Text('Периодически загружать свежие узлы из источника'),
+                    value: autoUpdate,
+                    onChanged: (val) => setDialogState(() => autoUpdate = val),
+                  ),
+                  if (autoUpdate) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4, bottom: 8),
+                      child: Wrap(
+                        spacing: 8,
+                        children: [1, 2, 6, 12, 24].map((hours) {
+                          final isSel = selectedInterval == hours;
+                          return ChoiceChip(
+                            label: Text('$hours ч.'),
+                            selected: isSel,
+                            onSelected: (sel) {
+                              if (sel) setDialogState(() => selectedInterval = hours);
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Обновлять при старте клиента'),
+                    subtitle: const Text('Автоматически проверять обновления подписки при старте'),
+                    value: updateOnStart,
+                    onChanged: (val) => setDialogState(() => updateOnStart = val),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Замерять пинг при старте'),
+                    subtitle: const Text('Автоматически пинговать узлы этой подписки'),
+                    value: pingOnStart,
+                    onChanged: (val) => setDialogState(() => pingOnStart = val),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Подключаться к лучшему серверу'),
+                    subtitle: const Text('Автоматически выбирать сервер с наименьшим пингом'),
+                    value: connectBestOnStart,
+                    onChanged: (val) => setDialogState(() => connectBestOnStart = val),
+                  ),
+                  const Divider(),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Отправлять аппаратный ID (HWID)'),
+                    subtitle: const Text('Передавать заголовок X-HWID для серверов с привязкой'),
+                    value: sendHwid,
+                    onChanged: (val) => setDialogState(() => sendHwid = val),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Альтернативный HWID'),
+                    subtitle: const Text('Использовать другой идентификатор для этого профиля'),
+                    value: useAltHwid,
+                    onChanged: (val) => setDialogState(() => useAltHwid = val),
+                  ),
+                  if (useAltHwid) ...[
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: altHwidController,
+                      decoration: const InputDecoration(
+                        labelText: 'Пользовательский HWID',
+                        hintText: 'Например: custom-hwid-device-1',
+                        prefixIcon: Icon(Icons.fingerprint_rounded),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
           actions: [
@@ -943,14 +1031,30 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               style: TextButton.styleFrom(foregroundColor: Colors.red),
               child: const Text('Удалить'),
             ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Отмена'),
+            ),
             FilledButton(
               onPressed: () {
+                final customName = nameController.text.trim();
+                final newUrl = urlController.text.trim();
+                final customUa = uaController.text.trim();
+                final altHwid = altHwidController.text.trim();
+
                 ref.read(vpnProvider.notifier).updateSubscriptionOptions(
                       sub.id,
                       intervalHours: selectedInterval,
                       autoUpdate: autoUpdate,
-                      customName: nameController.text.trim().isNotEmpty ? nameController.text.trim() : null,
-                      newUrl: urlController.text.trim().isNotEmpty ? urlController.text.trim() : null,
+                      customName: customName.isNotEmpty ? customName : null,
+                      newUrl: newUrl.isNotEmpty ? newUrl : null,
+                      customUserAgent: customUa.isNotEmpty ? customUa : null,
+                      updateOnStart: updateOnStart,
+                      pingOnStart: pingOnStart,
+                      connectBestOnStart: connectBestOnStart,
+                      sendHwid: sendHwid,
+                      useAltHwid: useAltHwid,
+                      altHwid: altHwid.isNotEmpty ? altHwid : null,
                     );
                 Navigator.pop(ctx);
               },
@@ -988,13 +1092,38 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Добавить подписку или узел'),
-        content: TextField(
-          controller: controller,
-          maxLines: 4,
-          decoration: const InputDecoration(
-            hintText: 'Вставьте ссылку подписки, прямую ссылку vless://, ss://, hy2:// или путь к .txt файлу',
-            border: OutlineInputBorder(),
+        title: Row(
+          children: const [
+            Icon(Icons.add_link_rounded),
+            SizedBox(width: 10),
+            Text('Добавить подписку или узел'),
+          ],
+        ),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520, minWidth: 360),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: controller,
+                minLines: 2,
+                maxLines: 6,
+                decoration: InputDecoration(
+                  hintText: 'Вставьте ссылку подписки (https://...), прямую ссылку vless://, ss://, hy2:// или путь к .txt файлу',
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.clear_rounded, size: 18),
+                    onPressed: () => controller.clear(),
+                  ),
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Поддерживаются: vless://, vmess://, shadowsocks (ss://), trojan://, hysteria2 (hy2://), а также зашифрованные конфигурации.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
           ),
         ),
         actions: [

@@ -6,34 +6,71 @@ import 'ui/theme/app_theme.dart';
 import 'ui/screens/dashboard_screen.dart';
 import 'providers/vpn_provider.dart';
 import 'utils/admin_helper.dart';
+import 'services/single_instance_service.dart';
+import 'services/url_scheme_service.dart';
 
-void main() async {
+void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // На Windows строго требуются права Администратора для управления TUN-драйвером Wintun
+  // 1. Проверка на единственный запущенный экземпляр программы
+  final isPrimary = await SingleInstanceService.ensureSingleInstance(args);
+  if (!isPrimary) {
+    exit(0); // Рабочий инстанс уже запущен и активирован
+  }
+
+  // 2. На Windows требуются права Администратора для Wintun
   if (Platform.isWindows) {
     final hasAdmin = await AdminHelper.ensureAdminPrivileges();
     if (!hasAdmin) {
-      exit(0); // Пользователь отклонил UAC — немедленный выход!
+      exit(0);
     }
+    // Регистрация URL-схем material:// и happ://
+    UrlSchemeService.registerWindowsProtocolHandlers();
   }
 
   runApp(
-    const ProviderScope(
-      child: MaterialVlessApp(),
+    ProviderScope(
+      child: MaterialVlessApp(initialArgs: args),
     ),
   );
 }
 
-class MaterialVlessApp extends ConsumerWidget {
-  const MaterialVlessApp({super.key});
+class MaterialVlessApp extends ConsumerStatefulWidget {
+  final List<String> initialArgs;
+  const MaterialVlessApp({super.key, this.initialArgs = const []});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MaterialVlessApp> createState() => _MaterialVlessAppState();
+}
+
+class _MaterialVlessAppState extends ConsumerState<MaterialVlessApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Слушатель сообщений от последующих инстансов (URL-схемы / активация окна)
+    SingleInstanceService.setMessageHandler((msg) {
+      if (msg.startsWith('material://') || msg.startsWith('happ://')) {
+        UrlSchemeService.handleUrl(msg, ref.read(vpnProvider.notifier));
+      }
+    });
+
+    if (widget.initialArgs.isNotEmpty) {
+      final arg = widget.initialArgs.first;
+      if (arg.startsWith('material://') || arg.startsWith('happ://')) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          UrlSchemeService.handleUrl(arg, ref.read(vpnProvider.notifier));
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final vpn = ref.watch(vpnProvider);
     final themeMode = vpn.settings.themeMode;
     final fontFamily = vpn.settings.fontFamily;
     final useDynamic = vpn.settings.useDynamicColor;
+    final accentColor = vpn.settings.accentColor;
 
     return DynamicColorBuilder(
       builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
@@ -52,11 +89,16 @@ class MaterialVlessApp extends ConsumerWidget {
         return MaterialApp(
           title: 'MaterialVless',
           debugShowCheckedModeBanner: false,
-          theme: AppTheme.light(lightScheme, fontFamily: fontFamily),
+          theme: AppTheme.light(
+            lightScheme,
+            fontFamily: fontFamily,
+            accentColor: accentColor,
+          ),
           darkTheme: AppTheme.dark(
             darkScheme,
             fontFamily: fontFamily,
             isAmoled: themeMode == 'amoled',
+            accentColor: accentColor,
           ),
           themeMode: mode,
           home: const DashboardScreen(),

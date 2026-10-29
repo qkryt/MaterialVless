@@ -16,6 +16,15 @@ class SubscriptionModel {
   final bool isExpanded;
   final bool isPinned;
 
+  // Новые параметры подписки
+  final String? customUserAgent;
+  final bool updateOnStart;
+  final bool pingOnStart;
+  final bool connectBestOnStart;
+  final bool sendHwid;
+  final bool useAltHwid;
+  final String? altHwid;
+
   SubscriptionModel({
     required this.id,
     required this.name,
@@ -30,6 +39,13 @@ class SubscriptionModel {
     this.autoUpdateIntervalHours = 2,
     this.isExpanded = true,
     this.isPinned = false,
+    this.customUserAgent,
+    this.updateOnStart = true,
+    this.pingOnStart = false,
+    this.connectBestOnStart = false,
+    this.sendHwid = true,
+    this.useAltHwid = false,
+    this.altHwid,
   });
 
   int get usedBytes => uploadBytes + downloadBytes;
@@ -62,6 +78,13 @@ class SubscriptionModel {
         'autoUpdateIntervalHours': autoUpdateIntervalHours,
         'isExpanded': isExpanded,
         'isPinned': isPinned,
+        'customUserAgent': customUserAgent,
+        'updateOnStart': updateOnStart,
+        'pingOnStart': pingOnStart,
+        'connectBestOnStart': connectBestOnStart,
+        'sendHwid': sendHwid,
+        'useAltHwid': useAltHwid,
+        'altHwid': altHwid,
         'nodes': nodes.map((n) => n.toJson()).toList(),
       };
 
@@ -80,6 +103,13 @@ class SubscriptionModel {
         autoUpdateIntervalHours: json['autoUpdateIntervalHours'] ?? 2,
         isExpanded: json['isExpanded'] ?? true,
         isPinned: json['isPinned'] ?? false,
+        customUserAgent: json['customUserAgent']?.toString(),
+        updateOnStart: json['updateOnStart'] != false,
+        pingOnStart: json['pingOnStart'] == true,
+        connectBestOnStart: json['connectBestOnStart'] == true,
+        sendHwid: json['sendHwid'] != false,
+        useAltHwid: json['useAltHwid'] == true,
+        altHwid: json['altHwid']?.toString(),
         nodes: (json['nodes'] as List<dynamic>?)
                 ?.map((n) => VlessNode.fromJson(n as Map<String, dynamic>))
                 .toList() ??
@@ -99,6 +129,13 @@ class SubscriptionModel {
     int? autoUpdateIntervalHours,
     bool? isExpanded,
     bool? isPinned,
+    String? customUserAgent,
+    bool? updateOnStart,
+    bool? pingOnStart,
+    bool? connectBestOnStart,
+    bool? sendHwid,
+    bool? useAltHwid,
+    String? altHwid,
   }) {
     return SubscriptionModel(
       id: id,
@@ -114,6 +151,13 @@ class SubscriptionModel {
       autoUpdateIntervalHours: autoUpdateIntervalHours ?? this.autoUpdateIntervalHours,
       isExpanded: isExpanded ?? this.isExpanded,
       isPinned: isPinned ?? this.isPinned,
+      customUserAgent: customUserAgent ?? this.customUserAgent,
+      updateOnStart: updateOnStart ?? this.updateOnStart,
+      pingOnStart: pingOnStart ?? this.pingOnStart,
+      connectBestOnStart: connectBestOnStart ?? this.connectBestOnStart,
+      sendHwid: sendHwid ?? this.sendHwid,
+      useAltHwid: useAltHwid ?? this.useAltHwid,
+      altHwid: altHwid ?? this.altHwid,
     );
   }
 }

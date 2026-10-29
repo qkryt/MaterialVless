@@ -9,6 +9,7 @@ class UpdateInfo {
   final String body;
   final String releaseUrl;
   final String publishedAt;
+  final String? setupDownloadUrl;
 
   UpdateInfo({
     required this.tagName,
@@ -16,6 +17,7 @@ class UpdateInfo {
     required this.body,
     required this.releaseUrl,
     required this.publishedAt,
+    this.setupDownloadUrl,
   });
 }
 
@@ -36,10 +38,10 @@ class CheckUpdateResult {
 }
 
 class UpdateService {
-  static const String currentVersion = "2.0.0";
+  static const String currentVersion = "2.1.0";
   static const String _repo = "qkryt/MaterialVless";
 
-  /// Сравнивает две версии, например "1.1" и "1.0.0" или "2.0" и "1.0.0"
+  /// Сравнивает две версии, например "2.1" и "2.0.0" или "2.1.0" и "2.0.0"
   static bool isNewer(String latest, String current) {
     try {
       final lClean = latest.trim().replaceAll(RegExp(r'^[vV]'), '');
@@ -67,7 +69,7 @@ class UpdateService {
         url,
         headers: {
           'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'MaterialVless-App/2.0',
+          'User-Agent': 'MaterialVless-App/2.1',
         },
       ).timeout(const Duration(seconds: 6));
 
@@ -79,12 +81,23 @@ class UpdateService {
         final htmlUrl = data['html_url'] as String? ?? 'https://github.com/$_repo/releases';
         final publishedAt = data['published_at'] as String? ?? '';
 
+        String? setupUrl;
+        final assets = data['assets'] as List<dynamic>? ?? [];
+        for (final a in assets) {
+          final name = a['name']?.toString() ?? '';
+          if (name.contains('Setup.exe') || (name.endsWith('.exe') && name.contains('Windows-x64'))) {
+            setupUrl = a['browser_download_url']?.toString();
+            break;
+          }
+        }
+
         final info = UpdateInfo(
           tagName: tagName,
           title: title,
           body: body,
           releaseUrl: htmlUrl,
           publishedAt: publishedAt,
+          setupDownloadUrl: setupUrl,
         );
 
         final bool newer = isNewer(tagName, currentVersion);
@@ -117,6 +130,89 @@ class UpdateService {
       return result.updateInfo;
     }
     return null;
+  }
+
+  /// Скачивание установщика .exe и запуск с последующим закрытием программы
+  static Future<void> downloadAndLaunchInstaller(
+    BuildContext context,
+    String setupUrl,
+  ) async {
+    double progress = 0.0;
+    int downloadedBytes = 0;
+    int totalBytes = 0;
+    bool isCancelled = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setProgressState) {
+            return AlertDialog(
+              title: const Text('Загрузка обновления...'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  LinearProgressIndicator(value: progress > 0 ? progress : null),
+                  const SizedBox(height: 14),
+                  Text(
+                    totalBytes > 0
+                        ? '${(downloadedBytes / (1024 * 1024)).toStringAsFixed(1)} MB / ${(totalBytes / (1024 * 1024)).toStringAsFixed(1)} MB (${(progress * 100).toStringAsFixed(0)}%)'
+                        : 'Подготовка к загрузке...',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    isCancelled = true;
+                    Navigator.pop(ctx);
+                  },
+                  child: const Text('Отмена'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    try {
+      final request = http.Request('GET', Uri.parse(setupUrl));
+      request.headers['User-Agent'] = 'MaterialVless-App/2.1';
+      final response = await http.Client().send(request);
+
+      totalBytes = response.contentLength ?? 0;
+      final tempDir = Directory.systemTemp.path;
+      final installerPath = '$tempDir\\MaterialVless-Update-Setup.exe';
+      final file = File(installerPath);
+      final sink = file.openWrite();
+
+      await for (final chunk in response.stream) {
+        if (isCancelled) {
+          await sink.close();
+          if (await file.exists()) await file.delete();
+          return;
+        }
+        sink.add(chunk);
+        downloadedBytes += chunk.length;
+        if (totalBytes > 0) {
+          progress = downloadedBytes / totalBytes;
+        }
+      }
+
+      await sink.close();
+
+      if (!isCancelled && await file.exists()) {
+        // Запуск установщика в фоновом режиме
+        await Process.start(installerPath, [], mode: ProcessStartMode.detached);
+        // Немедленное закрытие текущего рабочего инстанса
+        exit(0);
+      }
+    } catch (e) {
+      debugPrint('Error downloading installer: $e');
+    }
   }
 
   /// Открытие ссылки на релиз в системном браузере
@@ -234,17 +330,30 @@ class UpdateService {
               onPressed: () => Navigator.of(ctx).pop(),
               child: const Text('Позже'),
             ),
-            FilledButton.icon(
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                openUrl(info.releaseUrl);
-              },
-              icon: const Icon(Icons.download_rounded, size: 18),
-              label: const Text('Скачать'),
-              style: FilledButton.styleFrom(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            if (info.setupDownloadUrl != null && Platform.isWindows)
+              FilledButton.icon(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  downloadAndLaunchInstaller(context, info.setupDownloadUrl!);
+                },
+                icon: const Icon(Icons.install_desktop_rounded, size: 18),
+                label: const Text('Обновить сейчас'),
+                style: FilledButton.styleFrom(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              )
+            else
+              FilledButton.icon(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  openUrl(info.releaseUrl);
+                },
+                icon: const Icon(Icons.download_rounded, size: 18),
+                label: const Text('Скачать'),
+                style: FilledButton.styleFrom(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
               ),
-            ),
           ],
         );
       },
