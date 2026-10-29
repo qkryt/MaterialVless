@@ -1,6 +1,6 @@
 [Setup]
 AppName=MaterialVless
-AppVersion=2.14.2
+AppVersion=2.14.3
 AppPublisher=qkryt
 DefaultDirName={autopf}\MaterialVless
 DefaultGroupName=MaterialVless

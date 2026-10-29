@@ -170,18 +170,9 @@ class ConfigGenerator {
           "server": "local-dns"
         },
       {
-        "outbound": ["direct"],
-        "server": "local-dns"
-      },
-      {
         "domain_suffix": _russianDomains,
         "server": "local-dns"
       },
-      if (settings.secureDnsEnabled)
-        {
-          "outbound": ["proxy"],
-          "server": "remote-dns"
-        },
       {
         "clash_mode": "Direct",
         "server": "local-dns"
@@ -236,7 +227,8 @@ class ConfigGenerator {
         outbound,
         {
           "type": "direct",
-          "tag": "direct"
+          "tag": "direct",
+          "domain_resolver": "local-dns"
         },
         {
           "type": "block",

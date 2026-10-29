@@ -90,6 +90,9 @@ class XrayService {
         binaryPath,
         ['run', '-c', configFile.path],
         workingDirectory: workingDir,
+        environment: {
+          'ENABLE_DEPRECATED_OUTBOUND_DNS_RULE_ITEM': 'true',
+        },
       );
       final pid = _process!.pid;
       LogService.log('sing-box process started with PID: $pid');

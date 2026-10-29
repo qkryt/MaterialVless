@@ -51,7 +51,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   final List<String> _popularUserAgents = const [
 
-    'MaterialVless/2.14.2',
+    'MaterialVless/2.14.3',
 
     'v2rayN/6.42',
 
@@ -1939,7 +1939,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                   title: Text(t('client_version')),
 
-                  subtitle: const Text('MaterialVless 2.14.2 • Релиз 2.14.2 (v2.14.2)'),
+                  subtitle: const Text('MaterialVless 2.14.3 • Релиз 2.14.3 (v2.14.3)'),
 
                   trailing: _isCheckingUpdate
 
@@ -1979,7 +1979,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                                 const SnackBar(
 
-                                  content: Text('У вас установлена самая актуальная версия (v2.14.2)'),
+                                  content: Text('У вас установлена самая актуальная версия (v2.14.3)'),
 
                                 ),
 
@@ -2143,7 +2143,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                             Text(
 
-                              'Версия 2.14.2 • Релиз 2.14.2 (Выпуск 2026)',
+                              'Версия 2.14.3 • Релиз 2.14.3 (Выпуск 2026)',
 
                               style: TextStyle(
 
