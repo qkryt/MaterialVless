@@ -211,6 +211,10 @@ jobs:
           }
 
           New-Item -ItemType Directory -Path "$ReleaseDir/customfonts" -Force
+          New-Item -ItemType Directory -Path "$ReleaseDir/rules" -Force
+          if (Test-Path "assets/rules") {
+            Copy-Item "assets/rules/*" -Destination "$ReleaseDir/rules" -Force
+          }
 
 
 
@@ -372,6 +376,11 @@ jobs:
 
           curl -L "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geosite.dat" -o "$DIST/geosite.dat"
 
+          mkdir -p "$DIST/rules"
+          if [ -d "assets/rules" ]; then
+            cp assets/rules/* "$DIST/rules/"
+          fi
+
 
 
           tar -czvf MaterialVless-Linux-x64.tar.gz -C "$DIST" .
@@ -490,6 +499,11 @@ jobs:
 
           curl -L "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geosite.dat" -o "$RES_DIR/geosite.dat"
 
+          mkdir -p "$RES_DIR/rules"
+          if [ -d "assets/rules" ]; then
+            cp assets/rules/* "$RES_DIR/rules/"
+          fi
+
 
 
           ditto -c -k --sequesterRsrc --keepParent "$APP_DIR" MaterialVless-macOS.zip
@@ -584,21 +598,28 @@ jobs:
 
           body: |
 
-            ### MaterialVless 2.14.3 (Релиз 2.14 / Release 2.14)
+            ### MaterialVless 2.14.4 (Релиз 2.14.4)
 
+            Обновление MaterialVless 2.14.4: полноценная маршрутизация всего трафика системы через прокси, интеграция бинарных geo rule_set (geosite-category-ru, geosite-tld-ru, geoip-ru) для sing-box 1.14+, полное удаление статических списков и исправление sing-box deprecation.
 
-
-            Масштабное обновление 2.13 с исправлением работы скроллбара серверов, устранением PR_CONNECT_RESET_ERROR, новым логотипом Material You, поддержкой кастомных шрифтов и правильной иконкой в установщике!
-
-
-
-            #### Что нового в версии 2.14:
-            - **Стабильность TCP / VLESS Reality**:
-              - Устранены ошибки PR_CONNECT_RESET_ERROR и PR_END_OF_FILE_ERROR благодаря предотвращению петель маршрутизации (direct route для адреса прокси-сервера и loopback).
-              - Использование сверхбыстрого и надежного UDP DNS (8.8.8.8 / 1.1.1.1) через прокси.
+            #### Что нового в версии 2.14.4:
+            - **Маршрутизация всего трафика системы**:
+              - Убраны лишние хардкод-правила для отдельных приложений (Telegram и др.) — теперь ВЕСЬ исходящий сетевой трафик Windows прозрачно и надежно направляется в туннель прокси (`outbound: proxy`).
+            - **Гео-базы маршрутизации (sing-box rule_set)**:
+              - Интегрированы официальные бинарные гео-правила `.srs` (`geosite-category-ru`, `geosite-tld-ru`, `geoip-ru`).
+              - При выборе пресета «Обход российских ресурсов» все российские сайты и IP-диапазоны из геобаз автоматически направляются напрямую (direct), а их DNS резолвится локально.
+              - Поддержка как встроенных локальных наборов правил из каталога `rules/`, так и автоматической загрузки удаленных наборов.
+            - **Совместимость с ядром sing-box 1.14+**:
+              - Устранена критическая ошибка депрекации `outbound DNS rule item` путем перехода на современный `domain_resolver` и прямого указания `default_domain_resolver`.
+            - **Логирование и отладка**:
+              - Ведение подробного журнала работы приложения в корневом файле `log.txt` с возможностью быстрого открытия из настроек.
             - **Управление процессами sing-box**:
-              - Принудительное завершение всех процессов sing-box.exe при выключении VPN и перед каждым новым запуском.
-              - Добавлена аварийная кнопка в настройках: «Аварийное завершение ядра» для мгновенной очистки процессов и сброса системного прокси.
+              - Принудительное завершение всех процессов sing-box при выключении VPN и перед каждым новым запуском.
+              - Аварийная кнопка в настройках для моментального сброса системных прокси и процессов.
+            - **Интерфейс и шрифты**:
+              - Исправлено наложение галочки на иконку булавки на закрепленных подписках.
+              - Персистентное сохранение и динамическая ширина меню выбора локальных шрифтов из `/MaterialVless/customfonts`.
+              - Кнопка обратной связи в карточке «Информация о программе» с переходом в Telegram и GitHub Issues.
             - **Сохранение и отображение кастомных шрифтов**:
               - Шрифт сохраняется персистентно и восстанавливается при перезапуске приложения из /MaterialVless/customfonts.
               - Меню выбора шрифта теперь компактное и аккуратно подстраивается под длину названия шрифта.

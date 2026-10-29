@@ -1,7 +1,7 @@
 name: material_vless
 description: "MaterialVless - Modern VLESS/Reality Client with Xray-core in Material Design 3"
 publish_to: "none"
-version: 2.14.3+1
+version: 2.14.4+1
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -28,3 +28,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icons/
+    - assets/rules/

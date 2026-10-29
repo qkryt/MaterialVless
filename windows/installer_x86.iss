@@ -1,6 +1,6 @@
 [Setup]
 AppName=MaterialVless
-AppVersion=2.14.3
+AppVersion=2.14.4
 AppPublisher=qkryt
 DefaultDirName={autopf}\MaterialVless
 DefaultGroupName=MaterialVless
@@ -18,6 +18,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "..\dist_x86\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\assets\rules\*"; DestDir: "{app}\rules"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\MaterialVless"; Filename: "{app}\material_vless.exe"; IconFilename: "{app}\app_icon.ico"
@@ -41,3 +42,4 @@ Filename: "{app}\material_vless.exe"; Description: "{cm:LaunchProgram,MaterialVl
 [Dirs]
 Name: "{app}"; Permissions: users-modify
 Name: "{app}\customfonts"; Permissions: users-modify
+Name: "{app}\rules"; Permissions: users-modify

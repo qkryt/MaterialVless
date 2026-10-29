@@ -1,68 +1,91 @@
 import 'dart:convert';
+import 'dart:io';
 import '../models/vless_node.dart';
 import '../models/app_settings.dart';
 
 class ConfigGenerator {
-  static const List<String> _russianDomains = [
-    "ru",
-    "su",
-    "xn--p1ai",
-    "vk.com",
-    "vkvideo.ru",
-    "vk.me",
-    "userapi.com",
-    "yandex.ru",
-    "yandex.net",
-    "yastatic.net",
-    "yandex.com",
-    "ya.ru",
-    "dzen.ru",
-    "mail.ru",
-    "ok.ru",
-    "sberbank.ru",
-    "sber.ru",
-    "tinkoff.ru",
-    "tbank.ru",
-    "t-bank.ru",
-    "gosuslugi.ru",
-    "avito.ru",
-    "ozon.ru",
-    "wildberries.ru",
-    "wb.ru",
-    "kinopoisk.ru",
-    "rutube.ru",
-    "2gis.ru",
-    "mos.ru",
-    "hh.ru",
-    "mts.ru",
-    "megafon.ru",
-    "beeline.ru",
-    "tele2.ru",
-    "auto.ru"
-  ];
+  /// Формирование наборов правил sing-box rule_set для маршрутизации
+  static (List<Map<String, dynamic>>, List<String>, List<String>) _buildRouteRuleSets(String? rulesDir) {
+    final List<Map<String, dynamic>> ruleSets = [];
+    final List<String> ruGeositeTags = [];
+    final List<String> ruGeoipTags = [];
 
-  static const List<String> _telegramDomains = [
-    "telegram.org",
-    "t.me",
-    "telegra.ph",
-    "tdesktop.com",
-    "telesco.pe",
-    "tx.me",
-    "stel.com"
-  ];
+    void addRuleSet({
+      required String tag,
+      required String filename,
+      required String remoteUrl,
+      required bool isIp,
+    }) {
+      String? localPath;
+      if (rulesDir != null && rulesDir.isNotEmpty) {
+        final f = File('$rulesDir/$filename');
+        if (f.existsSync() && f.lengthSync() > 0) {
+          localPath = f.path.replaceAll('\\', '/');
+        }
+      }
+      if (localPath == null) {
+        final exeDir = File(Platform.resolvedExecutable).parent.path.replaceAll('\\', '/');
+        final candidate = '$exeDir/rules/$filename';
+        if (File(candidate).existsSync() && File(candidate).lengthSync() > 0) {
+          localPath = candidate;
+        }
+      }
+      if (localPath == null) {
+        final localAssetsCandidate = 'assets/rules/$filename';
+        if (File(localAssetsCandidate).existsSync() && File(localAssetsCandidate).lengthSync() > 0) {
+          localPath = File(localAssetsCandidate).absolute.path.replaceAll('\\', '/');
+        }
+      }
 
-  static const List<String> _telegramIps = [
-    "91.108.4.0/22",
-    "91.108.8.0/22",
-    "91.108.12.0/22",
-    "91.108.16.0/22",
-    "91.108.20.0/22",
-    "91.108.56.0/22",
-    "149.154.160.0/20"
-  ];
+      if (localPath != null) {
+        ruleSets.add({
+          "tag": tag,
+          "type": "local",
+          "format": "binary",
+          "path": localPath,
+        });
+      } else {
+        ruleSets.add({
+          "tag": tag,
+          "type": "remote",
+          "format": "binary",
+          "url": remoteUrl,
+          "download_detour": "direct",
+        });
+      }
 
-  static String generate(VlessNode node, AppSettings settings) {
+      if (isIp) {
+        ruGeoipTags.add(tag);
+      } else {
+        ruGeositeTags.add(tag);
+      }
+    }
+
+    addRuleSet(
+      tag: "geosite-category-ru",
+      filename: "geosite-category-ru.srs",
+      remoteUrl: "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-category-ru.srs",
+      isIp: false,
+    );
+    addRuleSet(
+      tag: "geosite-tld-ru",
+      filename: "geosite-tld-ru.srs",
+      remoteUrl: "https://raw.githubusercontent.com/SagerNet/sing-geosite/rule-set/geosite-tld-ru.srs",
+      isIp: false,
+    );
+    addRuleSet(
+      tag: "geoip-ru",
+      filename: "geoip-ru.srs",
+      remoteUrl: "https://raw.githubusercontent.com/SagerNet/sing-geoip/rule-set/geoip-ru.srs",
+      isIp: true,
+    );
+
+    return (ruleSets, ruGeositeTags, ruGeoipTags);
+  }
+
+  static String generate(VlessNode node, AppSettings settings, {String? rulesDir}) {
     final Map<String, dynamic> outbound = _buildOutbound(node);
+    final (ruleSets, ruGeositeTags, ruGeoipTags) = _buildRouteRuleSets(rulesDir);
 
     final List<Map<String, dynamic>> routeRules = [
       // Перехват входящих DNS запросов только от виртуального адаптера tun-in (избегает циклов)
@@ -98,26 +121,20 @@ class ConfigGenerator {
         "ip_cidr": ["127.0.0.0/8", "::1/128"],
         "outbound": "direct"
       },
-      // Telegram: прямое направление в туннель без задержек сниффинга (MTProto не является TLS)
+      // Анализ протокола (TLS SNI, HTTP Host) для точного сопоставления правил
       {
-        "ip_cidr": _telegramIps,
-        "outbound": "proxy"
-      },
-      {
-        "domain_suffix": _telegramDomains,
-        "outbound": "proxy"
-      },
-      {
-        "action": "sniff",
-        "timeout": "500ms"
+        "action": "sniff"
       },
     ];
 
     if (settings.routingPreset == 'russia') {
-      routeRules.add({
-        "domain_suffix": _russianDomains,
-        "outbound": "direct"
-      });
+      final combinedRu = [...ruGeositeTags, ...ruGeoipTags];
+      if (combinedRu.isNotEmpty) {
+        routeRules.add({
+          "rule_set": combinedRu,
+          "outbound": "direct"
+        });
+      }
       routeRules.add({
         "ip_is_private": true,
         "outbound": "direct"
@@ -137,6 +154,11 @@ class ConfigGenerator {
         "outbound": "direct"
       });
     }
+
+    // ФИНАЛЬНОЕ ПРАВИЛО: ВЕСЬ трафик системы без ограничений направляется в туннель прокси
+    routeRules.add({
+      "outbound": "proxy"
+    });
 
     final dnsServers = <Map<String, dynamic>>[];
     if (settings.secureDnsEnabled) {
@@ -169,10 +191,12 @@ class ConfigGenerator {
           "domain_suffix": [node.address],
           "server": "local-dns"
         },
-      {
-        "domain_suffix": _russianDomains,
-        "server": "local-dns"
-      },
+      // При обходе РФ ресурсов запросы к российским доменам из геобазы резолвятся локально
+      if (settings.routingPreset == 'russia' && ruGeositeTags.isNotEmpty)
+        {
+          "rule_set": ruGeositeTags,
+          "server": "local-dns"
+        },
       {
         "clash_mode": "Direct",
         "server": "local-dns"
@@ -237,7 +261,9 @@ class ConfigGenerator {
       ],
       "route": {
         "default_domain_resolver": "local-dns",
+        if (ruleSets.isNotEmpty) "rule_set": ruleSets,
         "rules": routeRules,
+        "final": "proxy",
         "auto_detect_interface": true
       }
     };

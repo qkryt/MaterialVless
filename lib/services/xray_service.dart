@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:path_provider/path_provider.dart';
 import '../models/vless_node.dart';
 import '../models/app_settings.dart';
@@ -54,6 +55,60 @@ class XrayService {
     }
   }
 
+  /// Проверка и подготовка директории с бинарными гео-правилами sing-box (.srs)
+  static Future<String?> ensureRulesDirectory() async {
+    try {
+      final exeDir = File(Platform.resolvedExecutable).parent.path;
+      final exeRules = Directory('$exeDir\\rules');
+      if (exeRules.existsSync() &&
+          File('${exeRules.path}\\geosite-category-ru.srs').existsSync() &&
+          File('${exeRules.path}\\geoip-ru.srs').existsSync()) {
+        return exeRules.path;
+      }
+
+      final localAssetRules = Directory('assets/rules');
+      if (localAssetRules.existsSync() &&
+          File('assets/rules/geosite-category-ru.srs').existsSync()) {
+        return localAssetRules.absolute.path;
+      }
+
+      final tempDir = await getTemporaryDirectory();
+      final rulesDir = Directory('${tempDir.path}\\material_vless_rules');
+      if (!rulesDir.existsSync()) {
+        await rulesDir.create(recursive: true);
+      }
+
+      final ruleFiles = [
+        'geosite-category-ru.srs',
+        'geosite-tld-ru.srs',
+        'geoip-ru.srs',
+      ];
+
+      for (final fileName in ruleFiles) {
+        final targetFile = File('${rulesDir.path}\\$fileName');
+        if (!targetFile.existsSync() || targetFile.lengthSync() == 0) {
+          try {
+            final byteData = await rootBundle.load('assets/rules/$fileName');
+            await targetFile.writeAsBytes(
+              byteData.buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes),
+              flush: true,
+            );
+            LogService.log('Extracted asset rules/$fileName to: ${targetFile.path}');
+          } catch (e) {
+            LogService.log('Asset rules/$fileName could not be extracted from bundle: $e');
+          }
+        }
+      }
+
+      if (File('${rulesDir.path}\\geosite-category-ru.srs').existsSync()) {
+        return rulesDir.path;
+      }
+    } catch (e) {
+      LogService.log('ensureRulesDirectory exception: $e');
+    }
+    return null;
+  }
+
   /// Запуск настоящего TUN режима через ядро sing-box (создаёт адаптер material-tun)
   Future<void> start(VlessNode node, AppSettings settings) async {
     _updateState(CoreState.connecting);
@@ -68,7 +123,9 @@ class XrayService {
     await Future.delayed(const Duration(milliseconds: 150));
 
     try {
-      final configJson = ConfigGenerator.generate(node, settings);
+      final rulesDir = await ensureRulesDirectory();
+      LogService.log('Resolved rules directory: $rulesDir');
+      final configJson = ConfigGenerator.generate(node, settings, rulesDir: rulesDir);
       final tempDir = await getTemporaryDirectory();
       final configFile = File('${tempDir.path}/material_vless_active.json');
       
