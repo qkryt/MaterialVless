@@ -17,12 +17,12 @@ PrivilegesRequired=admin
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "..\dist\material_vless\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\MaterialVless"; Filename: "{app}\material_vless.exe"; IconFilename: "{app}\assets\icons\app_icon.ico"
+Name: "{group}\MaterialVless"; Filename: "{app}\material_vless.exe"
 Name: "{group}\{cm:UninstallProgram,MaterialVless}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\MaterialVless"; Filename: "{app}\material_vless.exe"; IconFilename: "{app}\assets\icons\app_icon.ico"; Tasks: desktopicon
+Name: "{autodesktop}\MaterialVless"; Filename: "{app}\material_vless.exe"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\material_vless.exe"; Description: "{cm:LaunchProgram,MaterialVless}"; Flags: nowait postinstall skipifsilent

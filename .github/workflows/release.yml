@@ -1,4 +1,4 @@
-name: Build & Release MaterialVless 2.0 (Qt6)
+name: Build & Release MaterialVless
 
 on:
   push:
@@ -12,41 +12,54 @@ permissions:
 env:
   SING_BOX_VERSION: '1.14.4'
   WINTUN_VERSION: '0.14.1'
+  XRAY_VERSION: 'v24.11.30'
 
 jobs:
   # ==========================================
-  # 1. WINDOWS BUILD (Qt6 Native x64 and x86)
+  # 1. WINDOWS BUILD (x64 and x86)
   # ==========================================
   build-windows:
-    name: Build Windows (Qt6 x64 / x86)
+    name: Build Windows (x64 / x86)
     runs-on: windows-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
-          python-version: '3.12'
+          channel: 'stable'
+          cache: true
 
-      - name: Install Python Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install PyQt6 requests pyinstaller
+      - name: Enable Windows Desktop
+        run: flutter config --enable-windows-desktop
 
-      - name: Build Windows Executable (Qt6)
+      - name: Generate Windows Native Files
+        run: flutter create . --platforms=windows --org com.materialvless --project-name material_vless
+
+      - name: Configure Manifest for Wintun Administrator Privileges
+        shell: pwsh
         run: |
-          pyinstaller --noconfirm --onedir --windowed --name "material_vless" --icon "assets/icons/app_icon.ico" --uac-admin main.py
+          $manifestPath = "windows/runner/runner.exe.manifest"
+          if (Test-Path $manifestPath) {
+            (Get-Content $manifestPath) -replace 'level="asInvoker"', 'level="requireAdministrator"' | Set-Content $manifestPath
+          }
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Compile Windows App
+        run: flutter build windows --release
 
       - name: Install Inno Setup
         shell: pwsh
         run: |
           choco install innosetup -y --no-progress
 
-      - name: Package Windows x64 and x86
+      - name: Package Windows x64 and x86 with sing-box and Wintun
         shell: pwsh
         run: |
-          $ReleaseDir = "dist/material_vless"
+          $ReleaseDir = "build/windows/x64/runner/Release"
           
           # Download sing-box (x64)
           $Sb64Url = "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-windows-amd64.zip"
@@ -58,38 +71,51 @@ jobs:
           Invoke-WebRequest -Uri $Sb32Url -OutFile "sb32.zip"
           Expand-Archive -Path "sb32.zip" -DestinationPath "sb_32"
 
-          # Download Wintun
+          # Download Wintun driver
           $WintunUrl = "https://www.wintun.net/builds/wintun-${{ env.WINTUN_VERSION }}.zip"
           Invoke-WebRequest -Uri $WintunUrl -OutFile "wintun.zip"
           Expand-Archive -Path "wintun.zip" -DestinationPath "wintun_driver"
 
-          # GeoIP & GeoSite
+          # Download GeoIP and GeoSite
           $GeoipUrl = "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geoip.dat"
           $GeositeUrl = "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geosite.dat"
           Invoke-WebRequest -Uri $GeoipUrl -OutFile "$ReleaseDir/geoip.dat"
           Invoke-WebRequest -Uri $GeositeUrl -OutFile "$ReleaseDir/geosite.dat"
 
-          # Form Windows x64
+          # Form Windows x64 package
           Copy-Item "sb_64/sing-box-${{ env.SING_BOX_VERSION }}-windows-amd64/sing-box.exe" -Destination "$ReleaseDir/sing-box.exe"
           Copy-Item "wintun_driver/wintun/bin/amd64/wintun.dll" -Destination "$ReleaseDir/wintun.dll"
-          New-Item -ItemType Directory -Path "$ReleaseDir/assets/icons" -Force
-          Copy-Item "assets/icons/app_icon.ico" -Destination "$ReleaseDir/assets/icons/app_icon.ico" -Force
-          Copy-Item "assets/icons/app_icon.png" -Destination "$ReleaseDir/assets/icons/app_icon.png" -Force
+          if (Test-Path "assets/icons/app_icon.ico") {
+            Copy-Item "assets/icons/app_icon.ico" -Destination "$ReleaseDir/app_icon.ico"
+          }
+
+          $manifest = '<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0"><trustInfo xmlns="urn:schemas-microsoft-com:asm.v3"><security><requestedPrivileges><requestedExecutionLevel level="requireAdministrator" uiAccess="false"/></requestedPrivileges></security></trustInfo></assembly>'
+          [System.IO.File]::WriteAllText("$ReleaseDir/material_vless.exe.manifest", $manifest)
+
+          # Embed manifest directly into exe with mt.exe if available
+          $mt = (Get-Command mt.exe -ErrorAction SilentlyContinue).Source
+          if ($mt) {
+            & $mt -manifest "$ReleaseDir/material_vless.exe.manifest" "-outputresource:$ReleaseDir/material_vless.exe;1"
+          }
 
           Compress-Archive -Path "$ReleaseDir/*" -DestinationPath "MaterialVless-Windows-x64.zip"
 
-          # Form Windows x86
+          # Form Windows x86 package
           mkdir -p "dist_x86"
           Copy-Item "$ReleaseDir/*" -Destination "dist_x86" -Recurse
           Copy-Item "sb_32/sing-box-${{ env.SING_BOX_VERSION }}-windows-386/sing-box.exe" -Destination "dist_x86/sing-box.exe" -Force
           Copy-Item "wintun_driver/wintun/bin/x86/wintun.dll" -Destination "dist_x86/wintun.dll" -Force
           Compress-Archive -Path "dist_x86/*" -DestinationPath "MaterialVless-Windows-x86.zip"
 
-          # Build Inno Setup Installers
+          # Build Setup installers via Inno Setup
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
           if (Test-Path $iscc) {
-            & $iscc "windows/installer_x64.iss"
-            & $iscc "windows/installer_x86.iss"
+            if (Test-Path "windows/installer_x64.iss") {
+              & $iscc "windows/installer_x64.iss"
+            }
+            if (Test-Path "windows/installer_x86.iss") {
+              & $iscc "windows/installer_x86.iss"
+            }
           }
 
       - name: Upload Windows Artifacts
@@ -101,34 +127,38 @@ jobs:
             MaterialVless-Windows-*.exe
 
   # ==========================================
-  # 2. LINUX BUILD (Qt6 x64 and x86)
+  # 2. LINUX BUILD (x64 and x86)
   # ==========================================
   build-linux:
-    name: Build Linux (Qt6 x64 / x86)
+    name: Build Linux (x64 / x86)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
       - name: Install Linux Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgl1-mesa-dev libxkbcommon-x11-0 libegl1
-          python -m pip install --upgrade pip
-          pip install PyQt6 requests pyinstaller
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libayatana-appindicator3-dev
 
-      - name: Compile Linux App with PyInstaller
-        run: |
-          pyinstaller --noconfirm --onedir --windowed --name "material_vless" main.py
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Generate Linux Native Files
+        run: flutter create . --platforms=linux --org com.materialvless --project-name material_vless
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Compile Linux App
+        run: flutter build linux --release
 
       - name: Bundle Core & Package x64 and x86
         run: |
-          DIST="dist/material_vless"
+          DIST="build/linux/x64/release/bundle"
           
           # Download sing-box (x64)
           curl -L "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-linux-amd64.tar.gz" -o sb64.tar.gz
@@ -138,9 +168,6 @@ jobs:
 
           curl -L "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geoip.dat" -o "$DIST/geoip.dat"
           curl -L "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geosite.dat" -o "$DIST/geosite.dat"
-
-          mkdir -p "$DIST/assets/icons"
-          cp assets/icons/* "$DIST/assets/icons/" 2>/dev/null || true
 
           tar -czvf MaterialVless-Linux-x64.tar.gz -C "$DIST" .
 
@@ -160,33 +187,34 @@ jobs:
           path: MaterialVless-Linux-*.tar.gz
 
   # ==========================================
-  # 3. MACOS BUILD (Qt6)
+  # 3. MACOS BUILD
   # ==========================================
   build-macos:
-    name: Build macOS (Qt6 MaterialVless)
+    name: Build macOS (MaterialVless)
     runs-on: macos-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
-          python-version: '3.12'
+          channel: 'stable'
+          cache: true
 
-      - name: Install macOS Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install PyQt6 requests pyinstaller
+      - name: Generate macOS Native Files
+        run: flutter create . --platforms=macos --org com.materialvless --project-name material_vless
 
-      - name: Compile macOS Application with PyInstaller
-        run: |
-          pyinstaller --noconfirm --onedir --windowed --name "MaterialVless" --icon "assets/icons/app_icon.ico" main.py
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Compile macOS Application
+        run: flutter build macos --release
 
       - name: Bundle Core & Archive
         run: |
-          APP_DIR="dist/MaterialVless.app"
-          RES_DIR="$APP_DIR/Contents/MacOS"
+          APP_DIR="build/macos/Build/Products/Release/material_vless.app"
+          RES_DIR="$APP_DIR/Contents/Resources"
           mkdir -p "$RES_DIR"
 
           # Sing-box universal binary (arm64 + amd64)
@@ -234,51 +262,46 @@ jobs:
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
           else
-            echo "tag=v2.0" >> $GITHUB_OUTPUT
+            echo "tag=v1.0.1" >> $GITHUB_OUTPUT
           fi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag_info.outputs.tag }}
-          name: MaterialVless ${{ steps.tag_info.outputs.tag }} (Qt6 Major Release)
+          name: MaterialVless ${{ steps.tag_info.outputs.tag }}
           draft: false
           prerelease: false
           files: final_assets/*
           body: |
-            ### ⚡ MaterialVless Client — Крупный релиз ${{ steps.tag_info.outputs.tag }} (Qt6 Edition)
-            
-            Полноценный десктопный VLESS / Reality / Hysteria2 VPN-клиент, полностью переписанный на нативный фреймворк **Qt6** с производительным движком **sing-box 1.14** и виртуальным сетевым адаптером Wintun.
-            
-            #### 🌟 Нововведения версии 2.0:
-            1. **🎨 Полный переход на Qt6 (без Flutter):**
-               - Чистый, нативный интерфейс в стиле Qt6 Fusion: графитовая палитра, четкие 1px границы, плавные анимации, аппаратное ускорение и мгновенный отклик без накладных расходов.
-            2. **🛡️ Активные переключатели DNS и локальной сети:**
-               - **Защищенный DNS (DoH)**: шифрованные запросы Cloudflare (1.1.1.1) и Google (8.8.8.8) внутри защищенного туннеля с возможностью включения/отключения.
-               - **Обход локальной сети (LAN)**: настраиваемый прямой доступ к домашним устройствам и локальным подсетям (192.168.*, 10.*, 172.16.*).
-            3. **⏱️ Настраиваемый таймаут пинга (от 1 до 5 секунд):**
-               - Интерактивный слайдер в настройках для выбора задержки отклика от 1 до 5 сек.
-            4. **🔤 Импорт пользовательских шрифтов (.ttf, .otf):**
-               - Возможность загрузить любой шрифт операционной системы и динамически применить его ко всему интерфейсу приложения с возможностью сброса на системный.
-            5. **🌐 Расширенный каталог User-Agent:**
-               - Поддержка более 14 популярных User-Agent (v2rayN, sing-box, ClashMeta, Shadowrocket, QuantumultX, Surge, FlClash, NekoRay, Chrome, Firefox) + поле для ввода любого произвольного User-Agent.
-            6. **📌 Системный трей:**
-               - Убрана лишняя информационная плашка «Фоновая работа».
-               - Контекстное меню трея со строгими опциями: «Открыть», «Перезагрузить ядро», «Выйти».
-            7. **✏️ Редактирование адреса подписки:**
-               - В окне настроек подписки появилось полноценное редактируемое поле URL — теперь можно менять адрес подписки напрямую без повторного добавления.
-            8. **💎 Единый официальный логотип:**
-               - Утвержден единый высококачественный векторный логотип MaterialVless для окна программы, системного трея, установщика Inno Setup и файлов репозитория.
-            9. **🚀 Двойной режим работы (TUN + Прокси):**
-               - Надежный драйвер Wintun системного уровня и автоматическая очистка системного прокси при выходе.
-            
-            #### 📦 Файлы релиза:
-            - **Windows (x64) Installer:** `MaterialVless-Windows-x64-Setup.exe`
-            - **Windows (x64) Portable:** `MaterialVless-Windows-x64.zip`
-            - **Windows (x86) Installer:** `MaterialVless-Windows-x86-Setup.exe`
-            - **Windows (x86) Portable:** `MaterialVless-Windows-x86.zip`
-            - **Linux (x64):** `MaterialVless-Linux-x64.tar.gz`
-            - **Linux (x86):** `MaterialVless-Linux-x86.tar.gz`
-            - **macOS:** `MaterialVless-macOS.zip`
+            ### MaterialVless 2.0
+
+            Крупное обновление клиента с поддержкой редактирования адреса подписок, активных переключателей DNS и локальной сети, слайдера пинга и пользовательских шрифтов.
+
+            #### Нововведения версии 2.0:
+            - **Активные переключатели DNS и LAN**:
+              - Защищенный DNS (DoH через Cloudflare 1.1.1.1 и Google 8.8.8.8) внутри туннеля теперь можно включать и выключать в настройках.
+              - Обход локальной сети (LAN): настраиваемый прямой доступ к домашним устройствам (192.168.*, 10.*, 172.16.*).
+            - **Настраиваемый таймаут пинга**:
+              - Интерактивный слайдер задержки от 1 до 5 секунд.
+            - **Импорт пользовательских шрифтов (.ttf, .otf)**:
+              - Возможность загрузить свой файл шрифта в настройках с мгновенным применением.
+            - **Расширенный каталог User-Agent**:
+              - Выбор из более чем 14 вариантов (v2rayN, sing-box, ClashMeta, Shadowrocket, QuantumultX, Surge, FlClash, NekoRay, Chrome, Firefox) + ввод своего.
+            - **Редактирование адреса подписки**:
+              - В настройках подписки теперь доступно редактируемое текстовое поле URL адреса.
+            - **Единый официальный логотип**:
+              - Установлен векторный фирменный логотип для окна, трея, установщика и репозитория.
+            - **Очистка системного трея**:
+              - Меню трея строго из 3 кнопок («Открыть», «Перезагрузить ядро», «Выйти»).
+
+            #### Файлы релиза:
+            - **Windows (x64) Installer:** MaterialVless-Windows-x64-Setup.exe
+            - **Windows (x64) Portable:** MaterialVless-Windows-x64.zip
+            - **Windows (x86) Installer:** MaterialVless-Windows-x86-Setup.exe
+            - **Windows (x86) Portable:** MaterialVless-Windows-x86.zip
+            - **Linux (x64):** MaterialVless-Linux-x64.tar.gz
+            - **Linux (x86):** MaterialVless-Linux-x86.tar.gz
+            - **macOS:** MaterialVless-macOS.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

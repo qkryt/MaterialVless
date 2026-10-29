@@ -839,7 +839,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 TextField(
                   controller: nameController,
                   decoration: const InputDecoration(
-                    labelText: 'РќР°Р·РІР°РЅРёРµ РїРѕРґРїРёСЃРєРё',
+                    labelText: 'Название подписки',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -848,7 +848,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   controller: urlController,
                   maxLines: 2,
                   decoration: const InputDecoration(
-                    labelText: 'URL Р°РґСЂРµСЃ РїРѕРґРїРёСЃРєРё',
+                    labelText: 'URL адрес подписки',
                     hintText: 'https://...',
                     prefixIcon: Icon(Icons.link_rounded),
                     border: OutlineInputBorder(),

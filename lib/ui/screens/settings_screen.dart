@@ -87,7 +87,7 @@ if ($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Настройки (Qt6 Edition)'),
+        title: const Text('Настройки'),
       ),
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -280,15 +280,15 @@ if ($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
                 ),
                 const Divider(height: 1),
                 ListTile(
-                  title: const Text('Режим темы (Qt6 Palette)'),
+                  title: const Text('Режим темы'),
                   subtitle: Text(settings.themeMode.toUpperCase()),
                   trailing: DropdownButton<String>(
                     value: settings.themeMode,
                     underline: const SizedBox(),
                     items: const [
                       DropdownMenuItem(value: 'system', child: Text('Системная')),
-                      DropdownMenuItem(value: 'light', child: Text('Qt6 Fusion Светлая')),
-                      DropdownMenuItem(value: 'dark', child: Text('Qt6 Fusion Тёмная')),
+                      DropdownMenuItem(value: 'light', child: Text('Светлая')),
+                      DropdownMenuItem(value: 'dark', child: Text('Тёмная')),
                       DropdownMenuItem(value: 'amoled', child: Text('AMOLED Black')),
                     ],
                     onChanged: (val) {
@@ -360,7 +360,7 @@ if ($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   leading: const Icon(Icons.info_outline_rounded),
                   title: const Text('Версия клиента'),
-                  subtitle: Text('MaterialVless 2.0 (Qt6 Edition) • v${UpdateService.currentVersion}'),
+                  subtitle: Text('MaterialVless 2.0 • v${UpdateService.currentVersion}'),
                   trailing: _isCheckingUpdate
                       ? const SizedBox(
                           width: 24,
