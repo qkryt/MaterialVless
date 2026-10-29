@@ -39,9 +39,26 @@ class XrayService {
     return 'sing-box';
   }
 
+  /// Принудительное завершение всех процессов sing-box в системе
+  static Future<void> killAllCoreProcesses() async {
+    if (Platform.isWindows) {
+      try {
+        await Process.run('taskkill', ['/F', '/IM', 'sing-box.exe', '/T']);
+      } catch (_) {}
+    } else if (Platform.isLinux || Platform.isMacOS) {
+      try {
+        await Process.run('pkill', ['-9', 'sing-box']);
+      } catch (_) {}
+    }
+  }
+
   /// Запуск настоящего TUN режима через ядро sing-box (создаёт адаптер material-tun)
   Future<void> start(VlessNode node, AppSettings settings) async {
     _updateState(CoreState.connecting);
+
+    // Завершаем любые зависшие или старые процессы ядра перед стартом
+    await killAllCoreProcesses();
+    await Future.delayed(const Duration(milliseconds: 150));
 
     try {
       final configJson = ConfigGenerator.generate(node, settings);
@@ -103,6 +120,9 @@ class XrayService {
 
     _process?.kill();
     _process = null;
+
+    // Принудительно завершаем процессы sing-box на уровне системы при выключении ВПН
+    await killAllCoreProcesses();
 
     _speedController.add((0, 0));
     if (clearErrorState) {

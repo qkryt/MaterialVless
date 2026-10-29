@@ -1,328 +1,670 @@
-name: Build & Release MaterialVless
-
-on:
-  push:
-    tags:
-      - 'v*'
-  workflow_dispatch:
-
-permissions:
-  contents: write
-
-env:
-  SING_BOX_VERSION: '1.14.4'
-  WINTUN_VERSION: '0.14.1'
-  XRAY_VERSION: 'v24.11.30'
-
-jobs:
-  # ==========================================
-  # 1. WINDOWS BUILD (x64 and x86)
-  # ==========================================
-  build-windows:
-    name: Build Windows (x64 / x86)
-    runs-on: windows-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
-
-      - name: Enable Windows Desktop
-        run: flutter config --enable-windows-desktop
-
-      - name: Generate Windows Native Files
-        run: flutter create . --platforms=windows --org com.materialvless --project-name material_vless
-
-      - name: Setup App Icon and Window Title in Windows Runner
-        shell: pwsh
-        run: |
-          if (Test-Path 'assets/icons/app_icon.ico') {
-            New-Item -ItemType Directory -Path 'windows/runner/resources' -Force
-            Copy-Item 'assets/icons/app_icon.ico' 'windows/runner/resources/app_icon.ico' -Force
-          }
-          $mainCpp = "windows/runner/main.cpp"
-          if (Test-Path $mainCpp) {
-            (Get-Content $mainCpp) -replace 'L"material_vless"', 'L"MaterialVless"' | Set-Content $mainCpp
-          }
-          $rcFile = "windows/runner/Runner.rc"
-          if (Test-Path $rcFile) {
-            (Get-Content $rcFile) -replace '"material_vless"', '"MaterialVless"' | Set-Content $rcFile
-          }
-
-      - name: Configure Manifest for Wintun Administrator Privileges
-        shell: pwsh
-        run: |
-          $manifestPath = "windows/runner/runner.exe.manifest"
-          if (Test-Path $manifestPath) {
-            (Get-Content $manifestPath) -replace 'level="asInvoker"', 'level="requireAdministrator"' | Set-Content $manifestPath
-          }
-
-      - name: Install Dependencies
-        run: flutter pub get
-
-      - name: Compile Windows App
-        run: flutter build windows --release
-
-      - name: Install Inno Setup
-        shell: pwsh
-        run: |
-          choco install innosetup -y --no-progress
-
-      - name: Package Windows x64 and x86 with sing-box and Wintun
-        shell: pwsh
-        run: |
-          $ReleaseDir = "build/windows/x64/runner/Release"
-          
-          # Download sing-box (x64)
-          $Sb64Url = "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-windows-amd64.zip"
-          Invoke-WebRequest -Uri $Sb64Url -OutFile "sb64.zip"
-          Expand-Archive -Path "sb64.zip" -DestinationPath "sb_64"
-
-          # Download sing-box (x86)
-          $Sb32Url = "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-windows-386.zip"
-          Invoke-WebRequest -Uri $Sb32Url -OutFile "sb32.zip"
-          Expand-Archive -Path "sb32.zip" -DestinationPath "sb_32"
-
-          # Download Wintun driver
-          $WintunUrl = "https://www.wintun.net/builds/wintun-${{ env.WINTUN_VERSION }}.zip"
-          Invoke-WebRequest -Uri $WintunUrl -OutFile "wintun.zip"
-          Expand-Archive -Path "wintun.zip" -DestinationPath "wintun_driver"
-
-          # Download GeoIP and GeoSite
-          $GeoipUrl = "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geoip.dat"
-          $GeositeUrl = "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geosite.dat"
-          Invoke-WebRequest -Uri $GeoipUrl -OutFile "$ReleaseDir/geoip.dat"
-          Invoke-WebRequest -Uri $GeositeUrl -OutFile "$ReleaseDir/geosite.dat"
-
-          # Form Windows x64 package
-          Copy-Item "sb_64/sing-box-${{ env.SING_BOX_VERSION }}-windows-amd64/sing-box.exe" -Destination "$ReleaseDir/sing-box.exe"
-          Copy-Item "wintun_driver/wintun/bin/amd64/wintun.dll" -Destination "$ReleaseDir/wintun.dll"
-          if (Test-Path "assets/icons/app_icon.ico") {
-            Copy-Item "assets/icons/app_icon.ico" -Destination "$ReleaseDir/app_icon.ico"
-          }
-          New-Item -ItemType Directory -Path "$ReleaseDir/customfonts" -Force
-
-          $manifest = '<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0"><trustInfo xmlns="urn:schemas-microsoft-com:asm.v3"><security><requestedPrivileges><requestedExecutionLevel level="requireAdministrator" uiAccess="false"/></requestedPrivileges></security></trustInfo></assembly>'
-          [System.IO.File]::WriteAllText("$ReleaseDir/material_vless.exe.manifest", $manifest)
-
-          # Embed manifest directly into exe with mt.exe if available
-          $mt = (Get-Command mt.exe -ErrorAction SilentlyContinue).Source
-          if ($mt) {
-            & $mt -manifest "$ReleaseDir/material_vless.exe.manifest" "-outputresource:$ReleaseDir/material_vless.exe;1"
-          }
-
-          Compress-Archive -Path "$ReleaseDir/*" -DestinationPath "MaterialVless-Windows-x64.zip"
-
-          # Form Windows x86 package
-          mkdir -p "dist_x86"
-          Copy-Item "$ReleaseDir/*" -Destination "dist_x86" -Recurse
-          Copy-Item "sb_32/sing-box-${{ env.SING_BOX_VERSION }}-windows-386/sing-box.exe" -Destination "dist_x86/sing-box.exe" -Force
-          Copy-Item "wintun_driver/wintun/bin/x86/wintun.dll" -Destination "dist_x86/wintun.dll" -Force
-          Compress-Archive -Path "dist_x86/*" -DestinationPath "MaterialVless-Windows-x86.zip"
-
-          # Build Setup installers via Inno Setup
-          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-          if (Test-Path $iscc) {
-            if (Test-Path "windows/installer_x64.iss") {
-              & $iscc "windows/installer_x64.iss"
-            }
-            if (Test-Path "windows/installer_x86.iss") {
-              & $iscc "windows/installer_x86.iss"
-            }
-          }
-
-      - name: Upload Windows Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: MaterialVless-Windows
-          path: |
-            MaterialVless-Windows-*.zip
-            MaterialVless-Windows-*.exe
-
-  # ==========================================
-  # 2. LINUX BUILD (x64 and x86)
-  # ==========================================
-  build-linux:
-    name: Build Linux (x64 / x86)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Install Linux Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libayatana-appindicator3-dev
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
-
-      - name: Generate Linux Native Files
-        run: flutter create . --platforms=linux --org com.materialvless --project-name material_vless
-
-      - name: Install Dependencies
-        run: flutter pub get
-
-      - name: Compile Linux App
-        run: flutter build linux --release
-
-      - name: Bundle Core & Package x64 and x86
-        run: |
-          DIST="build/linux/x64/release/bundle"
-          
-          # Download sing-box (x64)
-          curl -L "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-linux-amd64.tar.gz" -o sb64.tar.gz
-          tar -xvf sb64.tar.gz
-          cp "sing-box-${{ env.SING_BOX_VERSION }}-linux-amd64/sing-box" "$DIST/sing-box"
-          chmod +x "$DIST/sing-box"
-
-          curl -L "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geoip.dat" -o "$DIST/geoip.dat"
-          curl -L "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geosite.dat" -o "$DIST/geosite.dat"
-
-          tar -czvf MaterialVless-Linux-x64.tar.gz -C "$DIST" .
-
-          # x86 package
-          mkdir -p dist_linux_x86
-          cp -r "$DIST/"* dist_linux_x86/
-          curl -L "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-linux-386.tar.gz" -o sb32.tar.gz
-          tar -xvf sb32.tar.gz
-          cp "sing-box-${{ env.SING_BOX_VERSION }}-linux-386/sing-box" dist_linux_x86/sing-box
-          chmod +x dist_linux_x86/sing-box
-          tar -czvf MaterialVless-Linux-x86.tar.gz -C dist_linux_x86 .
-
-      - name: Upload Linux Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: MaterialVless-Linux
-          path: MaterialVless-Linux-*.tar.gz
-
-  # ==========================================
-  # 3. MACOS BUILD
-  # ==========================================
-  build-macos:
-    name: Build macOS (MaterialVless)
-    runs-on: macos-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
-
-      - name: Generate macOS Native Files
-        run: flutter create . --platforms=macos --org com.materialvless --project-name material_vless
-
-      - name: Install Dependencies
-        run: flutter pub get
-
-      - name: Compile macOS Application
-        run: flutter build macos --release
-
-      - name: Bundle Core & Archive
-        run: |
-          APP_DIR="build/macos/Build/Products/Release/material_vless.app"
-          RES_DIR="$APP_DIR/Contents/Resources"
-          mkdir -p "$RES_DIR"
-
-          # Sing-box universal binary (arm64 + amd64)
-          curl -L "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-darwin-arm64.tar.gz" -o sb_arm64.tar.gz
-          curl -L "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-darwin-amd64.tar.gz" -o sb_amd64.tar.gz
-          tar -xzf sb_arm64.tar.gz
-          tar -xzf sb_amd64.tar.gz
-          lipo -create "sing-box-${{ env.SING_BOX_VERSION }}-darwin-arm64/sing-box" "sing-box-${{ env.SING_BOX_VERSION }}-darwin-amd64/sing-box" -output "$RES_DIR/sing-box"
-          chmod +x "$RES_DIR/sing-box"
-
-          curl -L "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geoip.dat" -o "$RES_DIR/geoip.dat"
-          curl -L "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geosite.dat" -o "$RES_DIR/geosite.dat"
-
-          ditto -c -k --sequesterRsrc --keepParent "$APP_DIR" MaterialVless-macOS.zip
-
-      - name: Upload macOS Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: MaterialVless-macOS
-          path: MaterialVless-macOS.zip
-
-  # ==========================================
-  # 4. PUBLISH RELEASE
-  # ==========================================
-  publish-release:
-    name: Publish Release Packages
-    needs: [build-windows, build-linux, build-macos]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download Build Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: release_staging
-
-      - name: Prepare Final Files
-        run: |
-          mkdir -p final_assets
-          find release_staging -type f -exec mv {} final_assets/ \;
-          ls -la final_assets/
-
-      - name: Determine Tag Name
-        id: tag_info
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
-          else
-            echo "tag=v1.0.1" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.tag_info.outputs.tag }}
-          name: MaterialVless ${{ steps.tag_info.outputs.tag }}
-          draft: false
-          prerelease: false
-          files: final_assets/*
-          body: |
-            ### MaterialVless 2.13 (Релиз 2.13 / Release 2.13)
-
-            Масштабное обновление 2.13 с исправлением работы скроллбара серверов, устранением PR_CONNECT_RESET_ERROR, новым логотипом Material You, поддержкой кастомных шрифтов и правильной иконкой в установщике!
-
-            #### Что нового в версии 2.13:
-            - **Ползунок прокрутки списка серверов (Scrollbar)**:
-              - Ползунок справа теперь выделен и зависит строго от длины списка серверов, как во всех классических клиентах.
-              - Шапка подписки (трафик, дата, кнопки управления) зафиксирована сверху и не уезжает при прокрутке серверов.
-              - Добавлен удобный переключатель вкладок («Все», отдельные подписки, «Ручные узлы»).
-              - Установлен комфортный минимальный размер ползунка (`minThumbLength: 48`).
-            - **Устранение ошибки PR_CONNECT_RESET_ERROR**:
-              - Стек TUN переведён на `mixed` (gVisor TCP stack), что исключает генерацию Windows TCP RST.
-              - Добавлена полноценная поддержка протокола ALPN для VLESS Reality / TLS и корректная передача параметра `spider_x`.
-              - Увеличен таймаут сниффинга TLS-хэндшейка.
-            - **Фирменный логотип Material You**:
-              - Нарисован стильный логотип в органичном дизайне Material You (скругленный squircle, плавная лента M&V и пастельные градиенты).
-              - Исправлен установщик: ярлык на Рабочем столе теперь всегда получает фирменную иконку вместо иконки Flutter.
-            - **Кастомные локальные шрифты (/MaterialVless/customfonts)**:
-              - Пользовательские шрифты (.ttf / .otf) сохраняются в корневую папку `/MaterialVless/customfonts`.
-              - Добавлено меню «Локальные шрифты» с отображением имени шрифта, полного пути (например, `minecraft.ttf` `C:/Program Files/MaterialVless/customfonts/minecraft.ttf`), быстрым применением и удалением.
-              - Все локальные шрифты автоматически доступны в выпадающем списке тем.
-            - **Интерфейс и заголовок**:
-              - Заголовок окна изменён с `material_vless` на `MaterialVless`.
-              - Убрана внешняя вращающаяся анимация вокруг кнопки при подключении (внутри кнопки уже есть индикатор загрузки).
-
-            #### Release Binaries / Файлы релиза:
-            - **Windows (x64) Installer:** MaterialVless-Windows-x64-Setup.exe
-            - **Windows (x64) Portable:** MaterialVless-Windows-x64.zip
-            - **Windows (x86) Installer:** MaterialVless-Windows-x86-Setup.exe
-            - **Windows (x86) Portable:** MaterialVless-Windows-x86.zip
-            - **Linux (x64):** MaterialVless-Linux-x64.tar.gz
-            - **Linux (x86):** MaterialVless-Linux-x86.tar.gz
-            - **macOS:** MaterialVless-macOS.zip
-        env:
+name: Build & Release MaterialVless
+
+
+
+on:
+
+  push:
+
+    tags:
+
+      - 'v*'
+
+  workflow_dispatch:
+
+
+
+permissions:
+
+  contents: write
+
+
+
+env:
+
+  SING_BOX_VERSION: '1.14.4'
+
+  WINTUN_VERSION: '0.14.1'
+
+  XRAY_VERSION: 'v24.11.30'
+
+
+
+jobs:
+
+  # ==========================================
+
+  # 1. WINDOWS BUILD (x64 and x86)
+
+  # ==========================================
+
+  build-windows:
+
+    name: Build Windows (x64 / x86)
+
+    runs-on: windows-latest
+
+    steps:
+
+      - name: Checkout Repository
+
+        uses: actions/checkout@v4
+
+
+
+      - name: Setup Flutter
+
+        uses: subosito/flutter-action@v2
+
+        with:
+
+          channel: 'stable'
+
+          cache: true
+
+
+
+      - name: Enable Windows Desktop
+
+        run: flutter config --enable-windows-desktop
+
+
+
+      - name: Generate Windows Native Files
+
+        run: flutter create . --platforms=windows --org com.materialvless --project-name material_vless
+
+
+
+      - name: Setup App Icon and Window Title in Windows Runner
+
+        shell: pwsh
+
+        run: |
+
+          if (Test-Path 'assets/icons/app_icon.ico') {
+
+            New-Item -ItemType Directory -Path 'windows/runner/resources' -Force
+
+            Copy-Item 'assets/icons/app_icon.ico' 'windows/runner/resources/app_icon.ico' -Force
+
+          }
+
+          $mainCpp = "windows/runner/main.cpp"
+
+          if (Test-Path $mainCpp) {
+
+            (Get-Content $mainCpp) -replace 'L"material_vless"', 'L"MaterialVless"' | Set-Content $mainCpp
+
+          }
+
+          $rcFile = "windows/runner/Runner.rc"
+
+          if (Test-Path $rcFile) {
+
+            (Get-Content $rcFile) -replace '"material_vless"', '"MaterialVless"' | Set-Content $rcFile
+
+          }
+
+
+
+      - name: Configure Manifest for Wintun Administrator Privileges
+
+        shell: pwsh
+
+        run: |
+
+          $manifestPath = "windows/runner/runner.exe.manifest"
+
+          if (Test-Path $manifestPath) {
+
+            (Get-Content $manifestPath) -replace 'level="asInvoker"', 'level="requireAdministrator"' | Set-Content $manifestPath
+
+          }
+
+
+
+      - name: Install Dependencies
+
+        run: flutter pub get
+
+
+
+      - name: Compile Windows App
+
+        run: flutter build windows --release
+
+
+
+      - name: Install Inno Setup
+
+        shell: pwsh
+
+        run: |
+
+          choco install innosetup -y --no-progress
+
+
+
+      - name: Package Windows x64 and x86 with sing-box and Wintun
+
+        shell: pwsh
+
+        run: |
+
+          $ReleaseDir = "build/windows/x64/runner/Release"
+
+          
+
+          # Download sing-box (x64)
+
+          $Sb64Url = "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-windows-amd64.zip"
+
+          Invoke-WebRequest -Uri $Sb64Url -OutFile "sb64.zip"
+
+          Expand-Archive -Path "sb64.zip" -DestinationPath "sb_64"
+
+
+
+          # Download sing-box (x86)
+
+          $Sb32Url = "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-windows-386.zip"
+
+          Invoke-WebRequest -Uri $Sb32Url -OutFile "sb32.zip"
+
+          Expand-Archive -Path "sb32.zip" -DestinationPath "sb_32"
+
+
+
+          # Download Wintun driver
+
+          $WintunUrl = "https://www.wintun.net/builds/wintun-${{ env.WINTUN_VERSION }}.zip"
+
+          Invoke-WebRequest -Uri $WintunUrl -OutFile "wintun.zip"
+
+          Expand-Archive -Path "wintun.zip" -DestinationPath "wintun_driver"
+
+
+
+          # Download GeoIP and GeoSite
+
+          $GeoipUrl = "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geoip.dat"
+
+          $GeositeUrl = "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geosite.dat"
+
+          Invoke-WebRequest -Uri $GeoipUrl -OutFile "$ReleaseDir/geoip.dat"
+
+          Invoke-WebRequest -Uri $GeositeUrl -OutFile "$ReleaseDir/geosite.dat"
+
+
+
+          # Form Windows x64 package
+
+          Copy-Item "sb_64/sing-box-${{ env.SING_BOX_VERSION }}-windows-amd64/sing-box.exe" -Destination "$ReleaseDir/sing-box.exe"
+
+          Copy-Item "wintun_driver/wintun/bin/amd64/wintun.dll" -Destination "$ReleaseDir/wintun.dll"
+
+          if (Test-Path "assets/icons/app_icon.ico") {
+
+            Copy-Item "assets/icons/app_icon.ico" -Destination "$ReleaseDir/app_icon.ico"
+
+          }
+
+          New-Item -ItemType Directory -Path "$ReleaseDir/customfonts" -Force
+
+
+
+          $manifest = '<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0"><trustInfo xmlns="urn:schemas-microsoft-com:asm.v3"><security><requestedPrivileges><requestedExecutionLevel level="requireAdministrator" uiAccess="false"/></requestedPrivileges></security></trustInfo></assembly>'
+
+          [System.IO.File]::WriteAllText("$ReleaseDir/material_vless.exe.manifest", $manifest)
+
+
+
+          # Embed manifest directly into exe with mt.exe if available
+
+          $mt = (Get-Command mt.exe -ErrorAction SilentlyContinue).Source
+
+          if ($mt) {
+
+            & $mt -manifest "$ReleaseDir/material_vless.exe.manifest" "-outputresource:$ReleaseDir/material_vless.exe;1"
+
+          }
+
+
+
+          Compress-Archive -Path "$ReleaseDir/*" -DestinationPath "MaterialVless-Windows-x64.zip"
+
+
+
+          # Form Windows x86 package
+
+          mkdir -p "dist_x86"
+
+          Copy-Item "$ReleaseDir/*" -Destination "dist_x86" -Recurse
+
+          Copy-Item "sb_32/sing-box-${{ env.SING_BOX_VERSION }}-windows-386/sing-box.exe" -Destination "dist_x86/sing-box.exe" -Force
+
+          Copy-Item "wintun_driver/wintun/bin/x86/wintun.dll" -Destination "dist_x86/wintun.dll" -Force
+
+          Compress-Archive -Path "dist_x86/*" -DestinationPath "MaterialVless-Windows-x86.zip"
+
+
+
+          # Build Setup installers via Inno Setup
+
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+
+          if (Test-Path $iscc) {
+
+            if (Test-Path "windows/installer_x64.iss") {
+
+              & $iscc "windows/installer_x64.iss"
+
+            }
+
+            if (Test-Path "windows/installer_x86.iss") {
+
+              & $iscc "windows/installer_x86.iss"
+
+            }
+
+          }
+
+
+
+      - name: Upload Windows Artifacts
+
+        uses: actions/upload-artifact@v4
+
+        with:
+
+          name: MaterialVless-Windows
+
+          path: |
+
+            MaterialVless-Windows-*.zip
+
+            MaterialVless-Windows-*.exe
+
+
+
+  # ==========================================
+
+  # 2. LINUX BUILD (x64 and x86)
+
+  # ==========================================
+
+  build-linux:
+
+    name: Build Linux (x64 / x86)
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout Repository
+
+        uses: actions/checkout@v4
+
+
+
+      - name: Install Linux Dependencies
+
+        run: |
+
+          sudo apt-get update
+
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libayatana-appindicator3-dev
+
+
+
+      - name: Setup Flutter
+
+        uses: subosito/flutter-action@v2
+
+        with:
+
+          channel: 'stable'
+
+          cache: true
+
+
+
+      - name: Generate Linux Native Files
+
+        run: flutter create . --platforms=linux --org com.materialvless --project-name material_vless
+
+
+
+      - name: Install Dependencies
+
+        run: flutter pub get
+
+
+
+      - name: Compile Linux App
+
+        run: flutter build linux --release
+
+
+
+      - name: Bundle Core & Package x64 and x86
+
+        run: |
+
+          DIST="build/linux/x64/release/bundle"
+
+          
+
+          # Download sing-box (x64)
+
+          curl -L "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-linux-amd64.tar.gz" -o sb64.tar.gz
+
+          tar -xvf sb64.tar.gz
+
+          cp "sing-box-${{ env.SING_BOX_VERSION }}-linux-amd64/sing-box" "$DIST/sing-box"
+
+          chmod +x "$DIST/sing-box"
+
+
+
+          curl -L "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geoip.dat" -o "$DIST/geoip.dat"
+
+          curl -L "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geosite.dat" -o "$DIST/geosite.dat"
+
+
+
+          tar -czvf MaterialVless-Linux-x64.tar.gz -C "$DIST" .
+
+
+
+          # x86 package
+
+          mkdir -p dist_linux_x86
+
+          cp -r "$DIST/"* dist_linux_x86/
+
+          curl -L "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-linux-386.tar.gz" -o sb32.tar.gz
+
+          tar -xvf sb32.tar.gz
+
+          cp "sing-box-${{ env.SING_BOX_VERSION }}-linux-386/sing-box" dist_linux_x86/sing-box
+
+          chmod +x dist_linux_x86/sing-box
+
+          tar -czvf MaterialVless-Linux-x86.tar.gz -C dist_linux_x86 .
+
+
+
+      - name: Upload Linux Artifacts
+
+        uses: actions/upload-artifact@v4
+
+        with:
+
+          name: MaterialVless-Linux
+
+          path: MaterialVless-Linux-*.tar.gz
+
+
+
+  # ==========================================
+
+  # 3. MACOS BUILD
+
+  # ==========================================
+
+  build-macos:
+
+    name: Build macOS (MaterialVless)
+
+    runs-on: macos-latest
+
+    steps:
+
+      - name: Checkout Repository
+
+        uses: actions/checkout@v4
+
+
+
+      - name: Setup Flutter
+
+        uses: subosito/flutter-action@v2
+
+        with:
+
+          channel: 'stable'
+
+          cache: true
+
+
+
+      - name: Generate macOS Native Files
+
+        run: flutter create . --platforms=macos --org com.materialvless --project-name material_vless
+
+
+
+      - name: Install Dependencies
+
+        run: flutter pub get
+
+
+
+      - name: Compile macOS Application
+
+        run: flutter build macos --release
+
+
+
+      - name: Bundle Core & Archive
+
+        run: |
+
+          APP_DIR="build/macos/Build/Products/Release/material_vless.app"
+
+          RES_DIR="$APP_DIR/Contents/Resources"
+
+          mkdir -p "$RES_DIR"
+
+
+
+          # Sing-box universal binary (arm64 + amd64)
+
+          curl -L "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-darwin-arm64.tar.gz" -o sb_arm64.tar.gz
+
+          curl -L "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-darwin-amd64.tar.gz" -o sb_amd64.tar.gz
+
+          tar -xzf sb_arm64.tar.gz
+
+          tar -xzf sb_amd64.tar.gz
+
+          lipo -create "sing-box-${{ env.SING_BOX_VERSION }}-darwin-arm64/sing-box" "sing-box-${{ env.SING_BOX_VERSION }}-darwin-amd64/sing-box" -output "$RES_DIR/sing-box"
+
+          chmod +x "$RES_DIR/sing-box"
+
+
+
+          curl -L "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geoip.dat" -o "$RES_DIR/geoip.dat"
+
+          curl -L "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geosite.dat" -o "$RES_DIR/geosite.dat"
+
+
+
+          ditto -c -k --sequesterRsrc --keepParent "$APP_DIR" MaterialVless-macOS.zip
+
+
+
+      - name: Upload macOS Artifact
+
+        uses: actions/upload-artifact@v4
+
+        with:
+
+          name: MaterialVless-macOS
+
+          path: MaterialVless-macOS.zip
+
+
+
+  # ==========================================
+
+  # 4. PUBLISH RELEASE
+
+  # ==========================================
+
+  publish-release:
+
+    name: Publish Release Packages
+
+    needs: [build-windows, build-linux, build-macos]
+
+    if: always()
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Download Build Artifacts
+
+        uses: actions/download-artifact@v4
+
+        with:
+
+          path: release_staging
+
+
+
+      - name: Prepare Final Files
+
+        run: |
+
+          mkdir -p final_assets
+
+          find release_staging -type f -exec mv {} final_assets/ \;
+
+          ls -la final_assets/
+
+
+
+      - name: Determine Tag Name
+
+        id: tag_info
+
+        run: |
+
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+
+            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+
+          else
+
+            echo "tag=v1.0.1" >> $GITHUB_OUTPUT
+
+          fi
+
+
+
+      - name: Create GitHub Release
+
+        uses: softprops/action-gh-release@v2
+
+        with:
+
+          tag_name: ${{ steps.tag_info.outputs.tag }}
+
+          name: MaterialVless ${{ steps.tag_info.outputs.tag }}
+
+          draft: false
+
+          prerelease: false
+
+          files: final_assets/*
+
+          body: |
+
+            ### MaterialVless 2.14 (Релиз 2.14 / Release 2.14)
+
+
+
+            Масштабное обновление 2.13 с исправлением работы скроллбара серверов, устранением PR_CONNECT_RESET_ERROR, новым логотипом Material You, поддержкой кастомных шрифтов и правильной иконкой в установщике!
+
+
+
+            #### Что нового в версии 2.14:
+            - **Стабильность TCP / VLESS Reality**:
+              - Устранены ошибки PR_CONNECT_RESET_ERROR и PR_END_OF_FILE_ERROR благодаря предотвращению петель маршрутизации (direct route для адреса прокси-сервера и loopback).
+              - Использование сверхбыстрого и надежного UDP DNS (8.8.8.8 / 1.1.1.1) через прокси.
+            - **Управление процессами sing-box**:
+              - Принудительное завершение всех процессов sing-box.exe при выключении VPN и перед каждым новым запуском.
+              - Добавлена аварийная кнопка в настройках: «Аварийное завершение ядра» для мгновенной очистки процессов и сброса системного прокси.
+            - **Сохранение и отображение кастомных шрифтов**:
+              - Шрифт сохраняется персистентно и восстанавливается при перезапуске приложения из /MaterialVless/customfonts.
+              - Меню выбора шрифта теперь компактное и аккуратно подстраивается под длину названия шрифта.
+            - **Кнопка обратной связи и диалог контактов**:
+              - В карточку «Информация о программе» добавлена кнопка «Нашли ошибку? Сообщи автору».
+              - Диалог с кнопками быстрого перехода в Telegram-канал, личный Telegram и GitHub Issues («Пишите предложения и ошибки»).
+            - **Исправление багов интерфейса**:
+              - Убрана галочка на закрепленных подписках — активная вкладка просто подсвечивается без перекрытия иконки булавки.
+              - Убрана лишняя вкладка «Все (45)», при наличии ссылок на серверы отображается вкладка «Сервера».
+
+            - **Ползунок прокрутки списка серверов (Scrollbar)**:
+
+              - Ползунок справа теперь выделен и зависит строго от длины списка серверов, как во всех классических клиентах.
+
+              - Шапка подписки (трафик, дата, кнопки управления) зафиксирована сверху и не уезжает при прокрутке серверов.
+
+              - Добавлен удобный переключатель вкладок («Все», отдельные подписки, «Ручные узлы»).
+
+              - Установлен комфортный минимальный размер ползунка (`minThumbLength: 48`).
+
+            - **Устранение ошибки PR_CONNECT_RESET_ERROR**:
+
+              - Стек TUN переведён на `mixed` (gVisor TCP stack), что исключает генерацию Windows TCP RST.
+
+              - Добавлена полноценная поддержка протокола ALPN для VLESS Reality / TLS и корректная передача параметра `spider_x`.
+
+              - Увеличен таймаут сниффинга TLS-хэндшейка.
+
+            - **Фирменный логотип Material You**:
+
+              - Нарисован стильный логотип в органичном дизайне Material You (скругленный squircle, плавная лента M&V и пастельные градиенты).
+
+              - Исправлен установщик: ярлык на Рабочем столе теперь всегда получает фирменную иконку вместо иконки Flutter.
+
+            - **Кастомные локальные шрифты (/MaterialVless/customfonts)**:
+
+              - Пользовательские шрифты (.ttf / .otf) сохраняются в корневую папку `/MaterialVless/customfonts`.
+
+              - Добавлено меню «Локальные шрифты» с отображением имени шрифта, полного пути (например, `minecraft.ttf` `C:/Program Files/MaterialVless/customfonts/minecraft.ttf`), быстрым применением и удалением.
+
+              - Все локальные шрифты автоматически доступны в выпадающем списке тем.
+
+            - **Интерфейс и заголовок**:
+
+              - Заголовок окна изменён с `material_vless` на `MaterialVless`.
+
+              - Убрана внешняя вращающаяся анимация вокруг кнопки при подключении (внутри кнопки уже есть индикатор загрузки).
+
+
+
+            #### Release Binaries / Файлы релиза:
+
+            - **Windows (x64) Installer:** MaterialVless-Windows-x64-Setup.exe
+
+            - **Windows (x64) Portable:** MaterialVless-Windows-x64.zip
+
+            - **Windows (x86) Installer:** MaterialVless-Windows-x86-Setup.exe
+
+            - **Windows (x86) Portable:** MaterialVless-Windows-x86.zip
+
+            - **Linux (x64):** MaterialVless-Linux-x64.tar.gz
+
+            - **Linux (x86):** MaterialVless-Linux-x86.tar.gz
+
+            - **macOS:** MaterialVless-macOS.zip
+
+        env:
+
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

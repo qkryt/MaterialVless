@@ -35,6 +35,19 @@ class CustomFontService {
     }
   }
 
+  /// Поиск пути к файлу шрифта по названию семейства
+  static String? findFontPathForFamily(String familyName) {
+    final files = getInstalledFontFiles();
+    for (final f in files) {
+      final filename = f.uri.pathSegments.last;
+      final name = filename.replaceAll(RegExp(r'\.(ttf|otf)$', caseSensitive: false), '');
+      if (name.toLowerCase() == familyName.toLowerCase()) {
+        return f.path;
+      }
+    }
+    return null;
+  }
+
   /// Список названий загруженных кастомных шрифтов
   static List<String> getAvailableCustomFontFamilies() {
     final files = getInstalledFontFiles();
@@ -61,7 +74,6 @@ class CustomFontService {
       _loadedFontFamilies.add(fontName);
       return true;
     } catch (e) {
-      // Игнорируем ошибки повреждённых шрифтов
       return false;
     }
   }
