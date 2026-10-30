@@ -220,6 +220,15 @@ class VpnNotifier extends StateNotifier<VpnState> {
       }
     }
 
+    // Восстанавливаем фоновое изображение из корневой папки background.(формат)
+    if (currentSettings.backgroundImagePath == null ||
+        !File(currentSettings.backgroundImagePath!).existsSync()) {
+      final rootBg = BackgroundService.findExistingBackgroundInRoot();
+      if (rootBg != null) {
+        currentSettings = currentSettings.copyWith(backgroundImagePath: rootBg);
+      }
+    }
+
     VlessNode? restoredSelectedNode;
 
     if (savedSelectedId != null) {

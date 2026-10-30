@@ -51,7 +51,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   final List<String> _popularUserAgents = const [
 
-    'MaterialVless/2.15.1',
+    'MaterialVless/2.15.2',
 
     'v2rayN/6.42',
 
@@ -1458,7 +1458,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   title: const Text('Фоновое изображение'),
                   subtitle: Text(
                     settings.hasBackgroundImage
-                        ? 'Пользовательский фон (любой формат, 800x600)'
+                        ? 'Пользовательский фон (автоподстройка под разрешение)'
                         : 'Стандартный цвет темы',
                   ),
                   trailing: Row(
@@ -1466,7 +1466,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     children: [
                       FilledButton.tonalIcon(
                         icon: const Icon(Icons.image_outlined, size: 18),
-                        label: Text(settings.hasBackgroundImage ? 'Сменить' : 'Выбрать (800x600)'),
+                        label: Text(settings.hasBackgroundImage ? 'Сменить' : 'Выбрать картинку'),
                         onPressed: _pickBackgroundImage,
                       ),
                       if (settings.hasBackgroundImage) ...[
@@ -2009,7 +2009,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                   title: Text(t('client_version')),
 
-                  subtitle: const Text('MaterialVless 2.15.1 • Релиз 2.15.1 (v2.15.1)'),
+                  subtitle: const Text('MaterialVless 2.15.2 • Релиз 2.15.2 (v2.15.2)'),
 
                   trailing: _isCheckingUpdate
 
@@ -2049,7 +2049,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                                 const SnackBar(
 
-                                  content: Text('У вас установлена самая актуальная версия (v2.15.1)'),
+                                  content: Text('У вас установлена самая актуальная версия (v2.15.2)'),
 
                                 ),
 
@@ -2213,7 +2213,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                             Text(
 
-                              'Версия 2.15.1 • Релиз 2.15.1 (Выпуск 2026)',
+                              'Версия 2.15.2 • Релиз 2.15.2 (Выпуск 2026)',
 
                               style: TextStyle(
 

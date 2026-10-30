@@ -10,6 +10,7 @@ import 'utils/admin_helper.dart';
 import 'services/single_instance_service.dart';
 import 'services/url_scheme_service.dart';
 import 'services/custom_font_service.dart';
+import 'services/background_service.dart';
 import 'services/log_service.dart';
 
 void main(List<String> args) async {
@@ -123,16 +124,21 @@ class _MaterialVlessAppState extends ConsumerState<MaterialVlessApp> {
           themeMode: mode,
           scrollBehavior: const SmoothScrollBehavior(),
           builder: (context, child) {
-            if (!hasBackgroundImage || bgPath == null) {
+            final activeBgPath = (bgPath != null && File(bgPath).existsSync())
+                ? bgPath
+                : BackgroundService.findExistingBackgroundInRoot();
+            if (!hasBackgroundImage || activeBgPath == null) {
               return child ?? const SizedBox();
             }
             return Stack(
               children: [
                 Positioned.fill(
                   child: Image.file(
-                    File(bgPath),
-                    fit: BoxFit.cover,
-                    alignment: Alignment.center,
+                    File(activeBgPath),
+                    fit: BoxFit.fill,
+                    width: double.infinity,
+                    height: double.infinity,
+                    filterQuality: FilterQuality.high,
                   ),
                 ),
                 Positioned.fill(
