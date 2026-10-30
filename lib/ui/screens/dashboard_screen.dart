@@ -332,11 +332,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
 
     return Container(
-
       padding: EdgeInsets.symmetric(horizontal: 20, vertical: isCompact ? 16 : 28),
-
-      color: colorScheme.surface,
-
+      color: vpn.settings.hasBackgroundImage ? Colors.transparent : colorScheme.surface,
       child: Column(
 
         mainAxisSize: isCompact ? MainAxisSize.min : MainAxisSize.max,
@@ -355,7 +352,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
                 decoration: BoxDecoration(
 
-                  color: colorScheme.surfaceContainerHigh,
+                  color: vpn.settings.hasBackgroundImage
+                      ? colorScheme.surfaceContainerHigh.withOpacity(0.85)
+                      : colorScheme.surfaceContainerHigh,
 
                   borderRadius: BorderRadius.circular(20),
 
@@ -461,7 +460,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
                       child: Material(
 
-                        color: isConnected ? colorScheme.primary : colorScheme.surfaceContainerHighest,
+                        color: isConnected
+                            ? colorScheme.primary
+                            : (vpn.settings.hasBackgroundImage
+                                ? colorScheme.surfaceContainerHighest.withOpacity(0.9)
+                                : colorScheme.surfaceContainerHighest),
 
                         shape: const CircleBorder(),
 
@@ -641,7 +644,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
               decoration: BoxDecoration(
 
-                color: colorScheme.surfaceContainerHigh,
+                color: vpn.settings.hasBackgroundImage
+                    ? colorScheme.surfaceContainerHigh.withOpacity(0.85)
+                    : colorScheme.surfaceContainerHigh,
 
                 borderRadius: BorderRadius.circular(16),
 
@@ -1072,9 +1077,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
 
   Widget _buildSubscriptionHeaderCard(BuildContext context, SubscriptionModel sub) {
-
+    final vpn = ref.watch(vpnProvider);
     final theme = Theme.of(context);
-
     final colorScheme = theme.colorScheme;
 
 
@@ -1153,7 +1157,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
       decoration: BoxDecoration(
 
-        color: colorScheme.surfaceContainerHigh,
+        color: vpn.settings.hasBackgroundImage
+            ? colorScheme.surfaceContainerHigh.withOpacity(0.85)
+            : colorScheme.surfaceContainerHigh,
 
         borderRadius: BorderRadius.circular(18),
 
@@ -1425,7 +1431,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
       decoration: BoxDecoration(
 
-        color: colorScheme.surfaceContainerHigh,
+        color: vpn.settings.hasBackgroundImage
+            ? colorScheme.surfaceContainerHigh.withOpacity(0.85)
+            : colorScheme.surfaceContainerHigh,
 
         borderRadius: BorderRadius.circular(18),
 
