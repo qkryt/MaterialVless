@@ -20,7 +20,7 @@ class AppSettings {
   String appLanguage; // ru, en, etc.
 
   // Выбор ядра VPN (Core Engine)
-  String selectedCore; // 'xray' (default) or 'sing-box'
+  String selectedCore; // 'xray'
 
   // Поведение окна и запуск
   bool autoStartWithWindows;
@@ -28,7 +28,7 @@ class AppSettings {
   bool startMinimized;
 
   // Подписка
-  String userAgent; // MaterialVless, Clash.Meta, Sing-box, v2rayN, etc.
+  String userAgent; // MaterialVless, Clash.Meta, Xray, v2rayN, etc.
   bool sendHwid;
   bool autoUpdateOnStart;
   int autoUpdateIntervalHours; // 0 = off, 1, 2, 6, 12, 24

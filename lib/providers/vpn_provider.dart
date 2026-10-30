@@ -649,7 +649,7 @@ class VpnNotifier extends StateNotifier<VpnState> {
     state = state.copyWith(status: CoreState.disconnected);
   }
 
-  /// Переключение между ядрами Xray и Sing-box с автоматическим перезапуском активного подключения
+  /// Перезапуск ядра Xray с обновленными настройками
   Future<void> switchCore(String newCore) async {
     if (state.settings.selectedCore == newCore) return;
 

@@ -1,5 +1,6 @@
 import '../../services/log_service.dart';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
@@ -57,9 +58,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     'v2rayN/6.23',
 
-    'sing-box/1.14.4',
+    'Xray/24.11.30',
 
-    'sing-box/1.11.0',
+    'Xray/1.8.24',
 
     'ClashMeta/v1.18.0',
 
@@ -878,13 +879,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ? colorScheme.surfaceContainer.withOpacity(0.85)
         : colorScheme.surfaceContainer;
 
-    return Scaffold(
-      backgroundColor: settings.hasBackgroundImage ? Colors.transparent : null,
-      appBar: AppBar(
-        backgroundColor: settings.hasBackgroundImage ? Colors.transparent : null,
-        title: Text(t('settings_title')),
-      ),
-      body: ListView(
+    final bgPath = settings.activeBackgroundImagePath;
+    final hasBg = settings.hasBackgroundImage && bgPath != null && File(bgPath).existsSync();
+
+    Uint8List? bgBytes;
+    if (hasBg) {
+      try {
+        bgBytes = File(bgPath).readAsBytesSync();
+      } catch (_) {}
+    }
+
+    Widget content = ListView(
         controller: _settingsScrollController,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         children: [
@@ -2304,39 +2309,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   const SizedBox(height: 14),
 
                   const Text(
-
-                    'Современный быстрый клиент для туннелирования трафика на базе Xray-core и Sing-box с поддержкой драйвера Wintun. '
-
-                    'Поддерживает протоколы VLESS (Reality, Vision), Trojan, Shadowsocks, VMess, Hysteria2 и протокольные схемы deep-linking.',
-
+                    'Современный быстрый клиент для туннелирования трафика на базе официального ядра Xray-core (XTLS). '
+                    'Поддерживает протоколы VLESS (Reality, Vision), Trojan, Shadowsocks, VMess и протокольные схемы deep-linking.',
                     style: TextStyle(fontSize: 13, height: 1.4),
-
                   ),
-
                   const SizedBox(height: 14),
-
                   Wrap(
-
                     spacing: 8,
-
                     runSpacing: 8,
-
                     children: [
-
-                      _buildInfoBadge('Xray v24.11.30', Icons.bolt_rounded, colorScheme),
-
-                      _buildInfoBadge('Sing-box v1.14.4', Icons.tune_rounded, colorScheme),
-
-                      _buildInfoBadge('Wintun v0.14.1', Icons.shield_outlined, colorScheme),
-
+                      _buildInfoBadge('Xray Core v24.11.30', Icons.bolt_rounded, colorScheme),
+                      _buildInfoBadge('XTLS / Reality', Icons.shield_rounded, colorScheme),
                       _buildInfoBadge('Material Design 3', Icons.palette_outlined, colorScheme),
-
                       _buildInfoBadge('Windows x64 Native', Icons.laptop_windows_rounded, colorScheme),
-
                       _buildInfoBadge('Deep Link: material:// & happ://', Icons.link_rounded, colorScheme),
-
                     ],
-
                   ),
 
                   const SizedBox(height: 14),
@@ -2414,7 +2401,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 child: const Icon(Icons.gpp_bad_rounded, color: Colors.red),
               ),
               title: const Text('Аварийное выключение процессов', style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: const Text('Принудительно останавливает все фоновые процессы sing-box.exe и сбрасывает сетевой статус'),
+              subtitle: const Text('Принудительно останавливает все фоновые процессы xray.exe, сбрасывает системный прокси и сетевой статус'),
               trailing: FilledButton.tonal(
                 style: FilledButton.styleFrom(
                   backgroundColor: Colors.red.withOpacity(0.15),
@@ -2424,7 +2411,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   await ref.read(vpnProvider.notifier).emergencyKillAllProcesses();
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Все процессы ядра sing-box принудительно завершены!')),
+                      const SnackBar(content: Text('Все процессы ядра Xray принудительно завершены!')),
                     );
                   }
                 },
@@ -2480,13 +2467,42 @@ _buildSectionHeader('Завершение работы'),
           ),
 
           const SizedBox(height: 32),
-
         ],
+      );
 
+    if (hasBg && bgBytes != null && bgBytes.isNotEmpty) {
+      content = Stack(
+        children: [
+          Positioned.fill(
+            child: Image.memory(
+              bgBytes,
+              key: ValueKey('$bgPath-${bgBytes.length}-${File(bgPath).lastModifiedSync().millisecondsSinceEpoch}'),
+              fit: BoxFit.fill,
+              width: double.infinity,
+              height: double.infinity,
+              filterQuality: FilterQuality.high,
+              gaplessPlayback: true,
+              errorBuilder: (_, __, ___) => const SizedBox(),
+            ),
+          ),
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withOpacity(settings.backgroundDimming.clamp(0.05, 0.95)),
+            ),
+          ),
+          content,
+        ],
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: hasBg ? Colors.black : colorScheme.surface,
+      appBar: AppBar(
+        backgroundColor: hasBg ? Colors.transparent : null,
+        title: Text(t('settings_title')),
       ),
-
+      body: content,
     );
-
   }
 
 

@@ -21,11 +21,7 @@ permissions:
 
 
 env:
-
-  SING_BOX_VERSION: '1.14.4'
-
   WINTUN_VERSION: '0.14.1'
-
   XRAY_VERSION: 'v24.11.30'
 
 
@@ -146,20 +142,10 @@ jobs:
 
 
 
-      - name: Package Windows x64 and x86 with both Xray and sing-box cores
+      - name: Package Windows x64 and x86 with Xray Core
         shell: pwsh
         run: |
           $ReleaseDir = "build/windows/x64/runner/Release"
-
-          # Download sing-box (x64)
-          $Sb64Url = "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-windows-amd64.zip"
-          Invoke-WebRequest -Uri $Sb64Url -OutFile "sb64.zip"
-          Expand-Archive -Path "sb64.zip" -DestinationPath "sb_64"
-
-          # Download sing-box (x86)
-          $Sb32Url = "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-windows-386.zip"
-          Invoke-WebRequest -Uri $Sb32Url -OutFile "sb32.zip"
-          Expand-Archive -Path "sb32.zip" -DestinationPath "sb_32"
 
           # Download Xray-core (x64)
           $Xray64Url = "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-windows-64.zip"
@@ -182,7 +168,6 @@ jobs:
 
           # Form Windows x64 package
           Copy-Item "xray_64/xray.exe" -Destination "$ReleaseDir/xray.exe" -Force
-          Copy-Item "sb_64/sing-box-${{ env.SING_BOX_VERSION }}-windows-amd64/sing-box.exe" -Destination "$ReleaseDir/sing-box.exe" -Force
           Copy-Item "wintun_driver/wintun/bin/amd64/wintun.dll" -Destination "$ReleaseDir/wintun.dll" -Force
 
           if (Test-Path "assets/icons/app_icon.ico") {
@@ -190,11 +175,7 @@ jobs:
           }
 
           New-Item -ItemType Directory -Path "$ReleaseDir/customfonts" -Force
-          New-Item -ItemType Directory -Path "$ReleaseDir/rules" -Force
           New-Item -ItemType Directory -Path "$ReleaseDir/backgrounds" -Force
-          if (Test-Path "assets/rules") {
-            Copy-Item "assets/rules/*" -Destination "$ReleaseDir/rules" -Force
-          }
 
           $manifest = '<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0"><trustInfo xmlns="urn:schemas-microsoft-com:asm.v3"><security><requestedPrivileges><requestedExecutionLevel level="requireAdministrator" uiAccess="false"/></requestedPrivileges></security></trustInfo></assembly>'
           [System.IO.File]::WriteAllText("$ReleaseDir/material_vless.exe.manifest", $manifest)
@@ -211,7 +192,6 @@ jobs:
           mkdir -p "dist_x86"
           Copy-Item "$ReleaseDir/*" -Destination "dist_x86" -Recurse
           Copy-Item "xray_32/xray.exe" -Destination "dist_x86/xray.exe" -Force
-          Copy-Item "sb_32/sing-box-${{ env.SING_BOX_VERSION }}-windows-386/sing-box.exe" -Destination "dist_x86/sing-box.exe" -Force
           Copy-Item "wintun_driver/wintun/bin/x86/wintun.dll" -Destination "dist_x86/wintun.dll" -Force
           Compress-Archive -Path "dist_x86/*" -DestinationPath "MaterialVless-Windows-x86.zip"
 
@@ -316,18 +296,8 @@ jobs:
 
 
       - name: Bundle Core & Package x64 and x86
-
         run: |
-
           DIST="build/linux/x64/release/bundle"
-
-          
-
-          # Download sing-box (x64)
-          curl -L "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-linux-amd64.tar.gz" -o sb64.tar.gz
-          tar -xvf sb64.tar.gz
-          cp "sing-box-${{ env.SING_BOX_VERSION }}-linux-amd64/sing-box" "$DIST/sing-box"
-          chmod +x "$DIST/sing-box"
 
           # Download Xray-core (x64)
           curl -L "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-linux-64.zip" -o xray64.zip
@@ -337,20 +307,11 @@ jobs:
           cp xray64_temp/geosite.dat "$DIST/geosite.dat"
           chmod +x "$DIST/xray"
 
-          mkdir -p "$DIST/rules"
-          if [ -d "assets/rules" ]; then
-            cp assets/rules/* "$DIST/rules/"
-          fi
-
           tar -czvf MaterialVless-Linux-x64.tar.gz -C "$DIST" .
 
           # x86 package
           mkdir -p dist_linux_x86
           cp -r "$DIST/"* dist_linux_x86/
-          curl -L "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-linux-386.tar.gz" -o sb32.tar.gz
-          tar -xvf sb32.tar.gz
-          cp "sing-box-${{ env.SING_BOX_VERSION }}-linux-386/sing-box" dist_linux_x86/sing-box
-          chmod +x dist_linux_x86/sing-box
 
           curl -L "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-linux-32.zip" -o xray32.zip
           unzip -o xray32.zip -d xray32_temp
@@ -437,25 +398,15 @@ jobs:
 
 
 
-          # Sing-box universal binary (arm64 + amd64)
-
-          curl -L "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-darwin-arm64.tar.gz" -o sb_arm64.tar.gz
-
-          curl -L "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-darwin-amd64.tar.gz" -o sb_amd64.tar.gz
-
-          tar -xzf sb_arm64.tar.gz
-
-          tar -xzf sb_amd64.tar.gz
-
-          lipo -create "sing-box-${{ env.SING_BOX_VERSION }}-darwin-arm64/sing-box" "sing-box-${{ env.SING_BOX_VERSION }}-darwin-amd64/sing-box" -output "$RES_DIR/sing-box"
-
-          chmod +x "$RES_DIR/sing-box"
-
-
-
-          curl -L "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geoip.dat" -o "$RES_DIR/geoip.dat"
-
-          curl -L "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geosite.dat" -o "$RES_DIR/geosite.dat"
+          # Xray-core universal binary (arm64 + amd64)
+          curl -L "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-macos-arm64.zip" -o xray_arm64.zip
+          curl -L "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-macos-64.zip" -o xray_64.zip
+          unzip -o xray_arm64.zip -d xray_arm64_temp
+          unzip -o xray_64.zip -d xray_64_temp
+          lipo -create "xray_arm64_temp/xray" "xray_64_temp/xray" -output "$RES_DIR/xray"
+          chmod +x "$RES_DIR/xray"
+          cp xray_arm64_temp/geoip.dat "$RES_DIR/geoip.dat"
+          cp xray_arm64_temp/geosite.dat "$RES_DIR/geosite.dat"
 
           mkdir -p "$RES_DIR/rules"
           if [ -d "assets/rules" ]; then
@@ -581,9 +532,9 @@ jobs:
               - Плавная интерполяция колесика мыши по спискам серверов и горизонтальная навигация по подпискам.
             - **Журналирование**:
               - Подробное логирование работы Xray и клиента в корневом `log.txt`.
-            - **Управление процессами sing-box**:
-              - Принудительное завершение всех процессов sing-box при выключении VPN и перед каждым новым запуском.
-              - Аварийная кнопка в настройках для моментального сброса системных прокси и процессов.
+            - **Управление процессами Xray-core**:
+              - Принудительное завершение всех процессов xray.exe при выключении VPN и перед каждым новым запуском.
+              - Аварийная кнопка в настройках для моментального сброса системных прокси и процессов Xray.
             - **Интерфейс и шрифты**:
               - Исправлено наложение галочки на иконку булавки на закрепленных подписках.
               - Персистентное сохранение и динамическая ширина меню выбора локальных шрифтов из `/MaterialVless/customfonts`.

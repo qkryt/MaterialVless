@@ -9,14 +9,13 @@
 </p>
 
 <p align="center">
-  <b>Modern, high-performance desktop VPN client for VLESS / Reality / gRPC / Hysteria 2 powered by the sing-box core in Google's Material Design 3 (Material You).</b>
+  <b>Modern, high-performance desktop VPN client for VLESS / Reality / gRPC powered by the official Xray-core (XTLS) in Google's Material Design 3 (Material You).</b>
 </p>
 
 <p align="center">
   <a href="https://github.com/qkryt/MaterialVless/releases/latest"><img src="https://img.shields.io/github/v/release/qkryt/MaterialVless?style=for-the-badge&color=6750A4" alt="Release" /></a>
   <img src="https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter" alt="Flutter" />
-  <img src="https://img.shields.io/badge/sing--box-1.14.4-00D2FF?style=for-the-badge" alt="sing-box" />
-  <img src="https://img.shields.io/badge/Wintun-0.14.1-4CAF50?style=for-the-badge" alt="Wintun" />
+  <img src="https://img.shields.io/badge/Xray--core-v24.11.30-6750A4?style=for-the-badge" alt="Xray-core" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
 </p>
 
@@ -66,7 +65,7 @@ MaterialVless 2.1 registers system-wide protocol handlers for `material://` and 
 
 ## 🚀 Key Features
 
-- **Sing-box Core v1.14.4 & Wintun Driver v0.14.1**: Kernel-level TUN driver providing ultra-low latency, full UDP forwarding, and wire-speed throughput.
+- **Xray Core v24.11.30 (XTLS)**: Official reference XTLS engine providing ultra-reliable VLESS Reality connections.
 - **Wide Protocol Support**:
   - `vless://` (Reality, XTLS, Vision, gRPC, WebSocket)
   - `hysteria2://` / `hy2://` (High-speed UDP obfuscation)
@@ -91,7 +90,7 @@ Pre-built binaries are compiled on GitHub Actions:
 | Platform | Download File | Details |
 | :--- | :--- | :--- |
 | **Windows x64** | `MaterialVless-Windows-x64-Setup.exe` | Recommended installer for 64-bit Windows |
-| **Windows x64** | `MaterialVless-Windows-x64.zip` | Portable version with embedded sing-box & Wintun |
+| **Windows x64** | `MaterialVless-Windows-x64.zip` | Portable version with embedded Xray-core |
 | **Windows x86** | `MaterialVless-Windows-x86-Setup.exe` | 32-bit Windows installer |
 | **Windows x86** | `MaterialVless-Windows-x86.zip` | 32-bit portable edition |
 | **Linux x64** | `MaterialVless-Linux-x64.tar.gz` | Linux x86_64 binaries (Ubuntu, Debian, Fedora, Arch) |

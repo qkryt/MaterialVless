@@ -248,9 +248,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             tooltip: 'Настройки',
 
             onPressed: () {
-
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
-
+              Navigator.push(
+                context,
+                PageRouteBuilder(
+                  pageBuilder: (_, __, ___) => const SettingsScreen(),
+                  transitionDuration: Duration.zero,
+                  reverseTransitionDuration: Duration.zero,
+                ),
+              );
             },
 
           ),

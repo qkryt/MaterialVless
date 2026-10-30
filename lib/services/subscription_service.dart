@@ -36,7 +36,7 @@ class SubscriptionService {
       final userAgents = [
         _buildUserAgent(preferredUa),
         'v2rayN/6.42',
-        'sing-box/1.14.4',
+        'Xray/24.11.30',
         'ClashMeta/v1.18.0',
       ];
 
@@ -107,11 +107,11 @@ class SubscriptionService {
     switch (choice) {
       case 'Clash.Meta':
         return 'ClashMeta/v1.18.0';
-      case 'Sing-box':
-        return 'sing-box/1.9.0';
+      case 'Xray':
+        return 'Xray/24.11.30';
       case 'v2rayN':
       default:
-        // Большинство панелей (Marzban, Alius, V2Board) требуют v2rayN или sing-box
+        // Большинство панелей (Marzban, Alius, V2Board) требуют v2rayN или Xray
         return 'v2rayN/6.42';
     }
   }

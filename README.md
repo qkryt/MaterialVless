@@ -9,14 +9,13 @@
 </p>
 
 <p align="center">
-  <b>Современный высокопроизводительный десктопный клиент VPN для VLESS / Reality / gRPC / Hysteria 2 на базе ядра sing-box в дизайне Google Material Design 3 (Material You).</b>
+  <b>Современный высокопроизводительный десктопный клиент VPN для VLESS / Reality / gRPC на базе официального ядра Xray-core (XTLS) в дизайне Google Material Design 3 (Material You).</b>
 </p>
 
 <p align="center">
   <a href="https://github.com/qkryt/MaterialVless/releases/latest"><img src="https://img.shields.io/github/v/release/qkryt/MaterialVless?style=for-the-badge&color=6750A4" alt="Release" /></a>
   <img src="https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter" alt="Flutter" />
-  <img src="https://img.shields.io/badge/sing--box-1.14.4-00D2FF?style=for-the-badge" alt="sing-box" />
-  <img src="https://img.shields.io/badge/Wintun-0.14.1-4CAF50?style=for-the-badge" alt="Wintun" />
+  <img src="https://img.shields.io/badge/Xray--core-v24.11.30-6750A4?style=for-the-badge" alt="Xray-core" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
 </p>
 
@@ -66,7 +65,7 @@ MaterialVless 2.1 регистрирует в системе протоколь�
 
 ## 🚀 Основные возможности
 
-- **Ядро sing-box v1.14.4 и драйвер Wintun v0.14.1**: Сетевой TUN-драйвер уровня ядра для сверхнизких задержек и высокой скорости передачи.
+- **Ядро Xray Core v24.11.30 (XTLS)**: Официальное эталонное ядро для максимальной стабильности протокола VLESS Reality.
 - **Поддержка современных протоколов**:
   - `vless://` (Reality, XTLS, Vision, gRPC, WebSocket)
   - `hysteria2://` / `hy2://` (Высокоскоростной UDP-протокол)
@@ -92,7 +91,7 @@ MaterialVless 2.1 регистрирует в системе протоколь�
 | Платформа | Файл | Описание |
 | :--- | :--- | :--- |
 | **Windows x64** | `MaterialVless-Windows-x64-Setup.exe` | Рекомендуемый установщик для 64-битной Windows |
-| **Windows x64** | `MaterialVless-Windows-x64.zip` | Портативная версия с sing-box и Wintun |
+| **Windows x64** | `MaterialVless-Windows-x64.zip` | Портативная версия с Xray-core |
 | **Windows x86** | `MaterialVless-Windows-x86-Setup.exe` | Установщик для 32-битной Windows |
 | **Windows x86** | `MaterialVless-Windows-x86.zip` | Портативная версия x86 |
 | **Linux x64** | `MaterialVless-Linux-x64.tar.gz` | Linux x86_64 сборка (Ubuntu, Debian, Fedora, Arch) |

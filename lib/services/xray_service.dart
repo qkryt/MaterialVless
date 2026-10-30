@@ -74,78 +74,18 @@ class XrayService {
     return null;
   }
 
-  /// Принудительное завершение всех процессов ядер (xray и sing-box)
+  /// Принудительное завершение всех процессов ядра Xray
   static Future<void> killAllCoreProcesses() async {
-    LogService.log('Terminating any running core processes (xray, sing-box)...');
+    LogService.log('Terminating any running xray processes...');
     if (Platform.isWindows) {
       try {
         await Process.run('taskkill', ['/F', '/IM', 'xray.exe', '/T']);
-      } catch (_) {}
-      try {
-        await Process.run('taskkill', ['/F', '/IM', 'sing-box.exe', '/T']);
       } catch (_) {}
     } else if (Platform.isLinux || Platform.isMacOS) {
       try {
         await Process.run('pkill', ['-9', 'xray']);
       } catch (_) {}
-      try {
-        await Process.run('pkill', ['-9', 'sing-box']);
-      } catch (_) {}
     }
-  }
-
-  /// Проверка и подготовка директории с бинарными гео-правилами sing-box (.srs)
-  static Future<String?> ensureRulesDirectory() async {
-    try {
-      final exeDir = File(Platform.resolvedExecutable).parent.path;
-      final exeRules = Directory('$exeDir\\rules');
-      if (exeRules.existsSync() &&
-          File('${exeRules.path}\\geosite-category-ru.srs').existsSync() &&
-          File('${exeRules.path}\\geoip-ru.srs').existsSync()) {
-        return exeRules.path;
-      }
-
-      final localAssetRules = Directory('assets/rules');
-      if (localAssetRules.existsSync() &&
-          File('assets/rules/geosite-category-ru.srs').existsSync()) {
-        return localAssetRules.absolute.path;
-      }
-
-      final tempDir = await getTemporaryDirectory();
-      final rulesDir = Directory('${tempDir.path}\\material_vless_rules');
-      if (!rulesDir.existsSync()) {
-        await rulesDir.create(recursive: true);
-      }
-
-      final ruleFiles = [
-        'geosite-category-ru.srs',
-        'geosite-tld-ru.srs',
-        'geoip-ru.srs',
-      ];
-
-      for (final fileName in ruleFiles) {
-        final targetFile = File('${rulesDir.path}\\$fileName');
-        if (!targetFile.existsSync() || targetFile.lengthSync() == 0) {
-          try {
-            final byteData = await rootBundle.load('assets/rules/$fileName');
-            await targetFile.writeAsBytes(
-              byteData.buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes),
-              flush: true,
-            );
-            LogService.log('Extracted asset rules/$fileName to: ${targetFile.path}');
-          } catch (e) {
-            LogService.log('Asset rules/$fileName could not be extracted from bundle: $e');
-          }
-        }
-      }
-
-      if (File('${rulesDir.path}\\geosite-category-ru.srs').existsSync()) {
-        return rulesDir.path;
-      }
-    } catch (e) {
-      LogService.log('ensureRulesDirectory exception: $e');
-    }
-    return null;
   }
 
   /// Запуск VPN через Xray-core (полный переход на Xray v24.11.30)
