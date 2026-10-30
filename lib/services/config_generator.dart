@@ -388,9 +388,6 @@ class ConfigGenerator {
         "public_key": node.publicKey,
         "short_id": node.shortId,
       };
-      if (node.spiderX.isNotEmpty) {
-        realityMap["spider_x"] = node.spiderX;
-      }
       final tlsMap = <String, dynamic>{
         "enabled": true,
         "server_name": node.sni.isNotEmpty ? node.sni : node.address,
