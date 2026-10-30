@@ -399,7 +399,7 @@ jobs:
 
 
           # Xray-core universal binary (arm64 + amd64)
-          curl -L "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-macos-arm64.zip" -o xray_arm64.zip
+          curl -L "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-macos-arm64-v8a.zip" -o xray_arm64.zip
           curl -L "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-macos-64.zip" -o xray_64.zip
           unzip -o xray_arm64.zip -d xray_arm64_temp
           unzip -o xray_64.zip -d xray_64_temp
@@ -407,11 +407,6 @@ jobs:
           chmod +x "$RES_DIR/xray"
           cp xray_arm64_temp/geoip.dat "$RES_DIR/geoip.dat"
           cp xray_arm64_temp/geosite.dat "$RES_DIR/geosite.dat"
-
-          mkdir -p "$RES_DIR/rules"
-          if [ -d "assets/rules" ]; then
-            cp assets/rules/* "$RES_DIR/rules/"
-          fi
 
 
 
