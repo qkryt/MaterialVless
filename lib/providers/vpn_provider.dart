@@ -22,6 +22,7 @@ import '../services/storage_service.dart';
 
 import '../services/custom_font_service.dart';
 import '../services/background_service.dart';
+import '../services/log_service.dart';
 
 class VpnState {
 
