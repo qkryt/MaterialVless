@@ -1,22 +1,26 @@
 import 'dart:io';
+import '../services/background_service.dart';
 
 class AppSettings {
-  // Пинг
+  // Тестирование сети
   String pingUrl;
   String speedtestUrl;
-  int pingTimeoutMs; // 1000 to 5000 ms
+  int pingTimeoutMs;
   bool pingViaProxy;
   bool disconnectBeforePing;
 
-  // Тема, шрифт и кастомный фон
+  // Внешний вид и тема
   String fontFamily;
   String? customFontPath;
   String? backgroundImagePath;
-  double backgroundDimming; // Затемнение фона от 0.05 до 0.95 (по умолчанию 0.35)
+  double backgroundDimming;
   bool useDynamicColor;
   String themeMode; // system, light, dark, amoled
-  int accentColor; // Hex seed color, default 0xFF6750A4
-  String appLanguage; // ru, en
+  int accentColor; // Primary color int
+  String appLanguage; // ru, en, etc.
+
+  // Выбор ядра VPN (Core Engine)
+  String selectedCore; // 'xray' (default) or 'sing-box'
 
   // Поведение окна и запуск
   bool autoStartWithWindows;
@@ -53,10 +57,11 @@ class AppSettings {
     this.themeMode = 'dark',
     this.accentColor = 0xFF6750A4,
     this.appLanguage = 'ru',
+    this.selectedCore = 'xray',
     this.autoStartWithWindows = false,
     this.minimizeToTrayOnClose = true,
     this.startMinimized = false,
-    this.userAgent = 'MaterialVless/2.15.3',
+    this.userAgent = 'MaterialVless/2.16.1',
     this.sendHwid = true,
     this.autoUpdateOnStart = true,
     this.autoUpdateIntervalHours = 12,
@@ -70,10 +75,24 @@ class AppSettings {
     this.customRoutingRules = const [],
   });
 
-  bool get hasBackgroundImage =>
-      backgroundImagePath != null &&
-      backgroundImagePath!.isNotEmpty &&
-      File(backgroundImagePath!).existsSync();
+  bool get hasBackgroundImage {
+    if (backgroundImagePath != null &&
+        backgroundImagePath!.isNotEmpty &&
+        File(backgroundImagePath!).existsSync()) {
+      return true;
+    }
+    final rootBg = BackgroundService.findExistingBackgroundInRoot();
+    return rootBg != null && File(rootBg).existsSync();
+  }
+
+  String? get activeBackgroundImagePath {
+    if (backgroundImagePath != null &&
+        backgroundImagePath!.isNotEmpty &&
+        File(backgroundImagePath!).existsSync()) {
+      return backgroundImagePath;
+    }
+    return BackgroundService.findExistingBackgroundInRoot();
+  }
 
   AppSettings copyWith({
     String? pingUrl,
@@ -90,6 +109,7 @@ class AppSettings {
     String? themeMode,
     int? accentColor,
     String? appLanguage,
+    String? selectedCore,
     bool? autoStartWithWindows,
     bool? minimizeToTrayOnClose,
     bool? startMinimized,
@@ -120,6 +140,7 @@ class AppSettings {
       themeMode: themeMode ?? this.themeMode,
       accentColor: accentColor ?? this.accentColor,
       appLanguage: appLanguage ?? this.appLanguage,
+      selectedCore: selectedCore ?? this.selectedCore,
       autoStartWithWindows: autoStartWithWindows ?? this.autoStartWithWindows,
       minimizeToTrayOnClose: minimizeToTrayOnClose ?? this.minimizeToTrayOnClose,
       startMinimized: startMinimized ?? this.startMinimized,
@@ -152,6 +173,7 @@ class AppSettings {
         'themeMode': themeMode,
         'accentColor': accentColor,
         'appLanguage': appLanguage,
+        'selectedCore': selectedCore,
         'autoStartWithWindows': autoStartWithWindows,
         'minimizeToTrayOnClose': minimizeToTrayOnClose,
         'startMinimized': startMinimized,
@@ -173,11 +195,12 @@ class AppSettings {
       pingTimeoutMs: int.tryParse(json['pingTimeoutMs']?.toString() ?? '2000') ?? 2000,
       speedtestUrl: json['speedtestUrl']?.toString() ?? 'http://cachefly.cachefly.net/1mb.test',
       autoUpdateRulesOnStart: json['autoUpdateRulesOnStart'] == true,
-      userAgent: json['userAgent']?.toString() ?? 'MaterialVless/2.15.3',
+      userAgent: json['userAgent']?.toString() ?? 'MaterialVless/2.16.0',
       sendHwid: json['sendHwid'] != false,
       themeMode: json['themeMode']?.toString() ?? 'dark',
       accentColor: int.tryParse(json['accentColor']?.toString() ?? '0xFF6750A4') ?? 0xFF6750A4,
       appLanguage: json['appLanguage']?.toString() ?? 'ru',
+      selectedCore: json['selectedCore']?.toString() ?? 'xray',
       autoStartWithWindows: json['autoStartWithWindows'] == true,
       minimizeToTrayOnClose: json['minimizeToTrayOnClose'] != false,
       startMinimized: json['startMinimized'] == true,

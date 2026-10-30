@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:path_provider/path_provider.dart';
 import '../models/vless_node.dart';
@@ -22,33 +23,71 @@ class XrayService {
   Stream<(int, int)> get speedStream => _speedController.stream;
   CoreState get currentState => _state;
 
-  static String _resolveBinary() {
+  /// Поиск исполняемого файла ядра Xray
+  static String resolveBinary([String? coreType]) {
     final exeDir = File(Platform.resolvedExecutable).parent.path;
+    final binaryName = Platform.isWindows ? 'xray.exe' : 'xray';
 
+    // 1. Рядом с исполняемым файлом программы (C:\Program Files\MaterialVless)
+    final localPath = '$exeDir${Platform.pathSeparator}$binaryName';
+    if (File(localPath).existsSync()) return localPath;
+
+    // 2. В C:\Program Files\MaterialVless
+    final progFilesPath = 'C:\\Program Files\\MaterialVless\\$binaryName';
+    if (File(progFilesPath).existsSync()) return progFilesPath;
+
+    // 3. В папке AppData
     if (Platform.isWindows) {
-      final localSb = '$exeDir\\sing-box.exe';
-      if (File(localSb).existsSync()) return localSb;
-      return 'sing-box.exe';
-    } else if (Platform.isLinux) {
-      final local = '$exeDir/sing-box';
-      if (File(local).existsSync()) return local;
-      return 'sing-box';
+      final appData = Platform.environment['APPDATA'] ?? Platform.environment['LOCALAPPDATA'];
+      if (appData != null) {
+        final appDataPath = '$appData${Platform.pathSeparator}MaterialVless${Platform.pathSeparator}$binaryName';
+        if (File(appDataPath).existsSync()) return appDataPath;
+      }
     } else if (Platform.isMacOS) {
-      final local = '${File(Platform.resolvedExecutable).parent.parent.path}/Resources/sing-box';
-      if (File(local).existsSync()) return local;
-      return 'sing-box';
+      final macPath = '${File(Platform.resolvedExecutable).parent.parent.path}/Resources/$binaryName';
+      if (File(macPath).existsSync()) return macPath;
     }
-    return 'sing-box';
+
+    // 4. Fallback на системный PATH
+    return binaryName;
   }
 
-  /// Принудительное завершение всех процессов sing-box в системе
-  static Future<void> killAllCoreProcesses() async {
-    LogService.log('Terminating any running sing-box processes...');
+  /// Поиск директории с geoip.dat и geosite.dat для Xray
+  static String? resolveAssetDirectory() {
+    final exeDir = File(Platform.resolvedExecutable).parent.path;
+    if (File('$exeDir${Platform.pathSeparator}geosite.dat').existsSync()) {
+      return exeDir;
+    }
+    const progFiles = 'C:\\Program Files\\MaterialVless';
+    if (File('$progFiles\\geosite.dat').existsSync()) {
+      return progFiles;
+    }
     if (Platform.isWindows) {
+      final appData = Platform.environment['APPDATA'] ?? Platform.environment['LOCALAPPDATA'];
+      if (appData != null && File('$appData\\MaterialVless\\geosite.dat').existsSync()) {
+        return '$appData\\MaterialVless';
+      }
+    }
+    if (File('geosite.dat').existsSync()) {
+      return Directory.current.path;
+    }
+    return null;
+  }
+
+  /// Принудительное завершение всех процессов ядер (xray и sing-box)
+  static Future<void> killAllCoreProcesses() async {
+    LogService.log('Terminating any running core processes (xray, sing-box)...');
+    if (Platform.isWindows) {
+      try {
+        await Process.run('taskkill', ['/F', '/IM', 'xray.exe', '/T']);
+      } catch (_) {}
       try {
         await Process.run('taskkill', ['/F', '/IM', 'sing-box.exe', '/T']);
       } catch (_) {}
     } else if (Platform.isLinux || Platform.isMacOS) {
+      try {
+        await Process.run('pkill', ['-9', 'xray']);
+      } catch (_) {}
       try {
         await Process.run('pkill', ['-9', 'sing-box']);
       } catch (_) {}
@@ -109,64 +148,67 @@ class XrayService {
     return null;
   }
 
-  /// Запуск настоящего TUN режима через ядро sing-box (создаёт адаптер material-tun)
+  /// Запуск VPN через Xray-core (полный переход на Xray v24.11.30)
   Future<void> start(VlessNode node, AppSettings settings) async {
     _updateState(CoreState.connecting);
 
-    LogService.log('--- STARTING VPN CONNECTION ---');
+    LogService.log('--- STARTING VPN CONNECTION VIA XRAY CORE ---');
+    LogService.log('Active Core: XRAY CORE (Fully transitioned in v2.16.1)');
     LogService.log('Target node: "${node.remark}" (${node.protocol.name.toUpperCase()})');
     LogService.log('Remote host: ${node.address}:${node.port}');
     LogService.log('Parameters: security=${node.security}, streamType=${node.streamType}, flow=${node.flow}, sni=${node.sni}');
 
-    // Завершаем любые зависшие или старые процессы ядра перед стартом
+    // Завершаем любые зависшие или старые процессы ядер перед стартом
     await killAllCoreProcesses();
     await Future.delayed(const Duration(milliseconds: 150));
 
     try {
-      final rulesDir = await ensureRulesDirectory();
-      LogService.log('Resolved rules directory: $rulesDir');
-      final configJson = ConfigGenerator.generate(node, settings, rulesDir: rulesDir);
       final tempDir = await getTemporaryDirectory();
-      final configFile = File('${tempDir.path}/material_vless_active.json');
-      
-      // Запись строго без UTF-8 BOM
+      final String configJson = ConfigGenerator.generateXrayConfig(node, settings);
+      final String binaryPath = resolveBinary();
+      final File configFile = File('${tempDir.path}/material_vless_xray.json');
       await configFile.writeAsBytes(utf8.encode(configJson));
-      LogService.log('Generated sing-box config saved to: ${configFile.path}');
+      final processArgs = ['run', '-c', configFile.path];
+
+      LogService.log('Generated Xray config saved to: ${configFile.path}');
       LogService.log('Active JSON configuration:\n$configJson');
+      LogService.log('Target Xray binary: $binaryPath (exists: ${File(binaryPath).existsSync()})');
 
-      final binaryPath = _resolveBinary();
-      LogService.log('Target sing-box binary: $binaryPath (exists: ${File(binaryPath).existsSync()})');
-
-      final workingDir = File(binaryPath).existsSync() ? File(binaryPath).parent.path : null;
+      final assetDir = resolveAssetDirectory() ?? (File(binaryPath).existsSync() ? File(binaryPath).parent.path : null);
+      LogService.log('Resolved Xray asset directory (geoip/geosite): $assetDir');
 
       final logFile = File('${tempDir.path}/material_vless_core.log');
       final logSink = logFile.openWrite(mode: FileMode.writeOnly);
 
-      LogService.log('Launching sing-box process with run -c ${configFile.path} ...');
+      final Map<String, String> env = {};
+      if (assetDir != null) {
+        env['xray.location.asset'] = assetDir;
+        env['XRAY_LOCATION_ASSET'] = assetDir;
+      }
+
+      LogService.log('Launching Xray process: $binaryPath ${processArgs.join(' ')}');
       _process = await Process.start(
         binaryPath,
-        ['run', '-c', configFile.path],
-        workingDirectory: workingDir,
-        environment: {
-          'ENABLE_DEPRECATED_OUTBOUND_DNS_RULE_ITEM': 'true',
-        },
+        processArgs,
+        workingDirectory: assetDir,
+        environment: env,
       );
       final pid = _process!.pid;
-      LogService.log('sing-box process started with PID: $pid');
+      LogService.log('Xray process started with PID: $pid');
 
       _process!.stdout.transform(utf8.decoder).listen((data) {
         logSink.add(utf8.encode(data));
-        LogService.logProcessOutput('sing-box:stdout', data);
+        LogService.logProcessOutput('xray:stdout', data);
       });
       _process!.stderr.transform(utf8.decoder).listen((data) {
         logSink.add(utf8.encode(data));
-        LogService.logProcessOutput('sing-box:stderr', data);
+        LogService.logProcessOutput('xray:stderr', data);
       });
 
       bool hasExited = false;
       _process!.exitCode.then((code) {
         hasExited = true;
-        LogService.log('sing-box (PID $pid) terminated with exit code: $code');
+        LogService.log('Xray (PID $pid) terminated with exit code: $code');
         try { logSink.close(); } catch (_) {}
         if (_state == CoreState.connected) {
           stop();
@@ -179,17 +221,17 @@ class XrayService {
         try {
           errMsg = await logFile.readAsString();
         } catch (_) {}
-        LogService.logError('sing-box startup failed. Output: $errMsg');
+        LogService.logError('Xray startup failed. Output: $errMsg');
         throw Exception('Core error: $errMsg');
       }
 
-      // Дополнительно настраиваем системный прокси для браузеров (порт 10808 mixed)
-      LogService.log('Configuring Windows system proxy (127.0.0.1:10808)...');
-      await _setWindowsProxy(true, 10808);
+      // Настройка системного прокси для браузеров и приложений (127.0.0.1:10809 / 10808)
+      LogService.log('Configuring Windows system proxy (HTTP: 10809, SOCKS5: 10808)...');
+      await _setWindowsProxy(true, httpPort: 10809, socksPort: 10808);
 
       _startSpeedMonitoring();
       _updateState(CoreState.connected);
-      LogService.log('--- VPN CONNECTED SUCCESSFULLY (State: CoreState.connected) ---');
+      LogService.log('--- VPN CONNECTED SUCCESSFULLY WITH XRAY CORE (State: CoreState.connected) ---');
     } catch (e, stack) {
       LogService.logError('Failed to establish VPN connection', e, stack);
       await stop(clearErrorState: false);
@@ -202,12 +244,12 @@ class XrayService {
     _updateState(CoreState.disconnecting);
     _trafficTimer?.cancel();
 
-    await _setWindowsProxy(false, 10808);
+    await _setWindowsProxy(false);
 
     _process?.kill();
     _process = null;
 
-    // Принудительно завершаем процессы sing-box на уровне системы при выключении ВПН
+    // Принудительно завершаем процессы ядра в системе
     await killAllCoreProcesses();
 
     _speedController.add((0, 0));
@@ -229,26 +271,30 @@ class XrayService {
   }
 
   /// Установка системного прокси с принудительным обновлением WinINet
-  Future<void> _setWindowsProxy(bool enable, int port) async {
+  Future<void> _setWindowsProxy(bool enable, {int httpPort = 10809, int socksPort = 10808}) async {
     if (!Platform.isWindows) return;
     try {
       final script = enable
           ? '''
-Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings' -Name ProxyEnable -Value 1 -Type DWord;
-Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings' -Name ProxyServer -Value '127.0.0.1:$port' -Type String;
-Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings' -Name ProxyOverride -Value 'localhost;127.*;10.*;172.16.*;192.168.*;<local>' -Type String;
-\$w = Add-Type -PassThru -TypeDefinition 'using System; using System.Runtime.InteropServices; public class WinInetRefresh { [DllImport("wininet.dll")] public static extern bool InternetSetOption(IntPtr h, int o, IntPtr b, int l); }';
-[WinInetRefresh]::InternetSetOption([IntPtr]::Zero, 39, [IntPtr]::Zero, 0);
-[WinInetRefresh]::InternetSetOption([IntPtr]::Zero, 37, [IntPtr]::Zero, 0);
+Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings' -Name ProxyEnable -Value 1 -Type DWord
+Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings' -Name ProxyServer -Value 'http=127.0.0.1:$httpPort;https=127.0.0.1:$httpPort;socks=127.0.0.1:$socksPort' -Type String
+Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings' -Name ProxyOverride -Value 'localhost;127.*;10.*;172.16.*;192.168.*;<local>' -Type String
+Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class WinInetRefresh { [DllImport("wininet.dll")] public static extern bool InternetSetOption(IntPtr h, int o, IntPtr b, int l); }' -ErrorAction SilentlyContinue
+[WinInetRefresh]::InternetSetOption([IntPtr]::Zero, 39, [IntPtr]::Zero, 0)
+[WinInetRefresh]::InternetSetOption([IntPtr]::Zero, 37, [IntPtr]::Zero, 0)
 '''
           : '''
-Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings' -Name ProxyEnable -Value 0 -Type DWord;
-\$w = Add-Type -PassThru -TypeDefinition 'using System; using System.Runtime.InteropServices; public class WinInetRefresh { [DllImport("wininet.dll")] public static extern bool InternetSetOption(IntPtr h, int o, IntPtr b, int l); }';
-[WinInetRefresh]::InternetSetOption([IntPtr]::Zero, 39, [IntPtr]::Zero, 0);
-[WinInetRefresh]::InternetSetOption([IntPtr]::Zero, 37, [IntPtr]::Zero, 0);
+Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings' -Name ProxyEnable -Value 0 -Type DWord
+Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class WinInetRefresh { [DllImport("wininet.dll")] public static extern bool InternetSetOption(IntPtr h, int o, IntPtr b, int l); }' -ErrorAction SilentlyContinue
+[WinInetRefresh]::InternetSetOption([IntPtr]::Zero, 39, [IntPtr]::Zero, 0)
+[WinInetRefresh]::InternetSetOption([IntPtr]::Zero, 37, [IntPtr]::Zero, 0)
 ''';
 
-      await Process.run('powershell', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', script]);
-    } catch (_) {}
+      final bytes = Uint8List.fromList(script.codeUnits.expand((c) => [c & 0xff, (c >> 8) & 0xff]).toList());
+      final encoded = base64.encode(bytes);
+      await Process.run('powershell', ['-NoProfile', '-WindowStyle', 'Hidden', '-EncodedCommand', encoded]);
+    } catch (e) {
+      LogService.log('Error setting Windows proxy: $e');
+    }
   }
 }

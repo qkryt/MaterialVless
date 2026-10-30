@@ -146,68 +146,47 @@ jobs:
 
 
 
-      - name: Package Windows x64 and x86 with sing-box and Wintun
-
+      - name: Package Windows x64 and x86 with both Xray and sing-box cores
         shell: pwsh
-
         run: |
-
           $ReleaseDir = "build/windows/x64/runner/Release"
 
-          
-
           # Download sing-box (x64)
-
           $Sb64Url = "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-windows-amd64.zip"
-
           Invoke-WebRequest -Uri $Sb64Url -OutFile "sb64.zip"
-
           Expand-Archive -Path "sb64.zip" -DestinationPath "sb_64"
 
-
-
           # Download sing-box (x86)
-
           $Sb32Url = "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-windows-386.zip"
-
           Invoke-WebRequest -Uri $Sb32Url -OutFile "sb32.zip"
-
           Expand-Archive -Path "sb32.zip" -DestinationPath "sb_32"
 
+          # Download Xray-core (x64)
+          $Xray64Url = "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-windows-64.zip"
+          Invoke-WebRequest -Uri $Xray64Url -OutFile "xray64.zip"
+          Expand-Archive -Path "xray64.zip" -DestinationPath "xray_64"
 
+          # Download Xray-core (x86)
+          $Xray32Url = "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-windows-32.zip"
+          Invoke-WebRequest -Uri $Xray32Url -OutFile "xray32.zip"
+          Expand-Archive -Path "xray32.zip" -DestinationPath "xray_32"
 
           # Download Wintun driver
-
           $WintunUrl = "https://www.wintun.net/builds/wintun-${{ env.WINTUN_VERSION }}.zip"
-
           Invoke-WebRequest -Uri $WintunUrl -OutFile "wintun.zip"
-
           Expand-Archive -Path "wintun.zip" -DestinationPath "wintun_driver"
 
-
-
-          # Download GeoIP and GeoSite
-
-          $GeoipUrl = "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geoip.dat"
-
-          $GeositeUrl = "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geosite.dat"
-
-          Invoke-WebRequest -Uri $GeoipUrl -OutFile "$ReleaseDir/geoip.dat"
-
-          Invoke-WebRequest -Uri $GeositeUrl -OutFile "$ReleaseDir/geosite.dat"
-
-
+          # GeoIP and GeoSite from Xray
+          Copy-Item "xray_64/geoip.dat" -Destination "$ReleaseDir/geoip.dat" -Force
+          Copy-Item "xray_64/geosite.dat" -Destination "$ReleaseDir/geosite.dat" -Force
 
           # Form Windows x64 package
-
-          Copy-Item "sb_64/sing-box-${{ env.SING_BOX_VERSION }}-windows-amd64/sing-box.exe" -Destination "$ReleaseDir/sing-box.exe"
-
-          Copy-Item "wintun_driver/wintun/bin/amd64/wintun.dll" -Destination "$ReleaseDir/wintun.dll"
+          Copy-Item "xray_64/xray.exe" -Destination "$ReleaseDir/xray.exe" -Force
+          Copy-Item "sb_64/sing-box-${{ env.SING_BOX_VERSION }}-windows-amd64/sing-box.exe" -Destination "$ReleaseDir/sing-box.exe" -Force
+          Copy-Item "wintun_driver/wintun/bin/amd64/wintun.dll" -Destination "$ReleaseDir/wintun.dll" -Force
 
           if (Test-Path "assets/icons/app_icon.ico") {
-
             Copy-Item "assets/icons/app_icon.ico" -Destination "$ReleaseDir/app_icon.ico"
-
           }
 
           New-Item -ItemType Directory -Path "$ReleaseDir/customfonts" -Force
@@ -217,40 +196,23 @@ jobs:
             Copy-Item "assets/rules/*" -Destination "$ReleaseDir/rules" -Force
           }
 
-
-
           $manifest = '<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0"><trustInfo xmlns="urn:schemas-microsoft-com:asm.v3"><security><requestedPrivileges><requestedExecutionLevel level="requireAdministrator" uiAccess="false"/></requestedPrivileges></security></trustInfo></assembly>'
-
           [System.IO.File]::WriteAllText("$ReleaseDir/material_vless.exe.manifest", $manifest)
 
-
-
           # Embed manifest directly into exe with mt.exe if available
-
           $mt = (Get-Command mt.exe -ErrorAction SilentlyContinue).Source
-
           if ($mt) {
-
             & $mt -manifest "$ReleaseDir/material_vless.exe.manifest" "-outputresource:$ReleaseDir/material_vless.exe;1"
-
           }
-
-
 
           Compress-Archive -Path "$ReleaseDir/*" -DestinationPath "MaterialVless-Windows-x64.zip"
 
-
-
           # Form Windows x86 package
-
           mkdir -p "dist_x86"
-
           Copy-Item "$ReleaseDir/*" -Destination "dist_x86" -Recurse
-
+          Copy-Item "xray_32/xray.exe" -Destination "dist_x86/xray.exe" -Force
           Copy-Item "sb_32/sing-box-${{ env.SING_BOX_VERSION }}-windows-386/sing-box.exe" -Destination "dist_x86/sing-box.exe" -Force
-
           Copy-Item "wintun_driver/wintun/bin/x86/wintun.dll" -Destination "dist_x86/wintun.dll" -Force
-
           Compress-Archive -Path "dist_x86/*" -DestinationPath "MaterialVless-Windows-x86.zip"
 
 
@@ -362,45 +324,40 @@ jobs:
           
 
           # Download sing-box (x64)
-
           curl -L "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-linux-amd64.tar.gz" -o sb64.tar.gz
-
           tar -xvf sb64.tar.gz
-
           cp "sing-box-${{ env.SING_BOX_VERSION }}-linux-amd64/sing-box" "$DIST/sing-box"
-
           chmod +x "$DIST/sing-box"
 
-
-
-          curl -L "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geoip.dat" -o "$DIST/geoip.dat"
-
-          curl -L "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geosite.dat" -o "$DIST/geosite.dat"
+          # Download Xray-core (x64)
+          curl -L "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-linux-64.zip" -o xray64.zip
+          unzip -o xray64.zip -d xray64_temp
+          cp xray64_temp/xray "$DIST/xray"
+          cp xray64_temp/geoip.dat "$DIST/geoip.dat"
+          cp xray64_temp/geosite.dat "$DIST/geosite.dat"
+          chmod +x "$DIST/xray"
 
           mkdir -p "$DIST/rules"
           if [ -d "assets/rules" ]; then
             cp assets/rules/* "$DIST/rules/"
           fi
 
-
-
           tar -czvf MaterialVless-Linux-x64.tar.gz -C "$DIST" .
 
-
-
           # x86 package
-
           mkdir -p dist_linux_x86
-
           cp -r "$DIST/"* dist_linux_x86/
-
           curl -L "https://github.com/SagerNet/sing-box/releases/download/v${{ env.SING_BOX_VERSION }}/sing-box-${{ env.SING_BOX_VERSION }}-linux-386.tar.gz" -o sb32.tar.gz
-
           tar -xvf sb32.tar.gz
-
           cp "sing-box-${{ env.SING_BOX_VERSION }}-linux-386/sing-box" dist_linux_x86/sing-box
-
           chmod +x dist_linux_x86/sing-box
+
+          curl -L "https://github.com/XTLS/Xray-core/releases/download/${{ env.XRAY_VERSION }}/Xray-linux-32.zip" -o xray32.zip
+          unzip -o xray32.zip -d xray32_temp
+          cp xray32_temp/xray dist_linux_x86/xray
+          cp xray32_temp/geoip.dat dist_linux_x86/geoip.dat
+          cp xray32_temp/geosite.dat dist_linux_x86/geosite.dat
+          chmod +x dist_linux_x86/xray
 
           tar -czvf MaterialVless-Linux-x86.tar.gz -C dist_linux_x86 .
 
@@ -599,27 +556,31 @@ jobs:
 
           body: |
 
-            ### MaterialVless 2.15.3 (Релиз 2.15.3)
+            ### MaterialVless 2.16.1 (Релиз 2.16.1 - Полный переход на Xray Core)
 
-            Критический хотфикс MaterialVless 2.15.3: устранена фатальная ошибка запуска ядра sing-box `unknown field "spider_x"` при подключении к VLESS Reality серверам, автоматическая подстройка фона под любое разрешение окна и персистентное сохранение `background.(формат)`.
+            Крупное обновление MaterialVless 2.16.1: полный и окончательный переход на официальное ядро **Xray-core v24.11.30 (XTLS)**, устранение проблем совместимости Reality и spiderX, мгновенная смена обоев без блокировок файлов Windows, поддержка анимированных GIF и сохранение настроек затемнения.
 
-            #### Что нового в версии 2.15.3:
-            - **Исправлена фатальная ошибка запуска sing-box на VLESS Reality**:
-              - Устранена ошибка `FATAL decode config: outbounds[0].tls.reality.spider_x: json: unknown field "spider_x"`.
-              - В sing-box конфигурация блока `tls.reality` для исходящих соединений не поддерживает серверное поле `spider_x`. Невалидное поле полностью исключено из генератора конфигурации `ConfigGenerator`.
-              - Подключение ко всем VLESS Reality серверам теперь стартует моментально и безошибочно.
-            - **Автоматическая адаптация изображения под разрешение окна (из 2.15.2)**:
-              - Фоновая картинка динамически подстраивается под любое разрешение и пропорции окна (`BoxFit.fill` с `FilterQuality.high`).
-            - **Сохранение обоев в корневой папке `background.(формат)` (из 2.15.2)**:
-              - Фоновое изображение сохраняется в корневую папку программы как `background.<ext>`, обеспечивая независимость от исходного файла.
+            #### Что нового в версии 2.16.1:
+            - **Полный переход на официальное ядро Xray-core (XTLS)**:
+              - Клиент полностью переведен на ядро Xray-core v24.11.30 — эталонную реализацию XTLS, создателей протокола Reality.
+              - 100% совместимость со всеми конфигурациями VLESS Reality (включая `spiderX`, XTLS Vision `flow: xtls-rprx-vision`), gRPC, WebSocket, TCP, VMess, Trojan и Shadowsocks.
+              - Устранены ошибки парсинга конфигурации (`unknown field spider_x` и сбои uTLS).
+              - Встроенные гео-базы маршрутизации `geoip.dat` и `geosite.dat` (`category-ru`, `domain:ru`, `domain:su`, `domain:xn--p1ai`).
+            - **Мгновенная смена обоев и фонового изображения в реальном времени**:
+              - Больше не нужно перезаходить в настройки или вручную удалять старую картинку перед выбором новой.
+              - Устранена блокировка файлов Windows (OS Error 32) благодаря чтению байтов в память с динамической очисткой кэша.
+              - Добавлена полноценная поддержка анимированных `.gif` фонов (`gaplessPlayback: true`).
+              - Фоновое изображение сохраняется в корневую папку как `background.<ext>`.
+            - **Настройки затемнения фона**:
+              - Текст ползунка приведен к строгому виду: `Затемнение фона: {проценты}%` (без приписки `(чуть-чуть)`).
+              - Значение затемнения сохраняется персистентно на диск при каждом изменении.
+              - Устранено мерцание затемнения при открытии экрана настроек (`themeAnimationDuration: Duration.zero`).
             - **Полная прозрачность правой панели подключения**:
-              - Правая область кнопки включения полностью прозрачна (`Colors.transparent`), открывая выбранный фон по всему окну приложения.
-            - **Плавный скроллинг и горизонтальная навигация по подпискам**:
-              - Кинетическая интерполяция скролла колесиком мыши и прокрутка вкладок подписок сверху.
-            - **Маршрутизация и современное ядро sing-box 1.14+**:
-              - Бинарные гео-базы маршрутизации `rule_set` и настройка `domain_resolver` без устаревших параметров DNS.
-            - **Логирование**:
-              - Журналирование работы в корневом `log.txt`.
+              - Правая область кнопки включения полностью прозрачна (`Colors.transparent`), открывая выбранный фон по всему окну приложения без темных прямоугольников.
+            - **Плавный кинетический скроллинг**:
+              - Плавная интерполяция колесика мыши по спискам серверов и горизонтальная навигация по подпискам.
+            - **Журналирование**:
+              - Подробное логирование работы Xray и клиента в корневом `log.txt`.
             - **Управление процессами sing-box**:
               - Принудительное завершение всех процессов sing-box при выключении VPN и перед каждым новым запуском.
               - Аварийная кнопка в настройках для моментального сброса системных прокси и процессов.

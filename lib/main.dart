@@ -106,8 +106,7 @@ class _MaterialVlessAppState extends ConsumerState<MaterialVlessApp> {
         return MaterialApp(
           title: 'MaterialVless',
           debugShowCheckedModeBanner: false,
-          themeAnimationDuration: const Duration(milliseconds: 350),
-          themeAnimationCurve: Curves.easeInOutCubic,
+          themeAnimationDuration: Duration.zero,
           theme: AppTheme.light(
             lightScheme,
             fontFamily: fontFamily,
@@ -124,21 +123,32 @@ class _MaterialVlessAppState extends ConsumerState<MaterialVlessApp> {
           themeMode: mode,
           scrollBehavior: const SmoothScrollBehavior(),
           builder: (context, child) {
-            final activeBgPath = (bgPath != null && File(bgPath).existsSync())
-                ? bgPath
-                : BackgroundService.findExistingBackgroundInRoot();
+            final activeBgPath = vpn.settings.activeBackgroundImagePath;
             if (!hasBackgroundImage || activeBgPath == null) {
               return child ?? const SizedBox();
             }
+
+            Uint8List? bgBytes;
+            try {
+              bgBytes = File(activeBgPath).readAsBytesSync();
+            } catch (_) {}
+
+            if (bgBytes == null || bgBytes.isEmpty) {
+              return child ?? const SizedBox();
+            }
+
             return Stack(
               children: [
                 Positioned.fill(
-                  child: Image.file(
-                    File(activeBgPath),
+                  child: Image.memory(
+                    bgBytes,
+                    key: ValueKey('$activeBgPath-${bgBytes.length}-${File(activeBgPath).lastModifiedSync().millisecondsSinceEpoch}'),
                     fit: BoxFit.fill,
                     width: double.infinity,
                     height: double.infinity,
                     filterQuality: FilterQuality.high,
+                    gaplessPlayback: true,
+                    errorBuilder: (_, __, ___) => const SizedBox(),
                   ),
                 ),
                 Positioned.fill(

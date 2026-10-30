@@ -641,11 +641,35 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
   }
 
-  /// Аварийное завершение всех процессов ядра sing-box и сброс состояния
+  /// Аварийное завершение всех процессов ядра и сброс состояния
   Future<void> emergencyKillAllProcesses() async {
     await _xrayService.stop();
     await XrayService.killAllCoreProcesses();
     state = state.copyWith(status: CoreState.disconnected);
+  }
+
+  /// Переключение между ядрами Xray и Sing-box с автоматическим перезапуском активного подключения
+  Future<void> switchCore(String newCore) async {
+    if (state.settings.selectedCore == newCore) return;
+
+    final wasConnected = state.status == CoreState.connected;
+    final currentNode = state.selectedNode;
+
+    LogService.log('Switching core from ${state.settings.selectedCore} to $newCore (wasConnected: $wasConnected)');
+
+    if (wasConnected) {
+      await _xrayService.stop();
+    } else {
+      await XrayService.killAllCoreProcesses();
+    }
+
+    final newSettings = state.settings.copyWith(selectedCore: newCore);
+    updateSettings(newSettings);
+
+    if (wasConnected && currentNode != null) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      await _xrayService.start(currentNode, newSettings);
+    }
   }
 
   /// Установка кастомного фонового изображения (любой формат, 800x600)

@@ -51,7 +51,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   final List<String> _popularUserAgents = const [
 
-    'MaterialVless/2.15.3',
+    'MaterialVless/2.16.1',
 
     'v2rayN/6.42',
 
@@ -210,6 +210,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (path != null && mounted) {
       final success = await ref.read(vpnProvider.notifier).setBackgroundImage(path);
       if (mounted) {
+        setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(success ? 'Фоновое изображение успешно установлено!' : 'Не удалось установить изображение'),
@@ -222,6 +223,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _removeBackgroundImage() async {
     await ref.read(vpnProvider.notifier).removeBackgroundImage();
     if (mounted) {
+      setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Фоновое изображение сброшено на стандартный цвет темы')),
       );
@@ -872,27 +874,86 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
 
 
+    final cardColor = settings.hasBackgroundImage
+        ? colorScheme.surfaceContainer.withOpacity(0.85)
+        : colorScheme.surfaceContainer;
+
     return Scaffold(
-
+      backgroundColor: settings.hasBackgroundImage ? Colors.transparent : null,
       appBar: AppBar(
-
+        backgroundColor: settings.hasBackgroundImage ? Colors.transparent : null,
         title: Text(t('settings_title')),
-
       ),
-
       body: ListView(
         controller: _settingsScrollController,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-
         children: [
+          // ==================== ЯДРО VPN ====================
+          _buildSectionHeader('Ядро VPN (Core Engine)'),
+          Card(
+            color: cardColor,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.bolt_rounded,
+                      color: colorScheme.onPrimaryContainer,
+                      size: 26,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Xray Core v24.11.30 (XTLS)',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Полная поддержка VLESS Reality, Vision, gRPC, WebSocket, TCP, VMess, Trojan, Shadowsocks.',
+                          style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.green.withOpacity(0.3)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.check_circle_rounded, size: 14, color: Colors.green),
+                        SizedBox(width: 4),
+                        Text(
+                          'Активно',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
 
           // ==================== СЕТЬ И МАРШРУТИЗАЦИЯ ====================
-
           _buildSectionHeader(t('section_network')),
-
           Card(
-
-            color: colorScheme.surfaceContainer,
+            color: cardColor,
 
             child: Column(
 
@@ -1106,7 +1167,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           Card(
 
-            color: colorScheme.surfaceContainer,
+            color: cardColor,
 
             child: Column(
 
@@ -1491,7 +1552,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             const Icon(Icons.brightness_medium_outlined, size: 18),
                             const SizedBox(width: 8),
                             Text(
-                              'Затемнение фона: ${(settings.backgroundDimming * 100).toInt()}% (чуть-чуть)',
+                              'Затемнение фона: ${(settings.backgroundDimming * 100).toInt()}%',
                               style: TextStyle(
                                 fontSize: 13,
                                 color: colorScheme.onSurfaceVariant,
@@ -1506,6 +1567,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           divisions: 16,
                           label: '${(settings.backgroundDimming * 100).toInt()}%',
                           onChanged: (val) {
+                            ref.read(vpnProvider.notifier).updateSettings(
+                                  settings.copyWith(backgroundDimming: val),
+                                );
+                          },
+                          onChangeEnd: (val) {
                             ref.read(vpnProvider.notifier).updateSettings(
                                   settings.copyWith(backgroundDimming: val),
                                 );
@@ -1531,7 +1597,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           Card(
 
-            color: colorScheme.surfaceContainer,
+            color: cardColor,
 
             child: Column(
 
@@ -1627,7 +1693,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           Card(
 
-            color: colorScheme.surfaceContainer,
+            color: cardColor,
 
             child: Column(
 
@@ -1809,7 +1875,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           Card(
 
-            color: colorScheme.surfaceContainer,
+            color: cardColor,
 
             child: Column(
 
@@ -1995,7 +2061,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           Card(
 
-            color: colorScheme.surfaceContainer,
+            color: cardColor,
 
             child: Column(
 
@@ -2009,7 +2075,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                   title: Text(t('client_version')),
 
-                  subtitle: const Text('MaterialVless 2.15.3 • Релиз 2.15.3 (v2.15.3)'),
+                  subtitle: const Text('MaterialVless 2.16.1 • Релиз 2.16.1 (v2.16.1)'),
 
                   trailing: _isCheckingUpdate
 
@@ -2049,7 +2115,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                                 const SnackBar(
 
-                                  content: Text('У вас установлена самая актуальная версия (v2.15.3)'),
+                                  content: Text('У вас установлена самая актуальная версия (v2.16.1)'),
 
                                 ),
 
@@ -2151,7 +2217,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           Card(
 
-            color: colorScheme.surfaceContainer,
+            color: cardColor,
 
             child: Padding(
 
@@ -2213,7 +2279,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                             Text(
 
-                              'Версия 2.15.3 • Релиз 2.15.3 (Выпуск 2026)',
+                              'Версия 2.16.1 • Релиз 2.16.1 (Выпуск 2026)',
 
                               style: TextStyle(
 
@@ -2239,9 +2305,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                   const Text(
 
-                    'Современный быстрый клиент для туннелирования трафика на базе Sing-box и драйвера Wintun. '
+                    'Современный быстрый клиент для туннелирования трафика на базе Xray-core и Sing-box с поддержкой драйвера Wintun. '
 
-                    'Поддерживает протоколы VLESS, Trojan, Shadowsocks, Hysteria2 и передовые протокольные схемы deep-linking.',
+                    'Поддерживает протоколы VLESS (Reality, Vision), Trojan, Shadowsocks, VMess, Hysteria2 и протокольные схемы deep-linking.',
 
                     style: TextStyle(fontSize: 13, height: 1.4),
 
@@ -2257,7 +2323,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                     children: [
 
-                      _buildInfoBadge('Sing-box v1.14.4', Icons.bolt_rounded, colorScheme),
+                      _buildInfoBadge('Xray v24.11.30', Icons.bolt_rounded, colorScheme),
+
+                      _buildInfoBadge('Sing-box v1.14.4', Icons.tune_rounded, colorScheme),
 
                       _buildInfoBadge('Wintun v0.14.1', Icons.shield_outlined, colorScheme),
 
@@ -2334,7 +2402,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     // ==================== АВАРИЙНОЕ ЗАВЕРШЕНИЕ ====================
           _buildSectionHeader('Аварийное завершение ядра'),
           Card(
-            color: colorScheme.surfaceContainer,
+            color: cardColor,
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               leading: Container(
@@ -2371,7 +2439,7 @@ _buildSectionHeader('Завершение работы'),
 
           Card(
 
-            color: colorScheme.surfaceContainer,
+            color: cardColor,
 
             child: Column(
 

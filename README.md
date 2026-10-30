@@ -1,4 +1,4 @@
-# MaterialVless 2.15.3 (Релиз 2.15.3)
+# MaterialVless 2.16.1 (Релиз 2.16.1 - Полный переход на Xray Core)
 
 <p align="center">
   <b><a href="README.md">Русский</a> | <a href="README_EN.md">English</a></b>

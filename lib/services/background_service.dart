@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/painting.dart';
 import 'log_service.dart';
 
 class BackgroundService {
@@ -77,8 +78,8 @@ class BackgroundService {
           '-Command',
           r'''Add-Type -AssemblyName System.Windows.Forms
 $dlg = New-Object System.Windows.Forms.OpenFileDialog
-$dlg.Filter = "Изображения (*.png;*.jpg;*.jpeg;*.webp;*.bmp;*.gif)|*.png;*.jpg;*.jpeg;*.webp;*.bmp;*.gif|Все файлы (*.*)|*.*"
-$dlg.Title = "Выберите фоновое изображение (любой формат, автоподстройка под разрешение)"
+$dlg.Filter = "Изображения и GIF (*.png;*.jpg;*.jpeg;*.webp;*.bmp;*.gif)|*.png;*.jpg;*.jpeg;*.webp;*.bmp;*.gif|Все файлы (*.*)|*.*"
+$dlg.Title = "Выберите фоновое изображение или GIF (автоподстройка под разрешение)"
 if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
   [Console]::Out.Write($dlg.FileName)
 }'''
@@ -95,9 +96,19 @@ if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
   }
 
   /// Сохранение копии фонового изображения в корневую папку как background.(формат)
-  /// чтобы при удалении исходного файла картинка продолжала гарантированно работать
+  /// чтобы при удалении исходного файла картинка продолжала гарантированно работать в реальном времени
   static Future<String?> saveBackgroundImage(File sourceFile) async {
     try {
+      // 1. Очищаем кэш изображений Flutter, чтобы мгновенно освободить дескрипторы и память
+      try {
+        PaintingBinding.instance.imageCache.clear();
+        PaintingBinding.instance.imageCache.clearLiveImages();
+      } catch (_) {}
+
+      // 2. Читаем байты исходного файла (включая анимированные GIF)
+      final bytes = await sourceFile.readAsBytes();
+      if (bytes.isEmpty) return null;
+
       final rootDir = getRootDirectory();
       var ext = sourceFile.path.split('.').last.toLowerCase();
       if (!supportedExtensions.contains(ext)) {
@@ -106,7 +117,7 @@ if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
 
       final destFile = File('${rootDir.path}${Platform.pathSeparator}background.$ext');
 
-      // Очистка старых background.* файлов других форматов
+      // 3. Удаляем старые файлы background.* других расширений
       for (final oldExt in supportedExtensions) {
         final oldFile = File('${rootDir.path}${Platform.pathSeparator}background.$oldExt');
         if (oldFile.existsSync()) {
@@ -116,17 +127,28 @@ if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         }
       }
 
-      // Копируем исходный файл в корень, если они не совпадают
-      if (sourceFile.absolute.path != destFile.absolute.path) {
-        await sourceFile.copy(destFile.path);
+      // 4. Записываем байты в корень программы
+      await destFile.writeAsBytes(bytes, flush: true);
+      LogService.log('Background image successfully saved to root: ${destFile.path} (${bytes.length} bytes)');
+
+      // Дублируем в AppData для максимальной надежности
+      if (Platform.isWindows) {
+        try {
+          final appData = Platform.environment['APPDATA'] ?? Platform.environment['LOCALAPPDATA'];
+          if (appData != null) {
+            final fallbackDir = Directory('$appData${Platform.pathSeparator}MaterialVless');
+            if (!fallbackDir.existsSync()) fallbackDir.createSync(recursive: true);
+            final fallbackFile = File('${fallbackDir.path}${Platform.pathSeparator}background.$ext');
+            await fallbackFile.writeAsBytes(bytes, flush: true);
+          }
+        } catch (_) {}
       }
 
-      LogService.log('Background image saved to root directory: ${destFile.path}');
       return destFile.path;
     } catch (e) {
       LogService.log('saveBackgroundImage error: $e');
 
-      // Fallback на AppData если корень защищен
+      // Fallback на AppData если запись в корень заблокирована
       if (Platform.isWindows) {
         try {
           final appData = Platform.environment['APPDATA'] ?? Platform.environment['LOCALAPPDATA'];
@@ -136,7 +158,8 @@ if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
             var ext = sourceFile.path.split('.').last.toLowerCase();
             if (!supportedExtensions.contains(ext)) ext = 'jpg';
             final destFile = File('${fallbackDir.path}${Platform.pathSeparator}background.$ext');
-            await sourceFile.copy(destFile.path);
+            final bytes = await sourceFile.readAsBytes();
+            await destFile.writeAsBytes(bytes, flush: true);
             LogService.log('Background image saved to fallback directory: ${destFile.path}');
             return destFile.path;
           }
@@ -147,8 +170,13 @@ if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
     }
   }
 
-  /// Удаление сохраненного фонового изображения
+  /// Удаление сохраненного фонового изображения и сброс кэша
   static Future<void> deleteBackgroundImage(String path) async {
+    try {
+      PaintingBinding.instance.imageCache.clear();
+      PaintingBinding.instance.imageCache.clearLiveImages();
+    } catch (_) {}
+
     try {
       final file = File(path);
       if (file.existsSync()) {

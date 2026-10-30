@@ -135,7 +135,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
             content: Text(
 
-              'У вас установлена самая актуальная версия (v2.14.0)',
+              'У вас установлена самая актуальная версия (v2.16.1)',
 
             ),
 
@@ -333,7 +333,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 20, vertical: isCompact ? 16 : 28),
-      color: vpn.settings.hasBackgroundImage ? Colors.transparent : colorScheme.surface,
+      color: Colors.transparent,
       child: Column(
 
         mainAxisSize: isCompact ? MainAxisSize.min : MainAxisSize.max,
@@ -370,7 +370,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
                     const SizedBox(width: 6),
 
-                    Text('Защита (TUN + Прокси)', style: theme.textTheme.labelMedium),
+                    Text(
+                      'Защита (Xray Core)',
+                      style: theme.textTheme.labelMedium,
+                    ),
 
                   ],
 

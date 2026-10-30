@@ -4,7 +4,294 @@ import '../models/vless_node.dart';
 import '../models/app_settings.dart';
 
 class ConfigGenerator {
-  /// Формирование наборов правил sing-box rule_set для маршрутизации
+  /// Универсальный генератор конфигурации (полный переход на Xray-core)
+  static String generate(VlessNode node, AppSettings settings, {String? rulesDir}) {
+    return generateXrayConfig(node, settings);
+  }
+
+  // ===========================================================================
+  // 1. XRAY-CORE CONFIG GENERATOR (VLESS Reality / gRPC / XTLS Vision / VMess / Trojan)
+  // ===========================================================================
+
+  static String generateXrayConfig(VlessNode node, AppSettings settings) {
+    final Map<String, dynamic> outbound = _buildXrayOutbound(node);
+
+    final List<Map<String, dynamic>> routingRules = [
+      // Прямой доступ к локальным частным сетям
+      {
+        "type": "field",
+        "ip": ["geoip:private"],
+        "outboundTag": "direct"
+      },
+    ];
+
+    // Маршрутизация в обход РФ ресурсов
+    if (settings.routingPreset == 'russia') {
+      routingRules.add({
+        "type": "field",
+        "ip": ["geoip:ru"],
+        "outboundTag": "direct"
+      });
+      routingRules.add({
+        "type": "field",
+        "domain": [
+          "geosite:category-ru",
+          "domain:ru",
+          "domain:su",
+          "domain:xn--p1ai"
+        ],
+        "outboundTag": "direct"
+      });
+    }
+
+    if (settings.bypassLanEnabled) {
+      routingRules.add({
+        "type": "field",
+        "ip": ["geoip:private"],
+        "outboundTag": "direct"
+      });
+    }
+
+    if (settings.customRoutingRules.isNotEmpty) {
+      routingRules.add({
+        "type": "field",
+        "domain": settings.customRoutingRules.map((e) => "domain:$e").toList(),
+        "outboundTag": "direct"
+      });
+    }
+
+    // Весь остальной трафик системы — через туннель прокси
+    routingRules.add({
+      "type": "field",
+      "network": "tcp,udp",
+      "outboundTag": "proxy"
+    });
+
+    final String queryStrategy;
+    switch (settings.ipStrategy) {
+      case 'ipv4':
+        queryStrategy = "UseIPv4";
+        break;
+      case 'ipv6':
+        queryStrategy = "UseIPv6";
+        break;
+      default:
+        queryStrategy = "UseIP";
+        break;
+    }
+
+    final Map<String, dynamic> config = {
+      "log": {
+        "loglevel": "warning"
+      },
+      "inbounds": [
+        {
+          "tag": "socks-in",
+          "port": 10808,
+          "listen": "127.0.0.1",
+          "protocol": "socks",
+          "settings": {
+            "udp": true,
+            "auth": "noauth"
+          },
+          "sniffing": {
+            "enabled": true,
+            "destOverride": ["http", "tls", "quic"],
+            "routeOnly": false
+          }
+        },
+        {
+          "tag": "http-in",
+          "port": 10809,
+          "listen": "127.0.0.1",
+          "protocol": "http",
+          "sniffing": {
+            "enabled": true,
+            "destOverride": ["http", "tls", "quic"],
+            "routeOnly": false
+          }
+        }
+      ],
+      "outbounds": [
+        outbound,
+        {
+          "tag": "direct",
+          "protocol": "freedom",
+          "settings": {
+            "domainStrategy": "UseIP"
+          }
+        },
+        {
+          "tag": "block",
+          "protocol": "blackhole",
+          "settings": {
+            "response": {"type": "http"}
+          }
+        }
+      ],
+      "dns": {
+        "servers": [
+          if (settings.secureDnsEnabled) ...[
+            "1.1.1.1",
+            "8.8.8.8"
+          ],
+          "77.88.8.8",
+          "localhost"
+        ],
+        "queryStrategy": queryStrategy
+      },
+      "routing": {
+        "domainStrategy": "IPIfNonMatch",
+        "rules": routingRules
+      }
+    };
+
+    return const JsonEncoder.withIndent('  ').convert(config);
+  }
+
+  static Map<String, dynamic> _buildXrayOutbound(VlessNode node) {
+    if (node.protocol == ProxyProtocol.vmess) {
+      return {
+        "tag": "proxy",
+        "protocol": "vmess",
+        "settings": {
+          "vnext": [
+            {
+              "address": node.address,
+              "port": node.port,
+              "users": [
+                {
+                  "id": node.uuid,
+                  "alterId": 0,
+                  "security": node.encryption.isNotEmpty ? node.encryption : "auto"
+                }
+              ]
+            }
+          ]
+        },
+        "streamSettings": {
+          "network": node.streamType.isNotEmpty ? node.streamType : "tcp",
+          "security": node.security,
+          if (node.security == 'tls')
+            "tlsSettings": {
+              "serverName": node.sni.isNotEmpty ? node.sni : node.address,
+              "allowInsecure": false
+            }
+        }
+      };
+    } else if (node.protocol == ProxyProtocol.trojan) {
+      return {
+        "tag": "proxy",
+        "protocol": "trojan",
+        "settings": {
+          "servers": [
+            {
+              "address": node.address,
+              "port": node.port,
+              "password": node.uuid
+            }
+          ]
+        },
+        "streamSettings": {
+          "network": node.streamType.isNotEmpty ? node.streamType : "tcp",
+          "security": "tls",
+          "tlsSettings": {
+            "serverName": node.sni.isNotEmpty ? node.sni : node.address
+          }
+        }
+      };
+    } else if (node.protocol == ProxyProtocol.shadowsocks) {
+      return {
+        "tag": "proxy",
+        "protocol": "shadowsocks",
+        "settings": {
+          "servers": [
+            {
+              "address": node.address,
+              "port": node.port,
+              "method": node.encryption.isNotEmpty ? node.encryption : "chacha20-ietf-poly1305",
+              "password": node.uuid
+            }
+          ]
+        }
+      };
+    }
+
+    // Default VLESS (Reality, XTLS, gRPC, WS, xhttp, splithttp)
+    final streamSettings = <String, dynamic>{
+      "network": (node.streamType == 'xhttp' || node.streamType == 'splithttp')
+          ? 'splithttp'
+          : (node.streamType.isNotEmpty ? node.streamType : 'tcp'),
+      "security": node.security.isNotEmpty ? node.security : "none",
+    };
+
+    if (node.security == 'reality') {
+      streamSettings["realitySettings"] = {
+        "show": false,
+        "fingerprint": node.fingerprint.isNotEmpty ? node.fingerprint : "chrome",
+        "serverName": node.sni.isNotEmpty ? node.sni : node.address,
+        "publicKey": node.publicKey,
+        "shortId": node.shortId,
+        "spiderX": node.spiderX.isNotEmpty ? node.spiderX : "/"
+      };
+    } else if (node.security == 'tls') {
+      streamSettings["tlsSettings"] = {
+        "serverName": node.sni.isNotEmpty ? node.sni : node.address,
+        if (node.alpn.isNotEmpty)
+          "alpn": node.alpn.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList(),
+        if (node.fingerprint.isNotEmpty) "fingerprint": node.fingerprint,
+        "allowInsecure": false
+      };
+    }
+
+    if (node.streamType == 'grpc') {
+      streamSettings["grpcSettings"] = {
+        "serviceName": node.serviceName.isNotEmpty ? node.serviceName : "grpc",
+        "multiMode": true
+      };
+    } else if (node.streamType == 'ws') {
+      streamSettings["wsSettings"] = {
+        "path": node.path.isNotEmpty ? node.path : "/",
+        "headers": {
+          "Host": node.host.isNotEmpty ? node.host : (node.sni.isNotEmpty ? node.sni : node.address)
+        }
+      };
+    } else if (node.streamType == 'xhttp' || node.streamType == 'splithttp') {
+      streamSettings["splithttpSettings"] = {
+        "path": node.path.isNotEmpty ? node.path : "/",
+        "host": node.host.isNotEmpty ? node.host : (node.sni.isNotEmpty ? node.sni : node.address)
+      };
+    }
+
+    return {
+      "tag": "proxy",
+      "protocol": "vless",
+      "settings": {
+        "vnext": [
+          {
+            "address": node.address,
+            "port": node.port,
+            "users": [
+              {
+                "id": node.uuid,
+                "encryption": node.encryption.isNotEmpty ? node.encryption : "none",
+                if (node.flow.isNotEmpty &&
+                    (node.streamType.isEmpty || node.streamType == "tcp") &&
+                    (node.security == "reality" || node.security == "tls"))
+                  "flow": node.flow
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings": streamSettings
+    };
+  }
+
+  // ===========================================================================
+  // 2. SING-BOX CONFIG GENERATOR (TUN Adapter material-tun / Wintun / Hysteria 2)
+  // ===========================================================================
+
   static (List<Map<String, dynamic>>, List<String>, List<String>) _buildRouteRuleSets(String? rulesDir) {
     final List<Map<String, dynamic>> ruleSets = [];
     final List<String> ruGeositeTags = [];
@@ -83,12 +370,11 @@ class ConfigGenerator {
     return (ruleSets, ruGeositeTags, ruGeoipTags);
   }
 
-  static String generate(VlessNode node, AppSettings settings, {String? rulesDir}) {
-    final Map<String, dynamic> outbound = _buildOutbound(node);
+  static String generateSingBoxConfig(VlessNode node, AppSettings settings, {String? rulesDir}) {
+    final Map<String, dynamic> outbound = _buildSingBoxOutbound(node);
     final (ruleSets, ruGeositeTags, ruGeoipTags) = _buildRouteRuleSets(rulesDir);
 
     final List<Map<String, dynamic>> routeRules = [
-      // Перехват входящих DNS запросов только от виртуального адаптера tun-in (избегает циклов)
       {
         "inbound": ["tun-in"],
         "port": 53,
@@ -99,12 +385,10 @@ class ConfigGenerator {
         "protocol": "dns",
         "action": "hijack-dns"
       },
-      // Прямой доступ к локальным DNS серверам
       {
         "ip_cidr": ["77.88.8.8/32", "77.88.8.1/32"],
         "outbound": "direct"
       },
-      // Прямой доступ к самому серверу прокси (предотвращает петлю маршрутизации в TUN)
       if (RegExp(r'^\d+\.\d+\.\d+\.\d+$').hasMatch(node.address))
         {
           "ip_cidr": ["${node.address}/32"],
@@ -116,12 +400,10 @@ class ConfigGenerator {
           "domain_suffix": [node.address],
           "outbound": "direct"
         },
-      // Прямой доступ к локальной петле
       {
         "ip_cidr": ["127.0.0.0/8", "::1/128"],
         "outbound": "direct"
       },
-      // Анализ протокола (TLS SNI, HTTP Host) для точного сопоставления правил
       {
         "action": "sniff"
       },
@@ -155,7 +437,6 @@ class ConfigGenerator {
       });
     }
 
-    // ФИНАЛЬНОЕ ПРАВИЛО: ВЕСЬ трафик системы без ограничений направляется в туннель прокси
     routeRules.add({
       "outbound": "proxy"
     });
@@ -184,14 +465,12 @@ class ConfigGenerator {
     });
 
     final dnsRules = <Map<String, dynamic>>[
-      // Предотвращение круговой зависимости: адрес самого прокси-сервера всегда резолвится локально
       if (!RegExp(r'^\d+\.\d+\.\d+\.\d+$').hasMatch(node.address))
         {
           "domain": [node.address],
           "domain_suffix": [node.address],
           "server": "local-dns"
         },
-      // При обходе РФ ресурсов запросы к российским доменам из геобазы резолвятся локально
       if (settings.routingPreset == 'russia' && ruGeositeTags.isNotEmpty)
         {
           "rule_set": ruGeositeTags,
@@ -211,7 +490,6 @@ class ConfigGenerator {
       case 'ipv6':
         dnsStrategy = "prefer_ipv6";
         break;
-      case 'dual':
       default:
         dnsStrategy = "prefer_ipv4";
         break;
@@ -271,8 +549,7 @@ class ConfigGenerator {
     return const JsonEncoder.withIndent('  ').convert(config);
   }
 
-  static Map<String, dynamic> _buildOutbound(VlessNode node) {
-    // 1. Hysteria 2
+  static Map<String, dynamic> _buildSingBoxOutbound(VlessNode node) {
     if (node.protocol == ProxyProtocol.hysteria || node.protocol == ProxyProtocol.hysteria2) {
       return {
         "type": "hysteria2",
@@ -289,20 +566,18 @@ class ConfigGenerator {
       };
     }
 
-    // 2. Shadowsocks
     if (node.protocol == ProxyProtocol.shadowsocks) {
       return {
         "type": "shadowsocks",
         "tag": "proxy",
         "server": node.address,
         "server_port": node.port,
-        "method": node.encryption.isNotEmpty ? node.encryption : "aes-128-gcm",
+        "method": node.encryption.isNotEmpty ? node.encryption : "chacha20-ietf-poly1305",
         "password": node.uuid,
         "domain_resolver": "local-dns"
       };
     }
 
-    // 3. Trojan
     if (node.protocol == ProxyProtocol.trojan) {
       final Map<String, dynamic> trojan = {
         "type": "trojan",
@@ -331,7 +606,6 @@ class ConfigGenerator {
       return trojan;
     }
 
-    // 4. VMess
     if (node.protocol == ProxyProtocol.vmess) {
       final Map<String, dynamic> vmess = {
         "type": "vmess",
@@ -363,7 +637,7 @@ class ConfigGenerator {
       return vmess;
     }
 
-    // 5. VLESS (Standard, Reality, Vision, gRPC, WebSocket)
+    // VLESS (Standard, Reality, Vision, gRPC, WebSocket)
     final Map<String, dynamic> vless = {
       "type": "vless",
       "tag": "proxy",
@@ -374,14 +648,12 @@ class ConfigGenerator {
       "domain_resolver": "local-dns"
     };
 
-    // flow (xtls-rprx-vision) применяется ТОЛЬКО для TCP с TLS или Reality. Запрещено на WS/gRPC.
     if (node.flow.isNotEmpty &&
         (node.streamType.isEmpty || node.streamType == "tcp") &&
         (node.security == "reality" || node.security == "tls")) {
       vless["flow"] = node.flow;
     }
 
-    // TLS / Reality
     if (node.security == "reality") {
       final realityMap = <String, dynamic>{
         "enabled": true,
@@ -417,7 +689,6 @@ class ConfigGenerator {
       vless["tls"] = tlsMap;
     }
 
-    // Transport (ws, grpc)
     if (node.streamType == "ws") {
       vless["transport"] = {
         "type": "ws",
