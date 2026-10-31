@@ -36,7 +36,7 @@ class SubscriptionService {
       final userAgents = [
         _buildUserAgent(preferredUa),
         'v2rayN/6.42',
-        'Xray/24.11.30',
+        'Xray/26.10.21',
         'ClashMeta/v1.18.0',
       ];
 

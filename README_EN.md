@@ -1,4 +1,4 @@
-# MaterialVless 2.16.1 (Release 2.16.1 - Full Transition to Xray Core)
+# MaterialVless 2.16.2 (Release 2.16.2 - Native Wintun TUN Mode in Xray Core)
 
 <p align="center">
   <b><a href="README_EN.md">English</a> | <a href="README.md">Русский</a></b>
@@ -9,13 +9,13 @@
 </p>
 
 <p align="center">
-  <b>Modern, high-performance desktop VPN client for VLESS / Reality / gRPC powered by the official Xray-core (XTLS) in Google's Material Design 3 (Material You).</b>
+  <b>Modern, high-performance desktop VPN client for VLESS / Reality / gRPC powered by the official Xray-core (XTLS) with Native Wintun TUN support in Google's Material Design 3 (Material You).</b>
 </p>
 
 <p align="center">
   <a href="https://github.com/qkryt/MaterialVless/releases/latest"><img src="https://img.shields.io/github/v/release/qkryt/MaterialVless?style=for-the-badge&color=6750A4" alt="Release" /></a>
   <img src="https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter" alt="Flutter" />
-  <img src="https://img.shields.io/badge/Xray--core-v24.11.30-6750A4?style=for-the-badge" alt="Xray-core" />
+  <img src="https://img.shields.io/badge/Xray--core-v26.10.21-6750A4?style=for-the-badge" alt="Xray-core" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
 </p>
 
@@ -65,7 +65,7 @@ MaterialVless 2.1 registers system-wide protocol handlers for `material://` and 
 
 ## 🚀 Key Features
 
-- **Xray Core v24.11.30 (XTLS)**: Official reference XTLS engine providing ultra-reliable VLESS Reality connections.
+- **Xray Core v26.10.21 (XTLS) with Native Wintun TUN**: Official reference XTLS engine providing ultra-reliable VLESS Reality connections and routing 100% of Windows traffic (Telegram, Git/GitHub, Discord, games).
 - **Wide Protocol Support**:
   - `vless://` (Reality, XTLS, Vision, gRPC, WebSocket)
   - `hysteria2://` / `hy2://` (High-speed UDP obfuscation)

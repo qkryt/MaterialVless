@@ -88,12 +88,12 @@ class XrayService {
     }
   }
 
-  /// Запуск VPN через Xray-core (полный переход на Xray v24.11.30)
+  /// Запуск VPN через Xray-core (полный переход на Xray v26.10.21 с нативным Wintun TUN)
   Future<void> start(VlessNode node, AppSettings settings) async {
     _updateState(CoreState.connecting);
 
-    LogService.log('--- STARTING VPN CONNECTION VIA XRAY CORE ---');
-    LogService.log('Active Core: XRAY CORE (Fully transitioned in v2.16.1)');
+    LogService.log('--- STARTING VPN CONNECTION VIA XRAY CORE (Wintun TUN Mode) ---');
+    LogService.log('Active Core: XRAY CORE (v26.10.21 XTLS with Native Wintun TUN)');
     LogService.log('Target node: "${node.remark}" (${node.protocol.name.toUpperCase()})');
     LogService.log('Remote host: ${node.address}:${node.port}');
     LogService.log('Parameters: security=${node.security}, streamType=${node.streamType}, flow=${node.flow}, sni=${node.sni}');

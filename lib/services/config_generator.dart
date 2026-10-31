@@ -17,7 +17,14 @@ class ConfigGenerator {
     final Map<String, dynamic> outbound = _buildXrayOutbound(node);
 
     final List<Map<String, dynamic>> routingRules = [
-      // Прямой доступ к локальным частным сетям
+      // Перенаправление системных DNS запросов (port 53) в собственный DNS резолвер Xray
+      {
+        "type": "field",
+        "inboundTag": ["tun-in"],
+        "port": 53,
+        "outboundTag": "dns-out"
+      },
+      // Прямой доступ к локальным частным сетям (LAN / Private)
       {
         "type": "field",
         "ip": ["geoip:private"],
@@ -85,6 +92,38 @@ class ConfigGenerator {
         "loglevel": "warning"
       },
       "inbounds": [
+        // Нативный TUN-адаптер Wintun для перехвата 100% сетевого трафика Windows (Telegram, Git/GitHub, Discord, игры)
+        {
+          "tag": "tun-in",
+          "protocol": "tun",
+          "settings": {
+            "name": Platform.isMacOS ? "utun10" : "material-tun",
+            "desc": "MaterialVless Wintun",
+            "mtu": 1500,
+            "gateway": [
+              Platform.isMacOS ? "169.254.10.1/30" : "172.19.0.1/30"
+            ],
+            "dns": [
+              if (settings.secureDnsEnabled) ...[
+                "1.1.1.1",
+                "8.8.8.8"
+              ] else ...[
+                "77.88.8.8",
+                "1.1.1.1"
+              ]
+            ],
+            "autoSystemRoutingTable": [
+              "0.0.0.0/0"
+            ],
+            "autoOutboundsInterface": "auto"
+          },
+          "sniffing": {
+            "enabled": true,
+            "destOverride": ["http", "tls", "quic"],
+            "routeOnly": false
+          }
+        },
+        // Локальные SOCKS5 и HTTP порты для совместимости и системного прокси
         {
           "tag": "socks-in",
           "port": 10808,
@@ -117,9 +156,15 @@ class ConfigGenerator {
         {
           "tag": "direct",
           "protocol": "freedom",
-          "settings": {
-            "domainStrategy": "UseIP"
+          "streamSettings": {
+            "sockopt": {
+              "domainStrategy": "UseIP"
+            }
           }
+        },
+        {
+          "tag": "dns-out",
+          "protocol": "dns"
         },
         {
           "tag": "block",
@@ -131,11 +176,24 @@ class ConfigGenerator {
       ],
       "dns": {
         "servers": [
+          if (settings.routingPreset == 'russia')
+            {
+              "address": "77.88.8.8",
+              "port": 53,
+              "domains": [
+                "geosite:category-ru",
+                "domain:ru",
+                "domain:su",
+                "domain:xn--p1ai"
+              ]
+            },
           if (settings.secureDnsEnabled) ...[
             "1.1.1.1",
             "8.8.8.8"
+          ] else ...[
+            "77.88.8.8",
+            "1.1.1.1"
           ],
-          "77.88.8.8",
           "localhost"
         ],
         "queryStrategy": queryStrategy

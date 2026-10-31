@@ -52,13 +52,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   final List<String> _popularUserAgents = const [
 
-    'MaterialVless/2.16.1',
+    'MaterialVless/2.16.2',
 
     'v2rayN/6.42',
 
     'v2rayN/6.23',
 
-    'Xray/24.11.30',
+    'Xray/26.10.21',
 
     'Xray/1.8.24',
 
@@ -919,12 +919,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Xray Core v24.11.30 (XTLS)',
+                          'Xray Core v26.10.21 (XTLS)',
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Полная поддержка VLESS Reality, Vision, gRPC, WebSocket, TCP, VMess, Trojan, Shadowsocks.',
+                          'Полная поддержка Wintun TUN (весь трафик системы), VLESS Reality, Vision, gRPC, WebSocket, TCP, VMess, Trojan, Shadowsocks.',
                           style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
                         ),
                       ],
@@ -2080,7 +2080,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                   title: Text(t('client_version')),
 
-                  subtitle: const Text('MaterialVless 2.16.1 • Релиз 2.16.1 (v2.16.1)'),
+                  subtitle: const Text('MaterialVless 2.16.2 • Релиз 2.16.2 (v2.16.2)'),
 
                   trailing: _isCheckingUpdate
 
@@ -2120,7 +2120,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                                 const SnackBar(
 
-                                  content: Text('У вас установлена самая актуальная версия (v2.16.1)'),
+                                  content: Text('У вас установлена самая актуальная версия (v2.16.2)'),
 
                                 ),
 
@@ -2284,7 +2284,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                             Text(
 
-                              'Версия 2.16.1 • Релиз 2.16.1 (Выпуск 2026)',
+                              'Версия 2.16.2 • Релиз 2.16.2 (Выпуск 2026)',
 
                               style: TextStyle(
 
@@ -2309,8 +2309,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   const SizedBox(height: 14),
 
                   const Text(
-                    'Современный быстрый клиент для туннелирования трафика на базе официального ядра Xray-core (XTLS). '
-                    'Поддерживает протоколы VLESS (Reality, Vision), Trojan, Shadowsocks, VMess и протокольные схемы deep-linking.',
+                    'Современный быстрый клиент для туннелирования трафика на базе официального ядра Xray-core (XTLS) с поддержкой нативного режима Wintun TUN. '
+                    'Маршрутизирует 100% сетевого трафика системы (включая Telegram, GitHub, Git CLI, Discord, игры) и поддерживает VLESS (Reality, Vision), Trojan, Shadowsocks, VMess.',
                     style: TextStyle(fontSize: 13, height: 1.4),
                   ),
                   const SizedBox(height: 14),
@@ -2318,8 +2318,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      _buildInfoBadge('Xray Core v24.11.30', Icons.bolt_rounded, colorScheme),
-                      _buildInfoBadge('XTLS / Reality', Icons.shield_rounded, colorScheme),
+                      _buildInfoBadge('Xray Core v26.10.21', Icons.bolt_rounded, colorScheme),
+                      _buildInfoBadge('Wintun TUN Driver', Icons.shield_rounded, colorScheme),
+                      _buildInfoBadge('XTLS / Reality', Icons.security_rounded, colorScheme),
                       _buildInfoBadge('Material Design 3', Icons.palette_outlined, colorScheme),
                       _buildInfoBadge('Windows x64 Native', Icons.laptop_windows_rounded, colorScheme),
                       _buildInfoBadge('Deep Link: material:// & happ://', Icons.link_rounded, colorScheme),

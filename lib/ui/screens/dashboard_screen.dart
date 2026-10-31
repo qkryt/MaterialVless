@@ -135,7 +135,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
             content: Text(
 
-              'У вас установлена самая актуальная версия (v2.16.1)',
+              'У вас установлена самая актуальная версия (v2.16.2)',
 
             ),
 
@@ -376,7 +376,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                     const SizedBox(width: 6),
 
                     Text(
-                      'Защита (Xray Core)',
+                      'Защита (Xray TUN + Прокси)',
                       style: theme.textTheme.labelMedium,
                     ),
 
