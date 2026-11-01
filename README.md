@@ -1,7 +1,7 @@
 # MaterialVless 2.16.2 (Релиз 2.16.2 - Нативный Wintun TUN режим в Xray Core)
 
 <p align="center">
-  <b><a href="README.md">Русский</a> | <a href="README_EN.md">English</a></b>
+  <b><a href="README_EN.md">English</a> | Русский</b>
 </p>
 
 <p align="center">
