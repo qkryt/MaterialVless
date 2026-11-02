@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ffi';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/services.dart' show rootBundle;
@@ -206,33 +207,45 @@ class XrayService {
 
   void _startSpeedMonitoring() {
     _trafficTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      _speedController.add((350000, 3200000));
+      _speedController.add((0, 0));
     });
   }
 
-  /// Установка системного прокси с принудительным обновлением WinINet
+  static void _refreshWinInet() {
+    if (!Platform.isWindows) return;
+    try {
+      final wininet = DynamicLibrary.open('wininet.dll');
+      final setOption = wininet.lookupFunction<
+          Int32 Function(IntPtr, Uint32, Pointer, Uint32),
+          int Function(int, int, Pointer, int)>('InternetSetOptionW');
+      setOption(0, 39, nullptr, 0); // INTERNET_OPTION_SETTINGS_CHANGED
+      setOption(0, 37, nullptr, 0); // INTERNET_OPTION_REFRESH
+    } catch (_) {}
+  }
+
+  /// Установка системного прокси через прямой reg.exe и WinINet FFI (без запуска powershell.exe)
   Future<void> _setWindowsProxy(bool enable, {int httpPort = 10809, int socksPort = 10808}) async {
     if (!Platform.isWindows) return;
     try {
-      final script = enable
-          ? '''
-Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings' -Name ProxyEnable -Value 1 -Type DWord
-Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings' -Name ProxyServer -Value 'http=127.0.0.1:$httpPort;https=127.0.0.1:$httpPort;socks=127.0.0.1:$socksPort' -Type String
-Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings' -Name ProxyOverride -Value 'localhost;127.*;10.*;172.16.*;192.168.*;<local>' -Type String
-Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class WinInetRefresh { [DllImport("wininet.dll")] public static extern bool InternetSetOption(IntPtr h, int o, IntPtr b, int l); }' -ErrorAction SilentlyContinue
-[WinInetRefresh]::InternetSetOption([IntPtr]::Zero, 39, [IntPtr]::Zero, 0)
-[WinInetRefresh]::InternetSetOption([IntPtr]::Zero, 37, [IntPtr]::Zero, 0)
-'''
-          : '''
-Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings' -Name ProxyEnable -Value 0 -Type DWord
-Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class WinInetRefresh { [DllImport("wininet.dll")] public static extern bool InternetSetOption(IntPtr h, int o, IntPtr b, int l); }' -ErrorAction SilentlyContinue
-[WinInetRefresh]::InternetSetOption([IntPtr]::Zero, 39, [IntPtr]::Zero, 0)
-[WinInetRefresh]::InternetSetOption([IntPtr]::Zero, 37, [IntPtr]::Zero, 0)
-''';
-
-      final bytes = Uint8List.fromList(script.codeUnits.expand((c) => [c & 0xff, (c >> 8) & 0xff]).toList());
-      final encoded = base64.encode(bytes);
-      await Process.run('powershell', ['-NoProfile', '-WindowStyle', 'Hidden', '-EncodedCommand', encoded]);
+      const regKey = r'HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings';
+      if (enable) {
+        await Process.run('reg', [
+          'add', regKey, '/v', 'ProxyEnable', '/t', 'REG_DWORD', '/d', '1', '/f'
+        ]);
+        await Process.run('reg', [
+          'add', regKey, '/v', 'ProxyServer', '/t', 'REG_SZ', '/d',
+          'http=127.0.0.1:$httpPort;https=127.0.0.1:$httpPort;socks=127.0.0.1:$socksPort', '/f'
+        ]);
+        await Process.run('reg', [
+          'add', regKey, '/v', 'ProxyOverride', '/t', 'REG_SZ', '/d',
+          r'localhost;127.*;10.*;172.16.*;192.168.*;<local>', '/f'
+        ]);
+      } else {
+        await Process.run('reg', [
+          'add', regKey, '/v', 'ProxyEnable', '/t', 'REG_DWORD', '/d', '0', '/f'
+        ]);
+      }
+      _refreshWinInet();
     } catch (e) {
       LogService.log('Error setting Windows proxy: $e');
     }

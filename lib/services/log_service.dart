@@ -72,10 +72,10 @@ Log File: ${file.path}
     try {
       if (_sink != null) {
         _sink!.writeln(line);
-        _sink!.flush();
       } else {
         final file = getLogFile();
-        file.writeAsStringSync('$line\n', mode: FileMode.append);
+        _sink = file.openWrite(mode: FileMode.append);
+        _sink!.writeln(line);
       }
     } catch (_) {}
   }

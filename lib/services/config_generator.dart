@@ -24,13 +24,16 @@ class ConfigGenerator {
         "port": 53,
         "outboundTag": "dns-out"
       },
-      // Прямой доступ к локальным частным сетям (LAN / Private)
-      {
+    ];
+
+    // Прямой доступ к локальным частным сетям (LAN / Private)
+    if (settings.bypassLanEnabled) {
+      routingRules.add({
         "type": "field",
         "ip": ["geoip:private"],
         "outboundTag": "direct"
-      },
-    ];
+      });
+    }
 
     // Маршрутизация в обход РФ ресурсов
     if (settings.routingPreset == 'russia') {
@@ -47,14 +50,6 @@ class ConfigGenerator {
           "domain:su",
           "domain:xn--p1ai"
         ],
-        "outboundTag": "direct"
-      });
-    }
-
-    if (settings.bypassLanEnabled) {
-      routingRules.add({
-        "type": "field",
-        "ip": ["geoip:private"],
         "outboundTag": "direct"
       });
     }

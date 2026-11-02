@@ -129,21 +129,12 @@ class _MaterialVlessAppState extends ConsumerState<MaterialVlessApp> {
               return child ?? const SizedBox();
             }
 
-            Uint8List? bgBytes;
-            try {
-              bgBytes = File(activeBgPath).readAsBytesSync();
-            } catch (_) {}
-
-            if (bgBytes == null || bgBytes.isEmpty) {
-              return child ?? const SizedBox();
-            }
-
             return Stack(
               children: [
                 Positioned.fill(
-                  child: Image.memory(
-                    bgBytes,
-                    key: ValueKey('$activeBgPath-${bgBytes.length}-${File(activeBgPath).lastModifiedSync().millisecondsSinceEpoch}'),
+                  child: Image.file(
+                    File(activeBgPath),
+                    key: ValueKey(activeBgPath),
                     fit: BoxFit.fill,
                     width: double.infinity,
                     height: double.infinity,

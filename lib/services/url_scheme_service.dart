@@ -11,18 +11,47 @@ class UrlSchemeService {
     try {
       final exePath = Platform.resolvedExecutable;
       for (final scheme in ['material', 'happ']) {
-        final regScript = '''
-\$scheme = "$scheme"
-\$exe = "$exePath"
-\$regPath = "HKCU:\\Software\\Classes\\\$scheme"
-New-Item -Path \$regPath -Force | Out-Null
-Set-ItemProperty -Path \$regPath -Name "(Default)" -Value "URL:\$scheme Protocol" -Force
-Set-ItemProperty -Path \$regPath -Name "URL Protocol" -Value "" -Force
-\$cmdPath = "\$regPath\\shell\\open\\command"
-New-Item -Path \$cmdPath -Force | Out-Null
-Set-ItemProperty -Path \$cmdPath -Name "(Default)" -Value "`"\$exe`" `"%1`"" -Force
-''';
-        await Process.run('powershell', ['-NoProfile', '-Command', regScript]);
+        // Проверяем, не зарегистрирован ли уже протокол для этого исполняемого файла
+        final checkResult = await Process.run('reg', [
+          'query',
+          'HKCU\\Software\\Classes\\$scheme\\shell\\open\\command',
+          '/ve'
+        ]);
+        if (checkResult.exitCode == 0 && checkResult.stdout.toString().contains(exePath)) {
+          continue; // Уже корректно привязан
+        }
+
+        await Process.run('reg', [
+          'add',
+          'HKCU\\Software\\Classes\\$scheme',
+          '/ve',
+          '/t',
+          'REG_SZ',
+          '/d',
+          'URL:$scheme Protocol',
+          '/f'
+        ]);
+        await Process.run('reg', [
+          'add',
+          'HKCU\\Software\\Classes\\$scheme',
+          '/v',
+          'URL Protocol',
+          '/t',
+          'REG_SZ',
+          '/d',
+          '',
+          '/f'
+        ]);
+        await Process.run('reg', [
+          'add',
+          'HKCU\\Software\\Classes\\$scheme\\shell\\open\\command',
+          '/ve',
+          '/t',
+          'REG_SZ',
+          '/d',
+          '"$exePath" "%1"',
+          '/f'
+        ]);
       }
     } catch (e) {
       debugPrint('UrlSchemeService register error: $e');

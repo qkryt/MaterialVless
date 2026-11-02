@@ -882,13 +882,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final bgPath = settings.activeBackgroundImagePath;
     final hasBg = settings.hasBackgroundImage && bgPath != null && File(bgPath).existsSync();
 
-    Uint8List? bgBytes;
-    if (hasBg) {
-      try {
-        bgBytes = File(bgPath).readAsBytesSync();
-      } catch (_) {}
-    }
-
     Widget content = ListView(
         controller: _settingsScrollController,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -2470,31 +2463,6 @@ _buildSectionHeader('Завершение работы'),
           const SizedBox(height: 32),
         ],
       );
-
-    if (hasBg && bgBytes != null && bgBytes.isNotEmpty) {
-      content = Stack(
-        children: [
-          Positioned.fill(
-            child: Image.memory(
-              bgBytes,
-              key: ValueKey('$bgPath-${bgBytes.length}-${File(bgPath).lastModifiedSync().millisecondsSinceEpoch}'),
-              fit: BoxFit.fill,
-              width: double.infinity,
-              height: double.infinity,
-              filterQuality: FilterQuality.high,
-              gaplessPlayback: true,
-              errorBuilder: (_, __, ___) => const SizedBox(),
-            ),
-          ),
-          Positioned.fill(
-            child: Container(
-              color: Colors.black.withOpacity(settings.backgroundDimming.clamp(0.05, 0.95)),
-            ),
-          ),
-          content,
-        ],
-      );
-    }
 
     return Scaffold(
       backgroundColor: hasBg ? Colors.black : colorScheme.surface,
