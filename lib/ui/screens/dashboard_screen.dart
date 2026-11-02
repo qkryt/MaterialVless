@@ -1053,11 +1053,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                   interactive: true,
 
                   child: ListView.builder(
-
                     controller: _serverScrollController,
-
+                    cacheExtent: 250,
+                    addAutomaticKeepAlives: false,
+                    addRepaintBoundaries: true,
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-
                     itemCount: displayNodes.length,
 
                     itemBuilder: (context, index) {

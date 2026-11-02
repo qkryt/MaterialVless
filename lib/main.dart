@@ -42,6 +42,10 @@ void main(List<String> args) async {
   // 3. Загрузка кастомных шрифтов
   await CustomFontService.loadAllCustomFonts();
 
+  // Ограничение кеша декодированных изображений (снижение потребления RAM)
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 30 * 1024 * 1024; // 30 MB
+  PaintingBinding.instance.imageCache.maximumSize = 100;
+
   runApp(
     ProviderScope(
       child: MaterialVlessApp(initialArgs: args),

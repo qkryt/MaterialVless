@@ -884,6 +884,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     Widget content = ListView(
         controller: _settingsScrollController,
+        cacheExtent: 300,
+        addRepaintBoundaries: true,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         children: [
           // ==================== ЯДРО VPN ====================
