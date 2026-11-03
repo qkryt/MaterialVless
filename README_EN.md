@@ -1,7 +1,7 @@
-# MaterialVless 2.16.2 (Release 2.16.2 - Native Wintun TUN Mode in Xray Core)
+# MaterialVless 3.1 (Material Design 3 VPN Client)
 
 <p align="center">
-  <b><a href="README.md">Русский</a> | English</b>
+  <b>English | <a href="README.md">Русский</a></b>
 </p>
 
 <p align="center">
@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <b>Modern, high-performance desktop VPN client for VLESS / Reality / gRPC powered by the official Xray-core (XTLS) with Native Wintun TUN support in Google's Material Design 3 (Material You).</b>
+  <b>Modern high-performance multiplatform desktop VPN client for VLESS / Reality / gRPC based on the official Xray-core (XTLS) with native Wintun TUN mode, fluid alive animations, and Google Material Design 3 (Material You).</b>
 </p>
 
 <p align="center">
@@ -21,81 +21,104 @@
 
 ---
 
-## 🌟 What's New in Micropatch 2.1
+## 🌟 What's New in Version 3.1 & 3.0
 
-### 🔗 Deep-Linking & Protocol Schemes (`material://` and `happ://`)
-MaterialVless 2.1 registers system-wide protocol handlers for `material://` and `happ://`, enabling remote control from web browsers, scripts, and automation tools:
+### 💫 Fluid Alive Animations
+- **Breathing Connection Aura**: Pulsing radiant glow expanding gently around the main power button (`_pulseController`) while a secure VPN tunnel is active.
+- **Rotating Radar Ring**: Gradient busy ring animation (`_BusyRingPainter`) spinning during connection establishment and server latency measurements.
+- **Interactive Button Response**: Smooth scaling (`AnimatedScale`) and dynamic elevation/shadow response on mouse cursor hover.
+- **Seamless State Switching**: Zero-flicker transitions via `AnimatedSwitcher` across connection states (*CONNECTING...*, *CONNECTED*, *CONNECT*) and session timer.
+- **Smooth Theme Morphing**: Animated color transitions when toggling Light, Dark, and AMOLED themes without page reload.
 
-| Action | URL Schemes | Description |
-| :--- | :--- | :--- |
-| **Start Tunnel** | `material://connect`<br>`happ://connect`<br>`material://open`<br>`happ://open` | Connects to the currently selected VPN server |
-| **Stop Tunnel** | `material://disconnect`<br>`happ://disconnect`<br>`material://close`<br>`happ://close` | Disconnects VPN and restores system routing |
-| **Toggle Tunnel** | `material://toggle`<br>`happ://toggle` | Toggles VPN connection on or off |
-| **Add Server / Profile** | `material://add{URL}`<br>`happ://add{URL}`<br>`material://crypt{URL}`<br>`happ://crypt{URL}`<br>`material://crypt2{URL}`<br>`happ://crypt2{URL}` | Automatically imports subscription URL, direct node, or encrypted payload |
-| **Custom Routing** | `material://routing/add/{base64}`<br>`happ://routing/add/{base64}`<br>`material://routing/onadd/{base64}`<br>`happ://routing/onadd/{base64}` | Dynamically adds direct routing rule from base64 string |
-| **Clear Routing** | `material://routing/off`<br>`happ://routing/off` | Clears all dynamic custom routing rules |
+### 🎴 Enhanced M3 Rounded Server Cards
+- **Generous Corner Radii**: Server cards feature rounded corners — `20px` when selected and `16px` at rest.
+- **Selection Morphing Animation**: Smooth `AnimatedContainer` transition when choosing a node — dynamic shape adaptation, accent tint, contour border, and subtle drop shadow.
+- **Animated Radio Checkmark**: Selection indicator smoothly scales in and out using `ScaleTransition`.
+- **Rounded Flags and Badges**: Country flag containers feature `12px` border radius, and ping badges have `8px` rounded corners.
 
-### 🌐 Preferred IP Strategy
-- **Auto (IPv4 / IPv6)**: Dynamically resolves both IPv4 and IPv6 based on network availability.
-- **IPv4 Only**: Forces pure IPv4 resolution and routing for maximum compatibility with networks where IPv6 is degraded.
-- **Prefer IPv6**: Prioritizes IPv6 routes for networks with native IPv6 connectivity.
+### ⚡ Comprehensive Multi-Mode Ping System (4 Testing Methods)
+Professional latency measurement with method configuration in the dedicated **"Ping & Latency"** settings tab:
+1. **via Proxy (GET)** — End-to-end HTTP GET request sent directly through the encrypted proxy tunnel (verifies actual bidirectional data throughput).
+2. **via Proxy (HEAD)** — Rapid HTTP HEAD request through the proxy without response payload overhead.
+3. **TCP Handshake** — Direct TCP handshake with target endpoint to assess raw physical link latency.
+4. **ICMP Ping** — Standard OS-level echo request.
 
-### 🎨 Material You Design & Customization
-- **Dynamic Accent Color Seeds**: Pick from 8 curated Material You palettes (*Deep Purple, Electric Blue, Emerald Teal, Forest Green, Sunset Orange, Ruby Crimson, Cyber Pink, Graphite Slate*).
-- **6 Working Built-in Fonts**: Includes `Google Sans`, `Roboto`, `Segoe UI`, `Consolas`, `Arial`, and `Tahoma`.
-- **Custom Font Loader**: Import any `.ttf` or `.otf` font file with instant system-wide preview and application.
-- **Bilingual Interface**: Full English (EN) and Russian (RU) localization switcher.
-- **Theme Modes**: System, Light, Dark, and deep **AMOLED Black** for OLED displays.
+Displayed on server tiles in clean format:
+`Time (XXXX ms/icon)` with adaptive color badges (green `<120ms`, lime `<250ms`, amber `<450ms`, red `>450ms`, and timeout `Timeout`).
 
-### ⚙️ Enhanced Subscription & Profile Management
-- **Responsive URL Input**: Smart layout container with multi-line expandability for long subscription and configuration tokens.
-- **Per-Subscription User-Agent**: Set custom HTTP User-Agent per subscription provider while retaining a global fallback.
-- **Automated Startup Triggers**:
-  - Auto-update subscription on application launch.
-  - Auto-ping subscription nodes on launch.
-  - Auto-connect to the lowest ping server on launch.
-- **Hardware ID (HWID) Control**: Toggle `X-HWID` headers with optional custom/alternative hardware identifier per profile.
+### 🖱️ Contextual Server Action Modal (Right-Click) & Quick Selection (Left-Click)
+- **Left Click (LKM)**: Instantly selects the server as active for connection.
+- **Right Click (RKM) / Long Press / "⋮" Button**: Opens the Material You action modal with `28px` corner radius:
+  - ⚡ **Measure Ping**: Modal auto-closes instantly, navigates to the node in the list, marks it as selected, and triggers a live latency test with `Time (...)` indicator.
+  - 📋 **JSON Configuration**: View complete outbound Xray JSON configuration with one-click clipboard copying.
+  - 🔌 **Select Server**: Make this node active for connecting.
+  - 🔗 **Copy Node Link**: Copies the raw URI (`vless://...`).
+  - 🗑️ **Delete Node**: Removes manually added custom servers.
 
-### 🛡️ Single Instance & Windows Process Management
-- **Single Instance Enforcement**: Prevents multiple instances via a dedicated loopback IPC server (`127.0.0.1:49281`). Opening an additional instance instantly brings the existing window to the foreground and forwards any deep links.
-- **Stale Instance Recovery**: Automatically cleans up and recovers if a prior instance was terminated abnormally.
-- **Seamless In-App Updater**: Downloads `.exe` updates with a real-time progress bar dialog, launches the installer, and closes the current application cleanly.
+### 💖 Support the Project
+A quick **"Support"** button in the top app bar takes you directly to the donation page:  
+👉 [Support the author on DonationAlerts](https://www.donationalerts.com/r/qkryt)
+
+### 🌐 Complete Localization & Settings Descriptions
+Human-readable Russian and English translations for all settings keys:
+- Autostart with Windows.
+- Minimize to tray on close.
+- Start minimized to tray.
+- Anonymous Hardware ID (HWID) transmission.
+- Automatic subscription refresh on launch.
+- IP Resolution Strategy (Auto, IPv4 Only, Prefer IPv6).
+- Custom interface font selection and custom User-Agent.
 
 ---
 
-## 🚀 Key Features
+## 🔗 Protocol URL Schemes & Deep-Linking (`material://` and `happ://`)
 
-- **Xray Core v26.10.21 (XTLS) with Native Wintun TUN**: Official reference XTLS engine providing ultra-reliable VLESS Reality connections and routing 100% of Windows traffic (Telegram, Git/GitHub, Discord, games).
-- **Wide Protocol Support**:
-  - `vless://` (Reality, XTLS, Vision, gRPC, WebSocket)
-  - `hysteria2://` / `hy2://` (High-speed UDP obfuscation)
+| Action | URL Schemes | Description |
+| :--- | :--- | :--- |
+| **Start Tunnel** | `material://connect`<br>`happ://connect`<br>`material://open`<br>`happ://open` | Connects selected VPN server |
+| **Stop Tunnel** | `material://disconnect`<br>`happ://disconnect`<br>`material://close`<br>`happ://close` | Disconnects tunnel and restores OS routing |
+| **Toggle State** | `material://toggle`<br>`happ://toggle` | Toggles tunnel connection |
+| **Add Server / Subscription** | `material://add{URL}`<br>`happ://add{URL}`<br>`material://crypt{URL}`<br>`happ://crypt{URL}`<br>`material://crypt2{URL}`<br>`happ://crypt2{URL}` | Automatically imports subscription URL, raw node URI, or encrypted profile |
+| **Add Routing Rule** | `material://routing/add/{base64}`<br>`happ://routing/add/{base64}` | Dynamically adds direct bypass domain rule from base64 string |
+| **Reset Routing** | `material://routing/off`<br>`happ://routing/off` | Clears all dynamic routing rules |
+
+---
+
+## 🚀 Core Features
+
+- **Xray Core v26.10.21 (XTLS) with Native Wintun TUN**: Routes 100% of entire system traffic (including Telegram, browsers, GitHub, Discord, Steam, and online games).
+- **Supported Protocols**:
+  - `vless://` (Reality, XTLS Vision, gRPC, WebSocket)
+  - `hysteria2://` / `hy2://` (High-speed UDP protocol)
   - `ss://` (Shadowsocks 2022, AEAD)
   - `trojan://`
   - `vmess://`
   - Encrypted subscription formats (`crypt://`, `crypt2://`)
-- **Smart Routing & Bypass**:
-  - **Secure DNS (DoH)**: Cloudflare (`1.1.1.1`) and Google (`8.8.8.8`) over HTTPS inside the tunnel.
-  - **Bypass LAN**: Automatic exclusion of local subnets (`192.168.0.0/16`, `10.0.0.0/8`, `172.16.0.0/12`).
-  - **Country-based Direct Routing**: Bypass domestic services without speed loss.
-- **Clean System Tray**:
-  - Minimized background operation.
-  - Quick action menu: Open, Restart Core, Exit.
+- **Smart Routing & Unblocking**:
+  - **Encrypted DNS (DoH)**: Cloudflare (`1.1.1.1`) and Google (`8.8.8.8`) over HTTPS.
+  - **Local Area Network (LAN) Bypass**: Automatic exclusion of private ranges (`192.168.0.0/16`, `10.0.0.0/8`, `172.16.0.0/12`).
+  - **Customizable Routing Presets**: Direct access for regional banking and government resources without performance degradation.
+- **Appearance Customization**:
+  - Custom UI background wallpapers (JPG, PNG, GIF) with adjustable dimming overlay.
+  - 8 Material You color palettes.
+  - Google Sans, Roboto, Segoe UI, Consolas, and custom `.ttf` / `.otf` font file importer.
+  - True pitch-black **AMOLED Black** mode for OLED screens.
 
 ---
 
-## 📥 Downloads
+## 📥 Download Pre-built Binaries
 
-Pre-built binaries are compiled on GitHub Actions:
+Pre-compiled packages are automatically built with GitHub Actions in **[Releases](https://github.com/qkryt/MaterialVless/releases/latest)**:
 
-| Platform | Download File | Details |
+| Platform | File | Description |
 | :--- | :--- | :--- |
 | **Windows x64** | `MaterialVless-Windows-x64-Setup.exe` | Recommended installer for 64-bit Windows |
-| **Windows x64** | `MaterialVless-Windows-x64.zip` | Portable version with embedded Xray-core |
-| **Windows x86** | `MaterialVless-Windows-x86-Setup.exe` | 32-bit Windows installer |
-| **Windows x86** | `MaterialVless-Windows-x86.zip` | 32-bit portable edition |
-| **Linux x64** | `MaterialVless-Linux-x64.tar.gz` | Linux x86_64 binaries (Ubuntu, Debian, Fedora, Arch) |
-| **Linux x86** | `MaterialVless-Linux-x86.tar.gz` | Linux 32-bit edition |
-| **macOS** | `MaterialVless-macOS.zip` | Universal macOS binary (Apple Silicon & Intel) |
+| **Windows x64** | `MaterialVless-Windows-x64.zip` | Portable package with Xray-core for Windows x64 |
+| **Windows x86** | `MaterialVless-Windows-x86-Setup.exe` | Installer for 32-bit Windows |
+| **Windows x86** | `MaterialVless-Windows-x86.zip` | Portable package for Windows x86 |
+| **Linux x64** | `MaterialVless-Linux-x64.tar.gz` | Linux x86_64 archive (Ubuntu, Debian, Fedora, Arch) |
+| **Linux x86** | `MaterialVless-Linux-x86.tar.gz` | Linux 32-bit archive |
+| **macOS** | `MaterialVless-macOS.zip` | Universal macOS archive (Apple Silicon and Intel) |
 
 ---
 
@@ -105,7 +128,7 @@ Pre-built binaries are compiled on GitHub Actions:
 1. [Flutter SDK](https://flutter.dev/) (>= 3.22.0)
 2. [Go](https://go.dev/) (>= 1.22)
 3. Visual Studio 2022 with Desktop development with C++
-4. [Inno Setup 6](https://jrsoftware.org/isdl.php) (for creating Windows installers)
+4. [Inno Setup 6](https://jrsoftware.org/isdl.php) (for Windows installers)
 
 ### Build Commands
 ```bash
@@ -127,4 +150,4 @@ iscc windows/installer_x64.iss
 
 ## 📄 License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the open-source [MIT License](LICENSE).

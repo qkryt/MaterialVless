@@ -111,7 +111,8 @@ class _MaterialVlessAppState extends ConsumerState<MaterialVlessApp> {
         return MaterialApp(
           title: 'MaterialVless',
           debugShowCheckedModeBanner: false,
-          themeAnimationDuration: Duration.zero,
+          themeAnimationDuration: const Duration(milliseconds: 300),
+          themeAnimationCurve: Curves.easeInOut,
           theme: AppTheme.light(
             lightScheme,
             fontFamily: fontFamily,

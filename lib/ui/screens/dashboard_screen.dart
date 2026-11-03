@@ -38,9 +38,10 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 
 
-class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTickerProviderStateMixin {
+class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerProviderStateMixin {
 
   late final AnimationController _spinController;
+  late final AnimationController _pulseController;
 
   bool _isButtonHovered = false;
 
@@ -55,6 +56,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
   @override
   void dispose() {
     _spinController.dispose();
+    _pulseController.dispose();
     _searchController.dispose();
     _subscriptionScrollController.dispose();
     _serverScrollController.dispose();
@@ -71,6 +73,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     super.initState();
 
     _spinController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400));
+    _pulseController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1800));
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
 
@@ -328,20 +331,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
     final size = isCompact ? 144.0 : 190.0;
 
-
-
-    final isBusy = vpn.isTestingPing;
+    final isBusy = isConnecting || vpn.isTestingPing;
 
     if (isBusy && !_spinController.isAnimating) {
-
       _spinController.repeat();
-
     } else if (!isBusy && _spinController.isAnimating) {
-
       _spinController.stop();
-
       _spinController.reset();
+    }
 
+    if (isConnected && !_pulseController.isAnimating) {
+      _pulseController.repeat(reverse: true);
+    } else if (!isConnected && _pulseController.isAnimating) {
+      _pulseController.stop();
+      _pulseController.reset();
     }
 
 
@@ -406,437 +409,279 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
           // Живая круглая кнопка включения в дизайне Material You с анимацией при пинге/подключении
 
+                    // Живая круглая кнопка включения в дизайне Material You с анимациями
           Center(
-
             child: SizedBox(
-
-              width: size + 28,
-
-              height: size + 28,
-
+              width: size + 36,
+              height: size + 36,
               child: Stack(
-
                 alignment: Alignment.center,
-
                 children: [
-
-                  // Вращающееся кольцо анимации при пинге или подключении
-
-                  if (isBusy) ...[
-
+                  // 1. Пульсирующая живая аура при активном подключении
+                  if (isConnected) ...[
                     AnimatedBuilder(
-
-                      animation: _spinController,
-
+                      animation: _pulseController,
                       builder: (context, child) {
-
-                        return Transform.rotate(
-
-                          angle: _spinController.value * 2 * 3.1415926535,
-
-                          child: CustomPaint(
-
-                            size: Size(size + 24, size + 24),
-
-                            painter: _BusyRingPainter(
-
-                              color: colorScheme.primary,
-
-                              secondaryColor: colorScheme.tertiary,
-
+                        final wave = _pulseController.value;
+                        return Container(
+                          width: size + 14 + (16 * wave),
+                          height: size + 14 + (16 * wave),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: colorScheme.primary.withOpacity((1.0 - wave) * 0.45),
+                              width: 2.0,
                             ),
-
+                            boxShadow: [
+                              BoxShadow(
+                                color: colorScheme.primary.withOpacity((1.0 - wave) * 0.30),
+                                blurRadius: 22 * wave + 10,
+                                spreadRadius: 4 * wave,
+                              ),
+                            ],
                           ),
-
                         );
-
                       },
-
                     ),
-
                   ],
 
-
-
-                  // Живая кнопка: отклик на наведение курсора без неонового свечения
-
-                  MouseRegion(
-
-                    cursor: SystemMouseCursors.click,
-
-                    onEnter: (_) => setState(() => _isButtonHovered = true),
-
-                    onExit: (_) => setState(() => _isButtonHovered = false),
-
-                    child: AnimatedScale(
-
-                      scale: _isButtonHovered ? 1.04 : 1.0,
-
-                      duration: const Duration(milliseconds: 180),
-
-                      curve: Curves.easeOutCubic,
-
-                      child: Material(
-
-                        color: isConnected
-                            ? colorScheme.primary
-                            : (vpn.settings.hasBackgroundImage
-                                ? colorScheme.surfaceContainerHighest.withOpacity(0.9)
-                                : colorScheme.surfaceContainerHighest),
-
-                        shape: const CircleBorder(),
-
-                        elevation: _isButtonHovered ? 4 : (isConnected ? 2 : 1),
-
-                        shadowColor: Colors.black.withOpacity(0.3),
-
-                        clipBehavior: Clip.antiAlias,
-
-                        child: InkWell(
-
-                          onTap: () => ref.read(vpnProvider.notifier).toggleConnection(),
-
-                          customBorder: const CircleBorder(),
-
-                          hoverColor: isConnected
-
-                              ? Colors.white.withOpacity(0.12)
-
-                              : colorScheme.primary.withOpacity(0.12),
-
-                          highlightColor: isConnected
-
-                              ? Colors.white.withOpacity(0.20)
-
-                              : colorScheme.primary.withOpacity(0.20),
-
-                          splashColor: isConnected
-
-                              ? Colors.white.withOpacity(0.25)
-
-                              : colorScheme.primary.withOpacity(0.25),
-
-                          child: SizedBox(
-
-                            width: size,
-
-                            height: size,
-
-                            child: Center(
-
-                              child: isConnecting
-
-                                  ? Column(
-
-                                      mainAxisAlignment: MainAxisAlignment.center,
-
-                                      children: [
-
-                                        CircularProgressIndicator(
-
-                                          color: isConnected ? colorScheme.onPrimary : colorScheme.primary,
-
-                                          strokeWidth: 3.5,
-
-                                        ),
-
-                                        const SizedBox(height: 10),
-
-                                        Text(
-
-                                          'ПОДКЛЮЧЕНИЕ...',
-
-                                          style: TextStyle(
-
-                                            color: isConnected ? colorScheme.onPrimary : colorScheme.primary,
-
-                                            fontSize: isCompact ? 10 : 11,
-
-                                            fontWeight: FontWeight.bold,
-
-                                            letterSpacing: 1.0,
-
-                                          ),
-
-                                        ),
-
-                                      ],
-
-                                    )
-
-                                  : Column(
-
-                                      mainAxisAlignment: MainAxisAlignment.center,
-
-                                      children: [
-
-                                        Icon(
-
-                                          Icons.power_settings_new_rounded,
-
-                                          size: isCompact ? 46 : 64,
-
-                                          color: isConnected ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
-
-                                        ),
-
-                                        const SizedBox(height: 6),
-
-                                        Text(
-
-                                          isConnected ? 'ПОДКЛЮЧЕНО' : 'ПОДКЛЮЧИТЬ',
-
-                                          style: TextStyle(
-
-                                            color: isConnected ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
-
-                                            fontSize: isCompact ? 11 : 13,
-
-                                            fontWeight: FontWeight.bold,
-
-                                            letterSpacing: 1.1,
-
-                                          ),
-
-                                        ),
-
-                                        if (isConnected) ...[
-
-                                          const SizedBox(height: 4),
-
-                                          Text(
-
-                                            vpn.formattedTimer,
-
-                                            style: TextStyle(
-
-                                              color: colorScheme.onPrimary.withOpacity(0.95),
-
-                                              fontSize: isCompact ? 13 : 15,
-
-                                              fontWeight: FontWeight.w600,
-
-                                            ),
-
-                                          ),
-
-                                        ],
-
-                                      ],
-
-                                    ),
-
+                  // 2. Вращающееся динамическое кольцо анимации при пинге или подключении
+                  if (isBusy) ...[
+                    AnimatedBuilder(
+                      animation: _spinController,
+                      builder: (context, child) {
+                        return Transform.rotate(
+                          angle: _spinController.value * 2 * 3.1415926535,
+                          child: CustomPaint(
+                            size: Size(size + 24, size + 24),
+                            painter: _BusyRingPainter(
+                              color: colorScheme.primary,
+                              secondaryColor: colorScheme.tertiary,
                             ),
-
                           ),
-
-                        ),
-
-                      ),
-
+                        );
+                      },
                     ),
+                  ],
 
+                  // 3. Живая кнопка: отклик на наведение курсора с анимацией масштаба и тени
+                  MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    onEnter: (_) => setState(() => _isButtonHovered = true),
+                    onExit: (_) => setState(() => _isButtonHovered = false),
+                    child: AnimatedScale(
+                      scale: _isButtonHovered ? 1.045 : 1.0,
+                      duration: const Duration(milliseconds: 180),
+                      curve: Curves.easeOutCubic,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOutCubic,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: isConnected
+                                  ? colorScheme.primary.withOpacity(_isButtonHovered ? 0.45 : 0.35)
+                                  : Colors.black.withOpacity(_isButtonHovered ? 0.25 : 0.15),
+                              blurRadius: isConnected ? (_isButtonHovered ? 30 : 22) : (_isButtonHovered ? 16 : 8),
+                              spreadRadius: isConnected ? (_isButtonHovered ? 4 : 2) : 0,
+                            ),
+                          ],
+                        ),
+                        child: Material(
+                          color: isConnected
+                              ? colorScheme.primary
+                              : (vpn.settings.hasBackgroundImage
+                                  ? colorScheme.surfaceContainerHighest.withOpacity(0.9)
+                                  : colorScheme.surfaceContainerHighest),
+                          shape: const CircleBorder(),
+                          elevation: _isButtonHovered ? 6 : (isConnected ? 3 : 1),
+                          shadowColor: Colors.black.withOpacity(0.3),
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            onTap: () => ref.read(vpnProvider.notifier).toggleConnection(),
+                            customBorder: const CircleBorder(),
+                            hoverColor: isConnected
+                                ? Colors.white.withOpacity(0.12)
+                                : colorScheme.primary.withOpacity(0.12),
+                            highlightColor: isConnected
+                                ? Colors.white.withOpacity(0.20)
+                                : colorScheme.primary.withOpacity(0.20),
+                            splashColor: isConnected
+                                ? Colors.white.withOpacity(0.25)
+                                : colorScheme.primary.withOpacity(0.25),
+                            child: SizedBox(
+                              width: size,
+                              height: size,
+                              child: Center(
+                                child: AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 250),
+                                  transitionBuilder: (child, anim) => FadeTransition(
+                                    opacity: anim,
+                                    child: ScaleTransition(scale: anim, child: child),
+                                  ),
+                                  child: isConnecting
+                                      ? Column(
+                                          key: const ValueKey('connecting'),
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            CircularProgressIndicator(
+                                              color: isConnected ? colorScheme.onPrimary : colorScheme.primary,
+                                              strokeWidth: 3.5,
+                                            ),
+                                            const SizedBox(height: 10),
+                                            Text(
+                                              'ПОДКЛЮЧЕНИЕ...',
+                                              style: TextStyle(
+                                                color: isConnected ? colorScheme.onPrimary : colorScheme.primary,
+                                                fontSize: isCompact ? 10 : 11,
+                                                fontWeight: FontWeight.bold,
+                                                letterSpacing: 1.0,
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                      : Column(
+                                          key: ValueKey(isConnected ? 'connected' : 'disconnected'),
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.power_settings_new_rounded,
+                                              size: isCompact ? 46 : 64,
+                                              color: isConnected ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              isConnected ? 'ПОДКЛЮЧЕНО' : 'ПОДКЛЮЧИТЬ',
+                                              style: TextStyle(
+                                                color: isConnected ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
+                                                fontSize: isCompact ? 11 : 13,
+                                                fontWeight: FontWeight.bold,
+                                                letterSpacing: 1.1,
+                                              ),
+                                            ),
+                                            if (isConnected) ...[
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                vpn.formattedTimer,
+                                                style: TextStyle(
+                                                  color: colorScheme.onPrimary.withOpacity(0.95),
+                                                  fontSize: isCompact ? 13 : 15,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-
                 ],
-
               ),
-
             ),
-
           ),
-
-
 
           const SizedBox(height: 18),
 
-
-
-          // Карточка выбранного сервера под кнопкой с аутентичным флагом
-
+          // Карточка выбранного сервера под кнопкой со скруглениями
           if (vpn.selectedNode != null)
-
-            Container(
-
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutCubic,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-
               decoration: BoxDecoration(
-
                 color: vpn.settings.hasBackgroundImage
                     ? colorScheme.surfaceContainerHigh.withOpacity(0.85)
                     : colorScheme.surfaceContainerHigh,
-
-                borderRadius: BorderRadius.circular(16),
-
+                borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.25)),
-
-              ),
-
-              child: Row(
-
-                mainAxisSize: MainAxisSize.min,
-
-                children: [
-
-                  CountryFlagWidget(
-
-                    isoCode: CountryFlagHelper.getCountryCode(vpn.selectedNode!.remark),
-
-                    width: 28,
-
-                    height: 19,
-
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
-
-                  const SizedBox(width: 10),
-
-                  Flexible(
-
-                    child: Column(
-
-                      crossAxisAlignment: CrossAxisAlignment.start,
-
-                      mainAxisSize: MainAxisSize.min,
-
-                      children: [
-
-                        Text(
-
-                          CountryFlagHelper.cleanRemark(vpn.selectedNode!.remark),
-
-                          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-
-                          maxLines: 1,
-
-                          overflow: TextOverflow.ellipsis,
-
-                        ),
-
-                        Text(
-
-                          '${vpn.selectedNode!.protocol.name.toUpperCase()} • ${vpn.selectedNode!.streamType.toUpperCase()}',
-
-                          style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
-
-                        ),
-
-                      ],
-
-                    ),
-
-                  ),
-
-                  if (vpn.selectedNode!.pingMs != null && vpn.selectedNode!.pingMs! > 0) ...[
-
-                    const SizedBox(width: 12),
-
-                    Container(
-
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-
-                      decoration: BoxDecoration(
-
-                        color: Colors.green.withOpacity(0.15),
-
-                        borderRadius: BorderRadius.circular(8),
-
-                      ),
-
-                      child: Text(
-
-                        '${vpn.selectedNode!.pingMs} ms',
-
-                        style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 11),
-
-                      ),
-
-                    ),
-
-                  ],
-
                 ],
-
               ),
-
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CountryFlagWidget(
+                    isoCode: CountryFlagHelper.getCountryCode(vpn.selectedNode!.remark),
+                    width: 28,
+                    height: 19,
+                  ),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          CountryFlagHelper.cleanRemark(vpn.selectedNode!.remark),
+                          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          '${vpn.selectedNode!.protocol.name.toUpperCase()} • ${vpn.selectedNode!.streamType.toUpperCase()}',
+                          style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  _buildServerPingBadge(vpn.selectedNode!.pingMs),
+                ],
+              ),
             )
-
           else
-
             Text(
-
-              'Выберите сервер для подключения',
-
+              'Сервер не выбран',
               style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-
             ),
-
-
 
           if (!isCompact) ...[
-
             const Spacer(),
-
             SizedBox(
-
               width: 220,
-
               height: 44,
-
               child: FilledButton.tonal(
-
                 onPressed: vpn.isTestingPing
-
                     ? null
-
                     : () {
-
                         ref.read(vpnProvider.notifier).pingAllNodes();
-
                       },
-
                 style: FilledButton.styleFrom(
-
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-
                 ),
-
                 child: vpn.isTestingPing
-
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-
                     : const Row(
-
                         mainAxisAlignment: MainAxisAlignment.center,
-
                         children: [
-
                           Icon(Icons.speed_rounded, size: 18),
-
                           SizedBox(width: 8),
-
-                          Text('Тест всех серверов', style: TextStyle(fontWeight: FontWeight.bold)),
-
+                          Text('Замерить пинг всех', style: TextStyle(fontWeight: FontWeight.bold)),
                         ],
-
                       ),
-
               ),
-
             ),
-
             const SizedBox(height: 16),
-
           ],
-
         ],
-
       ),
-
     );
 
+
+
+
   }
-
-
 
   // ==================== ВЫДЕЛЕННЫЙ СПИСОК СЕРВЕРОВ И ПОДПИСОК ====================
 
@@ -1236,7 +1081,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
                           color: colorScheme.primaryContainer,
 
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(8),
 
                         ),
 
@@ -1528,7 +1373,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
         decoration: BoxDecoration(
           color: Colors.blue.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1553,7 +1398,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
         decoration: BoxDecoration(
           color: Colors.grey.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1574,7 +1419,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
         decoration: BoxDecoration(
           color: Colors.red.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Colors.red.withOpacity(0.3)),
         ),
         child: Row(
@@ -1611,7 +1456,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
         color: color.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: color.withOpacity(0.35)),
       ),
       child: Row(
@@ -1638,78 +1483,126 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     final isPinging = _pingingNodeId == node.id || (vpn.isTestingPing && node.pingMs == null);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final borderRadius = isSelected ? BorderRadius.circular(20) : BorderRadius.circular(16);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isSelected ? colorScheme.secondaryContainer.withOpacity(0.35) : Colors.transparent,
-        border: isSelected
-            ? Border(
-                left: BorderSide(color: colorScheme.primary, width: 3.5),
-              )
-            : null,
-      ),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onSecondaryTap: () => _showServerActionModal(context, node, canDelete: canDelete),
-        child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-          leading: Container(
-            width: 36,
-            height: 36,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: isSelected ? colorScheme.primary.withOpacity(0.12) : colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: CountryFlagWidget(
-              isoCode: CountryFlagHelper.getCountryCode(node.remark),
-              width: 26,
-              height: 18,
-            ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        decoration: BoxDecoration(
+          color: isSelected
+              ? colorScheme.secondaryContainer.withOpacity(0.48)
+              : (vpn.settings.hasBackgroundImage
+                  ? colorScheme.surfaceContainerHighest.withOpacity(0.35)
+                  : colorScheme.surfaceContainerHighest.withOpacity(0.2)),
+          borderRadius: borderRadius,
+          border: Border.all(
+            color: isSelected
+                ? colorScheme.primary.withOpacity(0.75)
+                : colorScheme.outlineVariant.withOpacity(0.22),
+            width: isSelected ? 1.8 : 1.0,
           ),
-          title: Text(
-            CountryFlagHelper.cleanRemark(node.remark),
-            style: TextStyle(
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-              color: isSelected ? colorScheme.primary : colorScheme.onSurface,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          subtitle: Text(
-            '${node.protocol.name.toUpperCase()} / ${node.streamType.toUpperCase()} / ${node.security.toUpperCase()}',
-            style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildServerPingBadge(node.pingMs, isPinging: isPinging),
-              const SizedBox(width: 8),
-              Icon(
-                isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                color: isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant,
-                size: 20,
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: colorScheme.primary.withOpacity(0.18),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: borderRadius,
+            onTap: () => ref.read(vpnProvider.notifier).selectNode(node),
+            onSecondaryTap: () => _showServerActionModal(context, node, canDelete: canDelete),
+            onLongPress: () => _showServerActionModal(context, node, canDelete: canDelete),
+            hoverColor: colorScheme.primary.withOpacity(0.08),
+            splashColor: colorScheme.primary.withOpacity(0.16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? colorScheme.primary.withOpacity(0.16)
+                          : colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: CountryFlagWidget(
+                      isoCode: CountryFlagHelper.getCountryCode(node.remark),
+                      width: 26,
+                      height: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          CountryFlagHelper.cleanRemark(node.remark),
+                          style: TextStyle(
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                            fontSize: 14,
+                            color: isSelected ? colorScheme.primary : colorScheme.onSurface,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          '${node.protocol.name.toUpperCase()} / ${node.streamType.toUpperCase()} / ${node.security.toUpperCase()}',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                            letterSpacing: 0.2,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildServerPingBadge(node.pingMs, isPinging: isPinging),
+                  const SizedBox(width: 8),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
+                    child: Icon(
+                      isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                      key: ValueKey(isSelected),
+                      color: isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant.withOpacity(0.6),
+                      size: 21,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: const Icon(Icons.more_vert_rounded, size: 20),
+                    tooltip: 'Настройки и действия узла (ПКМ)',
+                    onPressed: () => _showServerActionModal(context, node, canDelete: canDelete),
+                  ),
+                  if (canDelete) ...[
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 18),
+                      tooltip: 'Удалить узел',
+                      onPressed: () => ref.read(vpnProvider.notifier).deleteManualNode(node.id),
+                    ),
+                  ],
+                ],
               ),
-              const SizedBox(width: 4),
-              IconButton(
-                icon: const Icon(Icons.more_vert_rounded, size: 20),
-                tooltip: 'Настройки и действия узла (ПКМ)',
-                onPressed: () => _showServerActionModal(context, node, canDelete: canDelete),
-              ),
-              if (canDelete) ...[
-                const SizedBox(width: 4),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 18),
-                  tooltip: 'Удалить узел',
-                  onPressed: () => ref.read(vpnProvider.notifier).deleteManualNode(node.id),
-                ),
-              ],
-            ],
+            ),
           ),
-          onTap: () => ref.read(vpnProvider.notifier).selectNode(node),
-          onLongPress: () => _showServerActionModal(context, node, canDelete: canDelete),
         ),
       ),
     );
@@ -1733,7 +1626,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             decoration: BoxDecoration(
               color: colorScheme.surface,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
               border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.3)),
             ),
             child: Column(
