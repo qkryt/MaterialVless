@@ -217,9 +217,49 @@ class AppStrings {
       'ru': 'Сворачивать в трей при закрытии',
       'en': 'Minimize to tray on close',
     },
+    'minimize_to_tray_desc': {
+      'ru': 'При нажатии на крестик окно скрывается в область уведомлений',
+      'en': 'Close button minimizes window to system notification area',
+    },
     'autostart': {
       'ru': 'Запускать вместе с Windows',
       'en': 'Start with Windows',
+    },
+    'autostart_desc': {
+      'ru': 'Автоматический запуск программы при входе в Windows',
+      'en': 'Automatically start application when logging into Windows',
+    },
+    'start_minimized': {
+      'ru': 'Запускать свёрнутым в трей',
+      'en': 'Start minimized to tray',
+    },
+    'start_minimized_desc': {
+      'ru': 'Не показывать главное окно при автозагрузке или старте',
+      'en': 'Do not show main window on startup or autostart',
+    },
+    'section_subscription': {
+      'ru': 'Подписки и User-Agent',
+      'en': 'Subscriptions & User-Agent',
+    },
+    'user_agent': {
+      'ru': 'User-Agent подписок',
+      'en': 'Subscription User-Agent',
+    },
+    'send_hwid': {
+      'ru': 'Передавать HWID',
+      'en': 'Send device HWID',
+    },
+    'auto_update_subs': {
+      'ru': 'Автообновление подписок',
+      'en': 'Auto-update subscriptions',
+    },
+    'ip_strategy': {
+      'ru': 'Стратегия разрешения IP',
+      'en': 'IP Resolution Strategy',
+    },
+    'font_family': {
+      'ru': 'Шрифт интерфейса',
+      'en': 'Interface Font',
     },
     'exit_app': {
       'ru': 'Полностью выйти из приложения',

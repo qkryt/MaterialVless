@@ -1614,58 +1614,69 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
     return Container(
       color: isSelected ? colorScheme.secondaryContainer.withOpacity(0.35) : Colors.transparent,
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-        leading: Container(
-          width: 36,
-          height: 36,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: isSelected ? colorScheme.primary.withOpacity(0.12) : colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: CountryFlagWidget(
-            isoCode: CountryFlagHelper.getCountryCode(node.remark),
-            width: 26,
-            height: 18,
-          ),
-        ),
-        title: Text(
-          CountryFlagHelper.cleanRemark(node.remark),
-          style: TextStyle(
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            color: isSelected ? colorScheme.primary : colorScheme.onSurface,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Text(
-          '${node.protocol.name.toUpperCase()} / ${node.streamType.toUpperCase()} / ${node.security.toUpperCase()}',
-          style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildServerPingBadge(node.pingMs),
-            const SizedBox(width: 8),
-            Icon(
-              isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-              color: isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant,
-              size: 20,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onSecondaryTap: () => _showServerActionModal(context, node, canDelete: canDelete),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+          leading: Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: isSelected ? colorScheme.primary.withOpacity(0.12) : colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(10),
             ),
-            if (canDelete) ...[
+            child: CountryFlagWidget(
+              isoCode: CountryFlagHelper.getCountryCode(node.remark),
+              width: 26,
+              height: 18,
+            ),
+          ),
+          title: Text(
+            CountryFlagHelper.cleanRemark(node.remark),
+            style: TextStyle(
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+              color: isSelected ? colorScheme.primary : colorScheme.onSurface,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          subtitle: Text(
+            '${node.protocol.name.toUpperCase()} / ${node.streamType.toUpperCase()} / ${node.security.toUpperCase()}',
+            style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildServerPingBadge(node.pingMs),
+              const SizedBox(width: 8),
+              Icon(
+                isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                color: isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant,
+                size: 20,
+              ),
               const SizedBox(width: 4),
               IconButton(
-                icon: const Icon(Icons.close_rounded, size: 18),
-                tooltip: 'Удалить узел',
-                onPressed: () => ref.read(vpnProvider.notifier).deleteManualNode(node.id),
+                icon: const Icon(Icons.more_vert_rounded, size: 20),
+                tooltip: 'Настройки и действия узла (ПКМ)',
+                onPressed: () => _showServerActionModal(context, node, canDelete: canDelete),
               ),
+              if (canDelete) ...[
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  tooltip: 'Удалить узел',
+                  onPressed: () => ref.read(vpnProvider.notifier).deleteManualNode(node.id),
+                ),
+              ],
             ],
-          ],
+          ),
+          onTap: () => ref.read(vpnProvider.notifier).selectNode(node),
+          onLongPress: () => _showServerActionModal(context, node, canDelete: canDelete),
         ),
-        onTap: () => _showServerActionModal(context, node, canDelete: canDelete),
       ),
     );
   }
