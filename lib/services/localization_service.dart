@@ -254,8 +254,8 @@ class AppStrings {
       'en': 'Auto-update subscriptions',
     },
     'ip_strategy': {
-      'ru': 'Стратегия разрешения IP',
-      'en': 'IP Resolution Strategy',
+      'ru': 'Предпочитаемый тип IP',
+      'en': 'Preferred IP Type',
     },
     'font_family': {
       'ru': 'Шрифт интерфейса',

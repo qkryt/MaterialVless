@@ -828,7 +828,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
                                 child: ChoiceChip(
                                   showCheckmark: false,
                                   avatar: vpn.subscriptions[i].isPinned ? const Icon(Icons.push_pin, size: 14) : null,
-                                  label: Text(' ()'),
+                                  label: Text('${vpn.subscriptions[i].name} (${vpn.subscriptions[i].nodes.length})'),
                                   selected: _selectedSubId == vpn.subscriptions[i].id,
                                   onSelected: (val) {
                                     if (val) setState(() => _selectedSubId = vpn.subscriptions[i].id);
@@ -842,7 +842,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
                               padding: const EdgeInsets.only(right: 8),
                               child: ChoiceChip(
                                 showCheckmark: false,
-                                label: Text('Сервера ()'),
+                                label: Text('Сервера (${vpn.manualNodes.length})'),
                                 selected: _selectedSubId == 'manual',
                                 onSelected: (val) {
                                   if (val) setState(() => _selectedSubId = 'manual');

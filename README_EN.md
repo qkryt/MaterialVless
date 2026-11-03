@@ -1,4 +1,4 @@
-# MaterialVless 3.1.1 (Material Design 3 VPN Client)
+# MaterialVless 3.1.2 (Material Design 3 VPN Client)
 
 <p align="center">
   <b>English | <a href="README.md">Русский</a></b>
@@ -19,6 +19,23 @@
   <img src="https://img.shields.io/badge/Visual%20C%2B%2B-Bundled-blue?style=for-the-badge" alt="VC++ Bundled" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
 </p>
+
+---
+
+## 🌟 What's New in Version 3.1.2
+
+### 🏷️ Fixed Subscription Tab Names and Server Count Display
+- Restored accurate subscription names and server counters on top navigation chips: `Name (count)`.
+- Manual servers tab accurately displays `Servers (count)`.
+
+### 🌐 Complete UI Localization Across All Settings
+- All settings entries now display localized names and descriptions without raw keys:
+  - **Start with Windows**: localized title and startup explanation.
+  - **Minimize to tray on close**: clear description for close button behavior.
+  - **Start minimized to tray**: background startup toggle and explanation.
+  - **Device HWID transmission**: anonymous device identifier toggle.
+  - **Subscription auto-update**: auto-sync on startup explanation.
+  - **IP Resolution Strategy**: selection for Auto, IPv4, and IPv6.
 
 ---
 
