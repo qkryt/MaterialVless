@@ -50,6 +50,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
   final SmoothScrollController _subscriptionScrollController = SmoothScrollController();
 
   String _selectedSubId = '';
+  String? _pingingNodeId;
 
   @override
   void dispose() {
@@ -133,7 +134,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
             content: Text(
 
-              'У вас установлена самая актуальная версия (v2.16.2)',
+              'У вас установлена самая актуальная версия (v${UpdateService.currentVersion})',
 
             ),
 
@@ -1521,7 +1522,32 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
 
 
-  Widget _buildServerPingBadge(int? pingMs) {
+  Widget _buildServerPingBadge(int? pingMs, {bool isPinging = false}) {
+    if (isPinging) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(
+          color: Colors.blue.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            SizedBox(
+              width: 10,
+              height: 10,
+              child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.blue),
+            ),
+            SizedBox(width: 5),
+            Text(
+              'Time (...)',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.blue),
+            ),
+          ],
+        ),
+      );
+    }
+
     if (pingMs == null) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
@@ -1609,11 +1635,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
   Widget _buildServerTile(BuildContext context, VlessNode node, {bool canDelete = false}) {
     final vpn = ref.watch(vpnProvider);
     final isSelected = vpn.selectedNode?.id == node.id;
+    final isPinging = _pingingNodeId == node.id || (vpn.isTestingPing && node.pingMs == null);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
     return Container(
-      color: isSelected ? colorScheme.secondaryContainer.withOpacity(0.35) : Colors.transparent,
+      decoration: BoxDecoration(
+        color: isSelected ? colorScheme.secondaryContainer.withOpacity(0.35) : Colors.transparent,
+        border: isSelected
+            ? Border(
+                left: BorderSide(color: colorScheme.primary, width: 3.5),
+              )
+            : null,
+      ),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onSecondaryTap: () => _showServerActionModal(context, node, canDelete: canDelete),
@@ -1651,7 +1685,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildServerPingBadge(node.pingMs),
+              _buildServerPingBadge(node.pingMs, isPinging: isPinging),
               const SizedBox(width: 8),
               Icon(
                 isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
@@ -1761,19 +1795,43 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                   ),
                   title: const Text('Замерить пинг', style: TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text('Режим: ${ref.read(vpnProvider).settings.pingMode}'),
-                  trailing: isPinging
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.arrow_forward_ios_rounded, size: 14),
-                  onTap: isPinging
-                      ? null
-                      : () async {
-                          setModalState(() => isPinging = true);
-                          final ms = await ref.read(vpnProvider.notifier).pingSingleNode(node);
-                          setModalState(() {
-                            isPinging = false;
-                            currentPing = ms;
-                          });
-                        },
+                  trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                  onTap: () {
+                    final targetNode = node;
+                    Navigator.pop(ctx);
+
+                    // 1. Переключаем на вкладку с данным сервером при необходимости
+                    final vpnState = ref.read(vpnProvider);
+                    if (vpnState.manualNodes.any((n) => n.id == targetNode.id)) {
+                      if (_selectedSubId != 'manual') {
+                        setState(() => _selectedSubId = 'manual');
+                      }
+                    } else {
+                      for (final sub in vpnState.subscriptions) {
+                        if (sub.nodes.any((n) => n.id == targetNode.id)) {
+                          if (_selectedSubId != sub.id) {
+                            setState(() => _selectedSubId = sub.id);
+                          }
+                          break;
+                        }
+                      }
+                    }
+
+                    // 2. Отмечаем пингуемый сервер как выбранный
+                    ref.read(vpnProvider.notifier).selectNode(targetNode);
+
+                    // 3. Запускаем замер пинга с отображением индикатора
+                    setState(() => _pingingNodeId = targetNode.id);
+                    ref.read(vpnProvider.notifier).pingSingleNode(targetNode).whenComplete(() {
+                      if (mounted) {
+                        setState(() {
+                          if (_pingingNodeId == targetNode.id) {
+                            _pingingNodeId = null;
+                          }
+                        });
+                      }
+                    });
+                  },
                 ),
 
                 // 2. JSON конфигурация сервера
