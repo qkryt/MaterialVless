@@ -1,4 +1,4 @@
-# MaterialVless 3.1 (Material Design 3 VPN Client)
+# MaterialVless 3.1.1 (Material Design 3 VPN Client)
 
 <p align="center">
   <b>English | <a href="README.md">Русский</a></b>
@@ -9,15 +9,38 @@
 </p>
 
 <p align="center">
-  <b>Modern high-performance multiplatform desktop VPN client for VLESS / Reality / gRPC based on the official Xray-core (XTLS) with native Wintun TUN mode, fluid alive animations, and Google Material Design 3 (Material You).</b>
+  <b>Modern high-performance multiplatform desktop VPN client for VLESS / Reality / gRPC based on official Xray-core (XTLS) with native Wintun TUN mode, fluid alive animations, bundled Visual C++ runtime libraries, and Google Material Design 3 (Material You).</b>
 </p>
 
 <p align="center">
   <a href="https://github.com/qkryt/MaterialVless/releases/latest"><img src="https://img.shields.io/github/v/release/qkryt/MaterialVless?style=for-the-badge&color=6750A4" alt="Release" /></a>
   <img src="https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter" alt="Flutter" />
   <img src="https://img.shields.io/badge/Xray--core-v26.10.21-6750A4?style=for-the-badge" alt="Xray-core" />
+  <img src="https://img.shields.io/badge/Visual%20C%2B%2B-Bundled-blue?style=for-the-badge" alt="VC++ Bundled" />
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
 </p>
+
+---
+
+## 🌟 What's New in Version 3.1.1
+
+### 🛠️ Out-of-the-Box Visual C++ Runtime Bundling
+- Official **Microsoft Visual C++** runtime libraries (`msvcp140.dll`, `vcruntime140.dll`, `vcruntime140_1.dll`, `msvcp140_1.dll`, `msvcp140_2.dll`, `vcomp140.dll`) are bundled directly into both Windows portable zip packages and setup installers.
+- Launches seamlessly on fresh Windows installations without *"VCRUNTIME140.dll was not found"* errors.
+- Inno Setup installers include silent `vc_redist` detection and installation.
+
+### 🔄 Reorder Subscriptions via Long-Press Drag & Drop
+- Long-pressing on any subscription chip in the top navigation panel lifts it up:
+  - Drag horizontally to swap positions with other subscriptions (`ReorderableListView` + `ReorderableDelayedDragStartListener`).
+  - New custom order is automatically persisted across application restarts.
+  - A quick tap still immediately selects and views the subscription.
+
+### 🎬 Visual Refinements & Enhanced Animations
+- **Clean Connection Visuals**: During connection establishment (`CONNECTING...`), the outer busy circle around the power button is removed, keeping focus on the clean internal spinner.
+- **Cinematic Settings Transition**: Opening Settings triggers a smooth Material 3 slide-and-fade animation (`SlideTransition` + `FadeTransition`, `320ms`, `Curves.easeOutCubic`).
+- **Dialog Animations**: Add subscription and JSON viewer dialogs open with soft scale (`ScaleTransition` 0.92 ➔ 1.0) and fade transitions.
+- **Smooth Server List Cross-Fading**: Switching subscription tabs gently cross-fades the server list with `AnimatedSwitcher`.
+- **Minimalist Clean Header**: Removed the top-left icon and resized **MaterialVless** brand typography to a refined size (`14px`, `FontWeight.w600`).
 
 ---
 
@@ -25,7 +48,7 @@
 
 ### 💫 Fluid Alive Animations
 - **Breathing Connection Aura**: Pulsing radiant glow expanding gently around the main power button (`_pulseController`) while a secure VPN tunnel is active.
-- **Rotating Radar Ring**: Gradient busy ring animation (`_BusyRingPainter`) spinning during connection establishment and server latency measurements.
+- **Rotating Radar Ring**: Gradient busy ring animation (`_BusyRingPainter`) spinning during latency tests.
 - **Interactive Button Response**: Smooth scaling (`AnimatedScale`) and dynamic elevation/shadow response on mouse cursor hover.
 - **Seamless State Switching**: Zero-flicker transitions via `AnimatedSwitcher` across connection states (*CONNECTING...*, *CONNECTED*, *CONNECT*) and session timer.
 - **Smooth Theme Morphing**: Animated color transitions when toggling Light, Dark, and AMOLED themes without page reload.
@@ -58,16 +81,6 @@ Displayed on server tiles in clean format:
 ### 💖 Support the Project
 A quick **"Support"** button in the top app bar takes you directly to the donation page:  
 👉 [Support the author on DonationAlerts](https://www.donationalerts.com/r/qkryt)
-
-### 🌐 Complete Localization & Settings Descriptions
-Human-readable Russian and English translations for all settings keys:
-- Autostart with Windows.
-- Minimize to tray on close.
-- Start minimized to tray.
-- Anonymous Hardware ID (HWID) transmission.
-- Automatic subscription refresh on launch.
-- IP Resolution Strategy (Auto, IPv4 Only, Prefer IPv6).
-- Custom interface font selection and custom User-Agent.
 
 ---
 
@@ -112,10 +125,10 @@ Pre-compiled packages are automatically built with GitHub Actions in **[Releases
 
 | Platform | File | Description |
 | :--- | :--- | :--- |
-| **Windows x64** | `MaterialVless-Windows-x64-Setup.exe` | Recommended installer for 64-bit Windows |
-| **Windows x64** | `MaterialVless-Windows-x64.zip` | Portable package with Xray-core for Windows x64 |
+| **Windows x64** | `MaterialVless-Windows-x64-Setup.exe` | Recommended installer with bundled Visual C++ libraries |
+| **Windows x64** | `MaterialVless-Windows-x64.zip` | Portable package with Xray-core and VC++ DLLs |
 | **Windows x86** | `MaterialVless-Windows-x86-Setup.exe` | Installer for 32-bit Windows |
-| **Windows x86** | `MaterialVless-Windows-x86.zip` | Portable package for Windows x86 |
+| **Windows x86** | `MaterialVless-Windows-x86.zip` | Portable package for Windows x86 with VC++ DLLs |
 | **Linux x64** | `MaterialVless-Linux-x64.tar.gz` | Linux x86_64 archive (Ubuntu, Debian, Fedora, Arch) |
 | **Linux x86** | `MaterialVless-Linux-x86.tar.gz` | Linux 32-bit archive |
 | **macOS** | `MaterialVless-macOS.zip` | Universal macOS archive (Apple Silicon and Intel) |

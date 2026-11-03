@@ -188,23 +188,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
     return Scaffold(
       backgroundColor: vpn.settings.hasBackgroundImage ? Colors.transparent : colorScheme.surface,
       appBar: AppBar(
-
-        titleSpacing: 0,
-
-        title: Row(
-
-          children: [
-
-            const SizedBox(width: 14),
-
-            const MaterialVlessLogo(size: 26),
-
-            const SizedBox(width: 10),
-
-            const Text('MaterialVless', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-
-          ],
-
+        titleSpacing: 16,
+        title: const Text(
+          'MaterialVless',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+            letterSpacing: 0.3,
+          ),
         ),
 
         actions: [
@@ -264,9 +255,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
               Navigator.push(
                 context,
                 PageRouteBuilder(
-                  pageBuilder: (_, __, ___) => const SettingsScreen(),
-                  transitionDuration: Duration.zero,
-                  reverseTransitionDuration: Duration.zero,
+                  pageBuilder: (context, animation, secondaryAnimation) => const SettingsScreen(),
+                  transitionDuration: const Duration(milliseconds: 320),
+                  reverseTransitionDuration: const Duration(milliseconds: 260),
+                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                    final curved = CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                      reverseCurve: Curves.easeInCubic,
+                    );
+                    return SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0.08, 0.0),
+                        end: Offset.zero,
+                      ).animate(curved),
+                      child: FadeTransition(
+                        opacity: curved,
+                        child: child,
+                      ),
+                    );
+                  },
                 ),
               );
             },
@@ -331,11 +339,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
 
     final size = isCompact ? 144.0 : 190.0;
 
-    final isBusy = isConnecting || vpn.isTestingPing;
+    final isTestingPing = vpn.isTestingPing && !isConnecting;
 
-    if (isBusy && !_spinController.isAnimating) {
+    if (isTestingPing && !_spinController.isAnimating) {
       _spinController.repeat();
-    } else if (!isBusy && _spinController.isAnimating) {
+    } else if (!isTestingPing && _spinController.isAnimating) {
       _spinController.stop();
       _spinController.reset();
     }
@@ -445,8 +453,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
                     ),
                   ],
 
-                  // 2. Вращающееся динамическое кольцо анимации при пинге или подключении
-                  if (isBusy) ...[
+                  // 2. Вращающееся динамическое кольцо анимации при замере пинга (без кружка во время подключения)
+                  if (isTestingPing) ...[
                     AnimatedBuilder(
                       animation: _spinController,
                       builder: (context, child) {
@@ -799,34 +807,48 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
                     child: Scrollbar(
                       controller: _subscriptionScrollController,
                       thumbVisibility: false,
-                      child: ListView(
-                        controller: _subscriptionScrollController,
+                      child: ReorderableListView(
+                        scrollController: _subscriptionScrollController,
                         scrollDirection: Axis.horizontal,
+                        buildDefaultDragHandles: false,
                         physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                        onReorder: (oldIndex, newIndex) {
+                          if (oldIndex < vpn.subscriptions.length) {
+                            final clampedNew = newIndex.clamp(0, vpn.subscriptions.length);
+                            ref.read(vpnProvider.notifier).reorderSubscriptions(oldIndex, clampedNew);
+                          }
+                        },
                         children: [
-                          for (int i = 0; i < vpn.subscriptions.length; i++) ...[
-                            if (i > 0) const SizedBox(width: 8),
-                            ChoiceChip(
-                              showCheckmark: false,
-                              avatar: vpn.subscriptions[i].isPinned ? const Icon(Icons.push_pin, size: 14) : null,
-                              label: Text('${vpn.subscriptions[i].name} (${vpn.subscriptions[i].nodes.length})'),
-                              selected: _selectedSubId == vpn.subscriptions[i].id,
-                              onSelected: (val) {
-                                if (val) setState(() => _selectedSubId = vpn.subscriptions[i].id);
-                              },
+                          for (int i = 0; i < vpn.subscriptions.length; i++)
+                            ReorderableDelayedDragStartListener(
+                              key: ValueKey(vpn.subscriptions[i].id),
+                              index: i,
+                              child: Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: ChoiceChip(
+                                  showCheckmark: false,
+                                  avatar: vpn.subscriptions[i].isPinned ? const Icon(Icons.push_pin, size: 14) : null,
+                                  label: Text(' ()'),
+                                  selected: _selectedSubId == vpn.subscriptions[i].id,
+                                  onSelected: (val) {
+                                    if (val) setState(() => _selectedSubId = vpn.subscriptions[i].id);
+                                  },
+                                ),
+                              ),
                             ),
-                          ],
-                          if (vpn.manualNodes.isNotEmpty) ...[
-                            if (vpn.subscriptions.isNotEmpty) const SizedBox(width: 8),
-                            ChoiceChip(
-                              showCheckmark: false,
-                              label: Text('Сервера (${vpn.manualNodes.length})'),
-                              selected: _selectedSubId == 'manual',
-                              onSelected: (val) {
-                                if (val) setState(() => _selectedSubId = 'manual');
-                              },
+                          if (vpn.manualNodes.isNotEmpty)
+                            Padding(
+                              key: const ValueKey('manual_nodes_tab'),
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ChoiceChip(
+                                showCheckmark: false,
+                                label: Text('Сервера ()'),
+                                selected: _selectedSubId == 'manual',
+                                onSelected: (val) {
+                                  if (val) setState(() => _selectedSubId = 'manual');
+                                },
+                              ),
                             ),
-                          ],
                         ],
                       ),
                     ),
@@ -879,51 +901,36 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
         // 3. Выделенный список серверов: ползунок скроллбара строго зависит от длины списка серверов
 
         Expanded(
-
-          child: displayNodes.isEmpty
-
-              ? Center(
-
-                  child: Text(
-
-                    'Список серверов пуст',
-
-                    style: TextStyle(color: colorScheme.onSurfaceVariant),
-
-                  ),
-
-                )
-
-              : Scrollbar(
-
-                  controller: _serverScrollController,
-
-                  thumbVisibility: true,
-
-                  interactive: true,
-
-                  child: ListView.builder(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            child: displayNodes.isEmpty
+                ? Center(
+                    key: const ValueKey('empty_servers_list'),
+                    child: Text(
+                      'Список серверов пуст',
+                      style: TextStyle(color: colorScheme.onSurfaceVariant),
+                    ),
+                  )
+                : Scrollbar(
+                    key: ValueKey('servers_list_$_selectedSubId'),
                     controller: _serverScrollController,
-                    cacheExtent: 250,
-                    addAutomaticKeepAlives: false,
-                    addRepaintBoundaries: true,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    itemCount: displayNodes.length,
-
-                    itemBuilder: (context, index) {
-
-                      final node = displayNodes[index];
-
-                      final isManual = vpn.manualNodes.any((n) => n.id == node.id);
-
-                      return _buildServerTile(context, node, canDelete: isManual);
-
-                    },
-
+                    thumbVisibility: true,
+                    interactive: true,
+                    child: ListView.builder(
+                      controller: _serverScrollController,
+                      cacheExtent: 250,
+                      addAutomaticKeepAlives: false,
+                      addRepaintBoundaries: true,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      itemCount: displayNodes.length,
+                      itemBuilder: (context, index) {
+                        final node = displayNodes[index];
+                        final isManual = vpn.manualNodes.any((n) => n.id == node.id);
+                        return _buildServerTile(context, node, canDelete: isManual);
+                      },
+                    ),
                   ),
-
-                ),
-
+          ),
         ),
 
       ],
@@ -1820,9 +1827,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
     final jsonMap = ConfigGenerator.buildOutboundJson(node);
     final prettyJson = const JsonEncoder.withIndent('  ').convert(jsonMap);
 
-    showDialog(
+    showGeneralDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      barrierDismissible: true,
+      barrierLabel: 'Dismiss',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 240),
+      transitionBuilder: (context, anim, secondaryAnim, child) {
+        final curve = Curves.easeOutCubic.transform(anim.value);
+        return Transform.scale(
+          scale: 0.92 + 0.08 * curve,
+          child: Opacity(
+            opacity: anim.value,
+            child: child,
+          ),
+        );
+      },
+      pageBuilder: (ctx, _, __) => AlertDialog(
         title: Row(
           children: [
             const Icon(Icons.data_object_rounded),
@@ -2396,11 +2417,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
 
   void _confirmDeleteSubscription(BuildContext context, SubscriptionModel sub) {
 
-    showDialog(
-
+    showGeneralDialog(
       context: context,
-
-      builder: (ctx) => AlertDialog(
+      barrierDismissible: true,
+      barrierLabel: 'Dismiss',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 240),
+      transitionBuilder: (context, anim, secondaryAnim, child) {
+        final curve = Curves.easeOutCubic.transform(anim.value);
+        return Transform.scale(
+          scale: 0.92 + 0.08 * curve,
+          child: Opacity(
+            opacity: anim.value,
+            child: child,
+          ),
+        );
+      },
+      pageBuilder: (ctx, _, __) => AlertDialog(
 
         title: const Text('Удалить подписку?'),
 
@@ -2440,11 +2473,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
 
     final controller = TextEditingController();
 
-    showDialog(
-
+    showGeneralDialog(
       context: context,
-
-      builder: (ctx) => AlertDialog(
+      barrierDismissible: true,
+      barrierLabel: 'Dismiss',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 240),
+      transitionBuilder: (context, anim, secondaryAnim, child) {
+        final curve = Curves.easeOutCubic.transform(anim.value);
+        return Transform.scale(
+          scale: 0.92 + 0.08 * curve,
+          child: Opacity(
+            opacity: anim.value,
+            child: child,
+          ),
+        );
+      },
+      pageBuilder: (ctx, _, __) => AlertDialog(
 
         title: Row(
           children: [
