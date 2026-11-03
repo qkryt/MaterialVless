@@ -88,21 +88,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _pickAndImportFont() async {
-    String? selectedPath;
-    if (Platform.isWindows) {
-      try {
-        final script = 'Add-Type -AssemblyName System.Windows.Forms; '
-            '$f = New-Object System.Windows.Forms.OpenFileDialog; '
-            '$f.Title = "Выберите файл шрифта TTF или OTF"; '
-            '$f.Filter = "Шрифты TrueType / OpenType (*.ttf;*.otf)|*.ttf;*.otf|Все файлы (*.*)|*.*"; '
-            'if ($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { $f.FileName }';
-        final res = await Process.run('powershell', ['-NoProfile', '-Command', script]);
-        final path = res.stdout.toString().trim();
-        if (path.isNotEmpty && File(path).existsSync()) {
-          selectedPath = path;
-        }
-      } catch (_) {}
-    }
+    final selectedPath = await CustomFontService.pickFontFile();
 
     if (selectedPath != null) {
       final success = await ref.read(vpnProvider.notifier).importCustomFont(selectedPath);
@@ -236,11 +222,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  void _showLocalFontsDialog(BuildContext context) async {
-    final localFonts = await CustomFontService.listInstalledCustomFonts();
+  void _showLocalFontsDialog(BuildContext context) {
+    final fontFiles = CustomFontService.getInstalledFontFiles();
     final settings = ref.read(vpnProvider).settings;
-
-    if (!context.mounted) return;
 
     showDialog(
       context: context,
@@ -261,7 +245,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         content: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480, maxHeight: 400),
-          child: localFonts.isEmpty
+          child: fontFiles.isEmpty
               ? const Center(
                   child: Padding(
                     padding: EdgeInsets.all(24.0),
@@ -274,11 +258,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 )
               : ListView.separated(
                   shrinkWrap: true,
-                  itemCount: localFonts.length,
+                  itemCount: fontFiles.length,
                   separatorBuilder: (_, __) => const Divider(height: 1),
                   itemBuilder: (c, idx) {
-                    final f = localFonts[idx];
-                    final isCurrent = settings.customFontPath == f.path || settings.fontFamily == f.name;
+                    final file = fontFiles[idx];
+                    final filename = file.uri.pathSegments.last;
+                    final fontName = filename.replaceAll(RegExp(r'\.(ttf|otf)$', caseSensitive: false), '');
+                    final isCurrent = settings.customFontPath == file.path || settings.fontFamily == fontName;
 
                     return ListTile(
                       dense: true,
@@ -287,9 +273,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         isCurrent ? Icons.check_circle_rounded : Icons.font_download_outlined,
                         color: isCurrent ? Theme.of(context).colorScheme.primary : null,
                       ),
-                      title: Text(f.name, style: TextStyle(fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500)),
+                      title: Text(fontName, style: TextStyle(fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500)),
                       subtitle: Text(
-                        f.path,
+                        file.path,
                         style: const TextStyle(fontSize: 10, color: Colors.grey),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -305,7 +291,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               ),
                               onPressed: () async {
                                 Navigator.pop(ctx);
-                                await ref.read(vpnProvider.notifier).importCustomFont(f.path);
+                                await ref.read(vpnProvider.notifier).importCustomFont(file.path);
                               },
                               child: const Text('Применить', style: TextStyle(fontSize: 12)),
                             ),
@@ -313,12 +299,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.redAccent),
                             tooltip: 'Удалить файл шрифта',
                             onPressed: () async {
-                              await CustomFontService.deleteCustomFont(f.path);
+                              await CustomFontService.deleteFont(file);
                               if (isCurrent) {
                                 await ref.read(vpnProvider.notifier).resetDefaultFont();
                               }
-                              Navigator.pop(ctx);
-                              _showLocalFontsDialog(context);
+                              if (context.mounted) {
+                                Navigator.pop(ctx);
+                                _showLocalFontsDialog(context);
+                              }
                             },
                           ),
                         ],
@@ -696,7 +684,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         const SizedBox(height: 10),
 
-        // 4. ОФОРМЛЕНИЕ И ТЕМА (ПОЛНОСТЬЮ АДАПТИВНО — НИКАКИХ СЖАТЫХ СТРОК)
+        // 4. ОФОРМЛЕНИЕ И ТЕМА (ПОЛНОСТЬЮ АДАПТИВНО)
         _buildSectionHeader(t('section_appearance')),
         Card(
           color: cardColor,
@@ -1311,7 +1299,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           color: colorScheme.surfaceContainerHighest.withOpacity(0.85),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
-            side: Border.all(color: Colors.pinkAccent.withOpacity(0.35)),
+            side: BorderSide(color: Colors.pinkAccent.withOpacity(0.35)),
           ),
           child: Padding(
             padding: const EdgeInsets.all(18),
@@ -1417,7 +1405,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           ? null
                           : () async {
                               setState(() => _isCheckingUpdate = true);
-                              final res = await UpdateService.checkForUpdates();
+                              final res = await UpdateService.checkDetailedUpdate();
                               if (mounted) {
                                 setState(() => _isCheckingUpdate = false);
                                 if (res.hasUpdate && res.updateInfo != null) {
