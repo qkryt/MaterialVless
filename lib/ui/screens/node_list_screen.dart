@@ -99,29 +99,86 @@ class NodeListScreen extends ConsumerWidget {
                           '${node.streamType.toUpperCase()} • ${node.security.toUpperCase()}',
                           style: TextStyle(color: colorScheme.onSurfaceVariant),
                         ),
-                        trailing: node.pingMs != null
-                            ? Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: node.pingMs! > 0
-                                      ? Colors.green.withOpacity(0.12)
-                                      : Colors.red.withOpacity(0.12),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  node.pingMs! > 0 ? '${node.pingMs} ms' : 'Таймаут',
-                                  style: TextStyle(
-                                    color: node.pingMs! > 0 ? Colors.green : Colors.red,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              )
-                            : null,
+                        trailing: _buildPingBadge(node.pingMs),
                         onTap: () => ref.read(vpnProvider.notifier).selectNode(node),
                       );
                     },
                   ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPingBadge(int? pingMs) {
+    if (pingMs == null) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(
+          color: Colors.grey.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.network_ping_rounded, size: 13, color: Colors.grey),
+            SizedBox(width: 4),
+            Text('Time (-- ms)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey)),
+          ],
+        ),
+      );
+    }
+
+    if (pingMs <= 0) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(
+          color: Colors.red.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: Colors.red.withOpacity(0.3)),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.warning_amber_rounded, size: 13, color: Colors.redAccent),
+            SizedBox(width: 4),
+            Text('Time (Timeout)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.redAccent)),
+          ],
+        ),
+      );
+    }
+
+    final Color color;
+    final IconData icon;
+    if (pingMs < 120) {
+      color = const Color(0xFF4CAF50);
+      icon = Icons.bolt_rounded;
+    } else if (pingMs < 250) {
+      color = const Color(0xFF8BC34A);
+      icon = Icons.signal_cellular_alt_rounded;
+    } else if (pingMs < 450) {
+      color = const Color(0xFFFFB300);
+      icon = Icons.signal_cellular_alt_2_bar_rounded;
+    } else {
+      color = const Color(0xFFE53935);
+      icon = Icons.signal_cellular_alt_1_bar_rounded;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withOpacity(0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
+          Text(
+            'Time ($pingMs ms)',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
           ),
         ],
       ),

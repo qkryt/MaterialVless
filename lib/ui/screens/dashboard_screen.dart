@@ -217,6 +217,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
           ),
 
+          // Кнопка "Поддержать"
+          FilledButton.tonalIcon(
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+              visualDensity: VisualDensity.compact,
+            ),
+            icon: const Icon(Icons.favorite_rounded, color: Colors.pinkAccent, size: 16),
+            label: const Text('Поддержать', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            onPressed: () => UpdateService.openUrl('https://www.donationalerts.com/r/qkryt'),
+          ),
+
+          const SizedBox(width: 4),
+
           IconButton(
 
             icon: const Icon(Icons.speed_rounded),
@@ -232,14 +245,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
           ),
 
           IconButton(
-
             icon: const Icon(Icons.add_rounded, size: 26),
-
             tooltip: 'Добавить подписку или узел',
-
             onPressed: () => _showAddSubscriptionDialog(context),
-
           ),
+
+          const SizedBox(width: 4),
 
           IconButton(
 
@@ -865,15 +876,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                 textAlign: TextAlign.center,
 
                 style: TextStyle(color: colorScheme.onSurfaceVariant),
-
               ),
-
             ],
-
           ),
-
         ),
-
       );
 
     }
@@ -1517,160 +1523,393 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
 
 
 
-  Widget _buildServerTile(BuildContext context, VlessNode node, {bool canDelete = false}) {
+  Widget _buildServerPingBadge(int? pingMs) {
+    if (pingMs == null) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(
+          color: Colors.grey.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.network_ping_rounded, size: 13, color: Colors.grey),
+            SizedBox(width: 4),
+            Text(
+              'Time (-- ms)',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
 
-    final vpn = ref.watch(vpnProvider);
+    if (pingMs <= 0) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(
+          color: Colors.red.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: Colors.red.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.warning_amber_rounded, size: 13, color: Colors.redAccent),
+            SizedBox(width: 4),
+            Text(
+              'Time (Timeout)',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.redAccent),
+            ),
+          ],
+        ),
+      );
+    }
 
-    final isSelected = vpn.selectedNode?.id == node.id;
-
-    final theme = Theme.of(context);
-
-    final colorScheme = theme.colorScheme;
-
-
+    final Color color;
+    final IconData icon;
+    if (pingMs < 120) {
+      color = const Color(0xFF4CAF50);
+      icon = Icons.bolt_rounded;
+    } else if (pingMs < 250) {
+      color = const Color(0xFF8BC34A);
+      icon = Icons.signal_cellular_alt_rounded;
+    } else if (pingMs < 450) {
+      color = const Color(0xFFFFB300);
+      icon = Icons.signal_cellular_alt_2_bar_rounded;
+    } else {
+      color = const Color(0xFFE53935);
+      icon = Icons.signal_cellular_alt_1_bar_rounded;
+    }
 
     return Container(
-
-      color: isSelected ? colorScheme.secondaryContainer.withOpacity(0.35) : Colors.transparent,
-
-      child: ListTile(
-
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-
-        leading: Container(
-
-          width: 36,
-
-          height: 36,
-
-          alignment: Alignment.center,
-
-          decoration: BoxDecoration(
-
-            color: isSelected ? colorScheme.primary.withOpacity(0.12) : colorScheme.surfaceContainerHighest,
-
-            borderRadius: BorderRadius.circular(10),
-
-          ),
-
-          child: CountryFlagWidget(
-
-            isoCode: CountryFlagHelper.getCountryCode(node.remark),
-
-            width: 26,
-
-            height: 18,
-
-          ),
-
-        ),
-
-        title: Text(
-
-          CountryFlagHelper.cleanRemark(node.remark),
-
-          style: TextStyle(
-
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-
-            color: isSelected ? colorScheme.primary : colorScheme.onSurface,
-
-          ),
-
-          maxLines: 1,
-
-          overflow: TextOverflow.ellipsis,
-
-        ),
-
-        subtitle: Text(
-
-          '${node.protocol.name.toUpperCase()} / ${node.streamType.toUpperCase()} / ${node.security.toUpperCase()}',
-
-          style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
-
-          maxLines: 1,
-
-          overflow: TextOverflow.ellipsis,
-
-        ),
-
-        trailing: Row(
-
-          mainAxisSize: MainAxisSize.min,
-
-          children: [
-
-            if (node.pingMs != null)
-
-              Container(
-
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-
-                decoration: BoxDecoration(
-
-                  color: node.pingMs! > 0 ? Colors.green.withOpacity(0.15) : Colors.red.withOpacity(0.15),
-
-                  borderRadius: BorderRadius.circular(8),
-
-                ),
-
-                child: Text(
-
-                  node.pingMs! > 0 ? '${node.pingMs} ms' : 'Timeout',
-
-                  style: TextStyle(
-
-                    color: node.pingMs! > 0 ? Colors.green : Colors.red,
-
-                    fontWeight: FontWeight.bold,
-
-                    fontSize: 12,
-
-                  ),
-
-                ),
-
-              )
-
-            else
-
-              Icon(
-
-                isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-
-                color: isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant,
-
-                size: 20,
-
-              ),
-
-            if (canDelete) ...[
-
-              const SizedBox(width: 4),
-
-              IconButton(
-
-                icon: const Icon(Icons.close_rounded, size: 18),
-
-                tooltip: 'Удалить узел',
-
-                onPressed: () => ref.read(vpnProvider.notifier).deleteManualNode(node.id),
-
-              ),
-
-            ],
-
-          ],
-
-        ),
-
-        onTap: () => ref.read(vpnProvider.notifier).selectNode(node),
-
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withOpacity(0.35)),
       ),
-
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
+          Text(
+            'Time ($pingMs ms)',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
     );
+  }
 
+  Widget _buildServerTile(BuildContext context, VlessNode node, {bool canDelete = false}) {
+    final vpn = ref.watch(vpnProvider);
+    final isSelected = vpn.selectedNode?.id == node.id;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      color: isSelected ? colorScheme.secondaryContainer.withOpacity(0.35) : Colors.transparent,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+        leading: Container(
+          width: 36,
+          height: 36,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: isSelected ? colorScheme.primary.withOpacity(0.12) : colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: CountryFlagWidget(
+            isoCode: CountryFlagHelper.getCountryCode(node.remark),
+            width: 26,
+            height: 18,
+          ),
+        ),
+        title: Text(
+          CountryFlagHelper.cleanRemark(node.remark),
+          style: TextStyle(
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected ? colorScheme.primary : colorScheme.onSurface,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Text(
+          '${node.protocol.name.toUpperCase()} / ${node.streamType.toUpperCase()} / ${node.security.toUpperCase()}',
+          style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildServerPingBadge(node.pingMs),
+            const SizedBox(width: 8),
+            Icon(
+              isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+              color: isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant,
+              size: 20,
+            ),
+            if (canDelete) ...[
+              const SizedBox(width: 4),
+              IconButton(
+                icon: const Icon(Icons.close_rounded, size: 18),
+                tooltip: 'Удалить узел',
+                onPressed: () => ref.read(vpnProvider.notifier).deleteManualNode(node.id),
+              ),
+            ],
+          ],
+        ),
+        onTap: () => _showServerActionModal(context, node, canDelete: canDelete),
+      ),
+    );
+  }
+
+  // ==================== ОКНО ДЕЙСТВИЙ СЕРВЕРА (ПИНГ, JSON, ВЫБОР) ====================
+
+  void _showServerActionModal(BuildContext context, VlessNode node, {bool canDelete = false}) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) {
+          final theme = Theme.of(context);
+          final colorScheme = theme.colorScheme;
+          bool isPinging = false;
+          int? currentPing = node.pingMs;
+
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            decoration: BoxDecoration(
+              color: colorScheme.surface,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.3)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: colorScheme.onSurfaceVariant.withOpacity(0.4),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    CountryFlagWidget(isoCode: CountryFlagHelper.getCountryCode(node.remark), width: 32, height: 22),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            CountryFlagHelper.cleanRemark(node.remark),
+                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${node.protocol.name.toUpperCase()} • ${node.address}:${node.port} • ${node.security.toUpperCase()}',
+                            style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    _buildServerPingBadge(currentPing),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Divider(height: 1),
+                const SizedBox(height: 8),
+
+                // 1. Замерить пинг выбранного сервера
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.bolt_rounded, color: Colors.green),
+                  ),
+                  title: const Text('Замерить пинг', style: TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text('Режим: ${ref.read(vpnProvider).settings.pingMode}'),
+                  trailing: isPinging
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                  onTap: isPinging
+                      ? null
+                      : () async {
+                          setModalState(() => isPinging = true);
+                          final ms = await ref.read(vpnProvider.notifier).pingSingleNode(node);
+                          setModalState(() {
+                            isPinging = false;
+                            currentPing = ms;
+                          });
+                        },
+                ),
+
+                // 2. JSON конфигурация сервера
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.data_object_rounded, color: Colors.blue),
+                  ),
+                  title: const Text('JSON конфигурация', style: TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: const Text('Показать Xray outbound формат узла'),
+                  trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showNodeJsonDialog(context, node);
+                  },
+                ),
+
+                // 3. Выбрать этот сервер
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.power_settings_new_rounded, color: colorScheme.primary),
+                  ),
+                  title: const Text('Выбрать этот сервер', style: TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: const Text('Сделать активным для подключения'),
+                  trailing: const Icon(Icons.check_rounded, size: 18),
+                  onTap: () {
+                    ref.read(vpnProvider.notifier).selectNode(node);
+                    Navigator.pop(ctx);
+                  },
+                ),
+
+                // 4. Скопировать ссылку
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.copy_rounded, color: Colors.orange),
+                  ),
+                  title: const Text('Скопировать ссылку узла'),
+                  subtitle: Text(node.rawUri, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  trailing: const Icon(Icons.content_copy_rounded, size: 16),
+                  onTap: () {
+                    Clipboard.setData(ClipboardData(text: node.rawUri));
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Ссылка сервера скопирована в буфер обмена!')),
+                    );
+                  },
+                ),
+
+                if (canDelete)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                    ),
+                    title: const Text('Удалить узел', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                    onTap: () {
+                      ref.read(vpnProvider.notifier).deleteManualNode(node.id);
+                      Navigator.pop(ctx);
+                    },
+                  ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showNodeJsonDialog(BuildContext context, VlessNode node) {
+    final jsonMap = ConfigGenerator.buildOutboundJson(node);
+    final prettyJson = const JsonEncoder.withIndent('  ').convert(jsonMap);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.data_object_rounded),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'JSON: ${CountryFlagHelper.cleanRemark(node.remark)}',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 580, maxHeight: 420),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.6),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+            ),
+            child: SingleChildScrollView(
+              child: SelectableText(
+                prettyJson,
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          OutlinedButton.icon(
+            icon: const Icon(Icons.copy_rounded, size: 16),
+            label: const Text('Скопировать JSON'),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: prettyJson));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('JSON конфигурация скопирована в буфер обмена!')),
+              );
+            },
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Закрыть'),
+          ),
+        ],
+      ),
+    );
   }
 
 
@@ -2248,30 +2487,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
       builder: (ctx) => AlertDialog(
 
         title: Row(
-
-          children: const [
-
-            Icon(Icons.add_link_rounded),
-
-            SizedBox(width: 10),
-
-            Text('Добавить подписку или узел'),
-
+          children: [
+            const Icon(Icons.add_link_rounded),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Добавить подписку или узел',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
-
         ),
-
         content: ConstrainedBox(
-
-          constraints: const BoxConstraints(maxWidth: 520, minWidth: 360),
-
-          child: Column(
-
-            mainAxisSize: MainAxisSize.min,
-
-            crossAxisAlignment: CrossAxisAlignment.start,
-
-            children: [
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
 
               TextField(
 
@@ -2310,9 +2543,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
               ),
 
             ],
-
           ),
-
+          ),
         ),
 
         actions: [

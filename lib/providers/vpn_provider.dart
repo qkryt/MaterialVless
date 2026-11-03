@@ -23,6 +23,7 @@ import '../services/storage_service.dart';
 import '../services/custom_font_service.dart';
 import '../services/background_service.dart';
 import '../services/log_service.dart';
+import '../services/ping_service.dart';
 
 class VpnState {
 
@@ -1046,128 +1047,165 @@ class VpnNotifier extends StateNotifier<VpnState> {
 
   }
 
+  /// Замер пинга всех серверов во всех подписках параллельным пулом (GET/HEAD/TCP/ICMP)
   Future<void> pingAllNodes() async {
-
-    if (state.status == CoreState.connected) {
-
-      await _xrayService.stop();
-
-      await Future.delayed(const Duration(milliseconds: 300));
-
-    }
-
+    if (state.isTestingPing) return;
     state = state.copyWith(isTestingPing: true);
 
-    final updatedSubs = <SubscriptionModel>[];
+    try {
+      final pingType = PingType.fromString(state.settings.pingMode);
+      final pingUrl = state.settings.pingUrl;
+      final timeoutMs = state.settings.pingTimeoutMs;
+      final isConnected = state.status == CoreState.connected;
 
-    for (final sub in state.subscriptions) {
+      final allNodes = <VlessNode>[
+        ...state.subscriptions.expand((s) => s.nodes),
+        ...state.manualNodes,
+      ];
 
-      final updatedNodes = <VlessNode>[];
-
-      for (final node in sub.nodes) {
-
-        final ping = await SubscriptionService.pingNode(
-
-          node,
-
-          pingUrl: state.settings.pingUrl,
-
-          timeoutMs: state.settings.pingTimeoutMs,
-
-        );
-
-        updatedNodes.add(node.copyWith(pingMs: ping));
-
+      final results = <String, int>{};
+      const concurrency = 6;
+      for (var i = 0; i < allNodes.length; i += concurrency) {
+        final end = (i + concurrency < allNodes.length) ? i + concurrency : allNodes.length;
+        final batch = allNodes.sublist(i, end);
+        await Future.wait(batch.map((node) async {
+          final ms = await PingService.testNode(
+            node,
+            pingType,
+            url: pingUrl,
+            timeoutMs: timeoutMs,
+            isConnected: isConnected && state.selectedNode?.id == node.id,
+          );
+          results[node.id] = ms;
+        }));
       }
 
-      updatedSubs.add(sub.copyWith(nodes: updatedNodes));
+      final updatedSubs = state.subscriptions.map((sub) {
+        final newNodes = sub.nodes.map((node) {
+          if (results.containsKey(node.id)) {
+            return node.copyWith(pingMs: results[node.id]);
+          }
+          return node;
+        }).toList();
+        return sub.copyWith(nodes: newNodes);
+      }).toList();
 
-    }
+      final updatedManual = state.manualNodes.map((node) {
+        if (results.containsKey(node.id)) {
+          return node.copyWith(pingMs: results[node.id]);
+        }
+        return node;
+      }).toList();
 
-    final updatedManual = <VlessNode>[];
+      VlessNode? newSelected = state.selectedNode;
+      if (newSelected != null && results.containsKey(newSelected.id)) {
+        newSelected = newSelected.copyWith(pingMs: results[newSelected.id]);
+      }
 
-    for (final node in state.manualNodes) {
-
-      final ping = await SubscriptionService.pingNode(
-
-        node,
-
-        pingUrl: state.settings.pingUrl,
-
-        timeoutMs: state.settings.pingTimeoutMs,
-
+      state = state.copyWith(
+        subscriptions: updatedSubs,
+        manualNodes: updatedManual,
+        selectedNode: newSelected,
+        isTestingPing: false,
       );
+      await _persist();
+    } catch (_) {
+      state = state.copyWith(isTestingPing: false);
+    }
+  }
 
-      updatedManual.add(node.copyWith(pingMs: ping));
+  /// Быстрый замер пинга для отдельного выбранного сервера
+  Future<int> pingSingleNode(VlessNode node) async {
+    final pingType = PingType.fromString(state.settings.pingMode);
+    final isConnected = state.status == CoreState.connected && state.selectedNode?.id == node.id;
+    final ms = await PingService.testNode(
+      node,
+      pingType,
+      url: state.settings.pingUrl,
+      timeoutMs: state.settings.pingTimeoutMs,
+      isConnected: isConnected,
+    );
 
+    final updatedSubs = state.subscriptions.map((sub) {
+      final newNodes = sub.nodes.map((n) {
+        if (n.id == node.id) {
+          return n.copyWith(pingMs: ms);
+        }
+        return n;
+      }).toList();
+      return sub.copyWith(nodes: newNodes);
+    }).toList();
+
+    final updatedManual = state.manualNodes.map((n) {
+      if (n.id == node.id) {
+        return n.copyWith(pingMs: ms);
+      }
+      return n;
+    }).toList();
+
+    VlessNode? newSelected = state.selectedNode;
+    if (newSelected?.id == node.id) {
+      newSelected = newSelected!.copyWith(pingMs: ms);
     }
 
     state = state.copyWith(
-
       subscriptions: updatedSubs,
-
       manualNodes: updatedManual,
-
-      isTestingPing: false,
-
+      selectedNode: newSelected,
     );
-
     await _persist();
-
+    return ms;
   }
 
   /// Замер пинга всех серверов конкретной подписки
-
   Future<void> pingSubscription(String subId) async {
-
     final subIndex = state.subscriptions.indexWhere((s) => s.id == subId);
-
     if (subIndex == -1) return;
 
     state = state.copyWith(isTestingPing: true);
 
     try {
+      final pingType = PingType.fromString(state.settings.pingMode);
+      final pingUrl = state.settings.pingUrl;
+      final timeoutMs = state.settings.pingTimeoutMs;
+      final isConnected = state.status == CoreState.connected;
 
       final sub = state.subscriptions[subIndex];
-
-      final updatedNodes = <VlessNode>[];
-
-      for (final node in sub.nodes) {
-
-        final ping = await SubscriptionService.pingNode(
-
-          node,
-
-          pingUrl: state.settings.pingUrl,
-
-          timeoutMs: state.settings.pingTimeoutMs,
-
-        );
-
-        updatedNodes.add(node.copyWith(pingMs: ping));
-
+      final results = <String, int>{};
+      const concurrency = 6;
+      for (var i = 0; i < sub.nodes.length; i += concurrency) {
+        final end = (i + concurrency < sub.nodes.length) ? i + concurrency : sub.nodes.length;
+        final batch = sub.nodes.sublist(i, end);
+        await Future.wait(batch.map((node) async {
+          final ms = await PingService.testNode(
+            node,
+            pingType,
+            url: pingUrl,
+            timeoutMs: timeoutMs,
+            isConnected: isConnected && state.selectedNode?.id == node.id,
+          );
+          results[node.id] = ms;
+        }));
       }
 
-      final updatedSubs = List<SubscriptionModel>.from(state.subscriptions);
+      final updatedNodes = sub.nodes.map((node) {
+        if (results.containsKey(node.id)) {
+          return node.copyWith(pingMs: results[node.id]);
+        }
+        return node;
+      }).toList();
 
+      final updatedSubs = List<SubscriptionModel>.from(state.subscriptions);
       updatedSubs[subIndex] = sub.copyWith(nodes: updatedNodes);
 
       state = state.copyWith(
-
         subscriptions: updatedSubs,
-
         isTestingPing: false,
-
       );
-
       await _persist();
-
     } catch (_) {
-
       state = state.copyWith(isTestingPing: false);
-
     }
-
   }
 
   Future<void> connect() async {

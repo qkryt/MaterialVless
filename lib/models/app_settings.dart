@@ -8,6 +8,8 @@ class AppSettings {
   int pingTimeoutMs;
   bool pingViaProxy;
   bool disconnectBeforePing;
+  String pingMode; // 'proxyGet', 'proxyHead', 'tcp', 'icmp'
+  String pingDisplayFormat; // 'time_ms'
 
   // Внешний вид и тема
   String fontFamily;
@@ -44,11 +46,13 @@ class AppSettings {
   List<String> customRoutingRules; // Extra direct domain suffixes
 
   AppSettings({
-    this.pingUrl = 'http://cp.cloudflare.com/',
+    this.pingUrl = 'http://cp.cloudflare.com/generate_204',
     this.speedtestUrl = 'http://cachefly.cachefly.net/1mb.test',
-    this.pingTimeoutMs = 2000,
+    this.pingTimeoutMs = 3000,
     this.pingViaProxy = true,
     this.disconnectBeforePing = true,
+    this.pingMode = 'proxyGet',
+    this.pingDisplayFormat = 'time_ms',
     this.fontFamily = 'Google Sans',
     this.customFontPath,
     this.backgroundImagePath,
@@ -61,7 +65,7 @@ class AppSettings {
     this.autoStartWithWindows = false,
     this.minimizeToTrayOnClose = true,
     this.startMinimized = false,
-    this.userAgent = 'MaterialVless/2.16.2',
+    this.userAgent = 'MaterialVless/3.0',
     this.sendHwid = true,
     this.autoUpdateOnStart = true,
     this.autoUpdateIntervalHours = 12,
@@ -100,6 +104,8 @@ class AppSettings {
     int? pingTimeoutMs,
     bool? pingViaProxy,
     bool? disconnectBeforePing,
+    String? pingMode,
+    String? pingDisplayFormat,
     String? fontFamily,
     String? customFontPath,
     String? backgroundImagePath,
@@ -132,6 +138,8 @@ class AppSettings {
       pingTimeoutMs: pingTimeoutMs ?? this.pingTimeoutMs,
       pingViaProxy: pingViaProxy ?? this.pingViaProxy,
       disconnectBeforePing: disconnectBeforePing ?? this.disconnectBeforePing,
+      pingMode: pingMode ?? this.pingMode,
+      pingDisplayFormat: pingDisplayFormat ?? this.pingDisplayFormat,
       fontFamily: fontFamily ?? this.fontFamily,
       customFontPath: customFontPath ?? this.customFontPath,
       backgroundImagePath: clearBackgroundImage ? null : (backgroundImagePath ?? this.backgroundImagePath),
@@ -166,6 +174,8 @@ class AppSettings {
         'bypassLanEnabled': bypassLanEnabled,
         'pingUrl': pingUrl,
         'pingTimeoutMs': pingTimeoutMs,
+        'pingMode': pingMode,
+        'pingDisplayFormat': pingDisplayFormat,
         'speedtestUrl': speedtestUrl,
         'autoUpdateRulesOnStart': autoUpdateRulesOnStart,
         'userAgent': userAgent,
@@ -191,11 +201,13 @@ class AppSettings {
       ipStrategy: json['ipStrategy']?.toString() ?? 'auto',
       secureDnsEnabled: json['secureDnsEnabled'] != false,
       bypassLanEnabled: json['bypassLanEnabled'] != false,
-      pingUrl: json['pingUrl']?.toString() ?? 'http://cp.cloudflare.com/',
-      pingTimeoutMs: int.tryParse(json['pingTimeoutMs']?.toString() ?? '2000') ?? 2000,
+      pingUrl: json['pingUrl']?.toString() ?? 'http://cp.cloudflare.com/generate_204',
+      pingTimeoutMs: int.tryParse(json['pingTimeoutMs']?.toString() ?? '3000') ?? 3000,
+      pingMode: json['pingMode']?.toString() ?? 'proxyGet',
+      pingDisplayFormat: json['pingDisplayFormat']?.toString() ?? 'time_ms',
       speedtestUrl: json['speedtestUrl']?.toString() ?? 'http://cachefly.cachefly.net/1mb.test',
       autoUpdateRulesOnStart: json['autoUpdateRulesOnStart'] == true,
-      userAgent: json['userAgent']?.toString() ?? 'MaterialVless/2.16.2',
+      userAgent: json['userAgent']?.toString() ?? 'MaterialVless/3.0',
       sendHwid: json['sendHwid'] != false,
       themeMode: json['themeMode']?.toString() ?? 'dark',
       accentColor: int.tryParse(json['accentColor']?.toString() ?? '0xFF6750A4') ?? 0xFF6750A4,

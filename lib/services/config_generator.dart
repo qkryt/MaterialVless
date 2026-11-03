@@ -13,6 +13,9 @@ class ConfigGenerator {
   // 1. XRAY-CORE CONFIG GENERATOR (VLESS Reality / gRPC / XTLS Vision / VMess / Trojan)
   // ===========================================================================
 
+  /// Публичный метод генерации JSON outbound для узла (для просмотра и копирования)
+  static Map<String, dynamic> buildOutboundJson(VlessNode node) => _buildXrayOutbound(node);
+
   static String generateXrayConfig(VlessNode node, AppSettings settings) {
     final Map<String, dynamic> outbound = _buildXrayOutbound(node);
 
