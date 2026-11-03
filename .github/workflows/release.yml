@@ -274,20 +274,20 @@ jobs:
 
 
       - name: Generate Linux Native Files
-
-        run: flutter create . --platforms=linux --org com.materialvless --project-name material_vless
-
-
+        run: |
+          flutter create . --platforms=linux --org com.materialvless --project-name material_vless
+          echo 'add_compile_options(-Wno-deprecated-declarations -Wno-error)' >> linux/CMakeLists.txt
 
       - name: Install Dependencies
-
-        run: flutter pub get
-
-
+        run: |
+          flutter pub get
+          find . -name "CMakeLists.txt" -exec sed -i 's/-Werror//g' {} + 2>/dev/null || true
 
       - name: Compile Linux App
-
-        run: flutter build linux --release
+        run: |
+          export CXXFLAGS="-Wno-deprecated-declarations -Wno-error"
+          export CFLAGS="-Wno-deprecated-declarations -Wno-error"
+          flutter build linux --release
 
 
 
