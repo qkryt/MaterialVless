@@ -412,11 +412,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return DefaultTabController(
       length: 3,
       initialIndex: 0,
-      child: Scaffold(
-        backgroundColor: hasBg ? Colors.black : colorScheme.surface,
-        appBar: AppBar(
-          backgroundColor: hasBg ? Colors.transparent : null,
-          title: Text(t('settings_title')),
+      child: Container(
+        decoration: hasBg
+            ? BoxDecoration(
+                image: DecorationImage(
+                  image: FileImage(File(bgPath!)),
+                  fit: BoxFit.fill,
+                ),
+              )
+            : BoxDecoration(
+                color: colorScheme.surface,
+              ),
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            title: Text(t('settings_title')),
           bottom: TabBar(
             isScrollable: false,
             indicatorColor: colorScheme.primary,
@@ -445,6 +456,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             _buildPingTab(context, settings, cardColor, t),
             _buildAboutTab(context, settings, cardColor, t),
           ],
+        ),
         ),
       ),
     );
@@ -601,7 +613,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         const SizedBox(height: 10),
 
-        // 3. ПОДПИСКИ И USER-AGENT
+        // 4. ПОДПИСКИ И USER-AGENT
         _buildSectionHeader(t('section_subscription')),
         Card(
           color: cardColor,
@@ -1054,6 +1066,90 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         const SizedBox(height: 10),
 
+        // 2. Сортировка серверов по пингу
+        _buildSectionHeader(t('sort_by_ping')),
+        Card(
+          color: cardColor,
+          child: Column(
+            children: [
+              SwitchListTile(
+                secondary: const Icon(Icons.sort_rounded),
+                title: Text(t('sort_by_ping'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text(t('sort_by_ping_desc')),
+                value: settings.sortByPing,
+                activeColor: colorScheme.primary,
+                onChanged: (val) {
+                  ref.read(vpnProvider.notifier).updateSettings(settings.copyWith(sortByPing: val));
+                },
+              ),
+              if (settings.sortByPing) ...[
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.swap_vert_rounded),
+                  title: Text(t('ping_sort_order')),
+                  subtitle: Text(settings.pingSortOrder == 'desc' ? t('sort_desc') : t('sort_asc')),
+                  trailing: DropdownButton<String>(
+                    value: settings.pingSortOrder,
+                    underline: const SizedBox(),
+                    borderRadius: BorderRadius.circular(12),
+                    items: [
+                      DropdownMenuItem(
+                        value: 'asc',
+                        child: Text(t('sort_asc')),
+                      ),
+                      DropdownMenuItem(
+                        value: 'desc',
+                        child: Text(t('sort_desc')),
+                      ),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) {
+                        ref.read(vpnProvider.notifier).updateSettings(settings.copyWith(pingSortOrder: val));
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        // 3. Одновременный замер пинга (скользящий пул)
+        _buildSectionHeader(t('ping_concurrency')),
+        Card(
+          color: cardColor,
+          child: ListTile(
+            leading: const Icon(Icons.waves_rounded),
+            title: Text(t('ping_concurrency'), style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text(
+              '${settings.pingConcurrency} серверов одновременно (активный скользящий пул)',
+            ),
+            trailing: DropdownButton<int>(
+              value: [3, 5, 10, 15, 20, 30, 50].contains(settings.pingConcurrency)
+                  ? settings.pingConcurrency
+                  : 5,
+              underline: const SizedBox(),
+              borderRadius: BorderRadius.circular(12),
+              items: const [
+                DropdownMenuItem(value: 3, child: Text('3 сервера')),
+                DropdownMenuItem(value: 5, child: Text('5 серверов (рекомендуется)')),
+                DropdownMenuItem(value: 10, child: Text('10 серверов')),
+                DropdownMenuItem(value: 15, child: Text('15 серверов')),
+                DropdownMenuItem(value: 20, child: Text('20 серверов')),
+                DropdownMenuItem(value: 30, child: Text('30 серверов')),
+                DropdownMenuItem(value: 50, child: Text('50 серверов')),
+              ],
+              onChanged: (val) {
+                if (val != null) {
+                  ref.read(vpnProvider.notifier).updateSettings(settings.copyWith(pingConcurrency: val));
+                }
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+
         // 2. ФОРМАТ ОТОБРАЖЕНИЯ У СЕРВЕРОВ
         _buildSectionHeader('Формат отображения у серверов'),
         Card(
@@ -1389,12 +1485,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'MaterialVless v3.0',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                          Text(
+                            'MaterialVless v${UpdateService.currentVersion}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                           ),
                           Text(
-                            'Актуальная версия 3.0.0 (Сборка 30)',
+                            'Версия ${UpdateService.currentVersion} (сборка 36)',
                             style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
                           ),
                         ],
@@ -1412,7 +1508,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                   UpdateService.showUpdateDialog(context, res.updateInfo!);
                                 } else {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('У вас установлена самая последняя версия 3.0!')),
+                                    SnackBar(content: Text('У вас установлена актуальная версия ${UpdateService.currentVersion}!')),
                                   );
                                 }
                               }

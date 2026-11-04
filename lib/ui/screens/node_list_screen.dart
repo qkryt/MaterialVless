@@ -13,6 +13,19 @@ class NodeListScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
+    var displayNodes = vpn.nodes;
+    if (vpn.settings.sortByPing) {
+      final isAsc = vpn.settings.pingSortOrder != 'desc';
+      displayNodes = List<VlessNode>.from(displayNodes)..sort((a, b) {
+        final pA = a.pingMs ?? -1;
+        final pB = b.pingMs ?? -1;
+        if (pA <= 0 && pB <= 0) return 0;
+        if (pA <= 0) return 1;
+        if (pB <= 0) return -1;
+        return isAsc ? pA.compareTo(pB) : pB.compareTo(pA);
+      });
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Узлы MaterialVless'),
@@ -69,7 +82,7 @@ class NodeListScreen extends ConsumerWidget {
               ),
             ),
           Expanded(
-            child: vpn.nodes.isEmpty
+            child: displayNodes.isEmpty
                 ? Center(
                     child: Text(
                       'Список узлов пуст.\nДобавьте ссылку на подписку.',
@@ -78,9 +91,9 @@ class NodeListScreen extends ConsumerWidget {
                     ),
                   )
                 : ListView.builder(
-                    itemCount: vpn.nodes.length,
+                    itemCount: displayNodes.length,
                     itemBuilder: (context, index) {
-                      final node = vpn.nodes[index];
+                      final node = displayNodes[index];
                       final isSelected = vpn.selectedNode?.id == node.id;
 
                       return ListTile(

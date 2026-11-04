@@ -1048,6 +1048,79 @@ class VpnNotifier extends StateNotifier<VpnState> {
   }
 
   /// Замер пинга всех серверов во всех подписках параллельным пулом (GET/HEAD/TCP/ICMP)
+  /// Скользящий пул воркеров для параллельного замера пинга
+  /// Как только сервер отвечает, воркер мгновенно берет следующий сервер из очереди!
+  Future<void> _runSlidingPingPool(
+    List<VlessNode> nodes,
+    PingType pingType,
+    String pingUrl,
+    int timeoutMs,
+    bool isConnected,
+  ) async {
+    if (nodes.isEmpty) return;
+
+    final poolSize = (state.settings.pingConcurrency > 0)
+        ? state.settings.pingConcurrency
+        : 5;
+
+    var nextIndex = 0;
+
+    void updateSingleNodePing(String nodeId, int ms) {
+      final updatedSubs = state.subscriptions.map((sub) {
+        if (!sub.nodes.any((n) => n.id == nodeId)) return sub;
+        final newNodes = sub.nodes.map((n) {
+          if (n.id == nodeId) {
+            return n.copyWith(pingMs: ms);
+          }
+          return n;
+        }).toList();
+        return sub.copyWith(nodes: newNodes);
+      }).toList();
+
+      final updatedManual = state.manualNodes.map((n) {
+        if (n.id == nodeId) {
+          return n.copyWith(pingMs: ms);
+        }
+        return n;
+      }).toList();
+
+      VlessNode? newSelected = state.selectedNode;
+      if (newSelected?.id == nodeId) {
+        newSelected = newSelected!.copyWith(pingMs: ms);
+      }
+
+      state = state.copyWith(
+        subscriptions: updatedSubs,
+        manualNodes: updatedManual,
+        selectedNode: newSelected,
+      );
+    }
+
+    Future<void> worker() async {
+      while (true) {
+        if (nextIndex >= nodes.length) return;
+        final index = nextIndex++;
+        final node = nodes[index];
+
+        final ms = await PingService.testNode(
+          node,
+          pingType,
+          url: pingUrl,
+          timeoutMs: timeoutMs,
+          isConnected: isConnected && state.selectedNode?.id == node.id,
+        );
+
+        updateSingleNodePing(node.id, ms);
+      }
+    }
+
+    final workersCount = poolSize.clamp(1, nodes.length);
+    final workers = List.generate(workersCount, (_) => worker());
+    await Future.wait(workers);
+    await _persist();
+  }
+
+  /// Замер пинга всех серверов через скользящий пул воркеров
   Future<void> pingAllNodes() async {
     if (state.isTestingPing) return;
     state = state.copyWith(isTestingPing: true);
@@ -1063,58 +1136,21 @@ class VpnNotifier extends StateNotifier<VpnState> {
         ...state.manualNodes,
       ];
 
-      final results = <String, int>{};
-      const concurrency = 6;
-      for (var i = 0; i < allNodes.length; i += concurrency) {
-        final end = (i + concurrency < allNodes.length) ? i + concurrency : allNodes.length;
-        final batch = allNodes.sublist(i, end);
-        await Future.wait(batch.map((node) async {
-          final ms = await PingService.testNode(
-            node,
-            pingType,
-            url: pingUrl,
-            timeoutMs: timeoutMs,
-            isConnected: isConnected && state.selectedNode?.id == node.id,
-          );
-          results[node.id] = ms;
-        }));
-      }
-
-      final updatedSubs = state.subscriptions.map((sub) {
-        final newNodes = sub.nodes.map((node) {
-          if (results.containsKey(node.id)) {
-            return node.copyWith(pingMs: results[node.id]);
-          }
-          return node;
-        }).toList();
-        return sub.copyWith(nodes: newNodes);
-      }).toList();
-
-      final updatedManual = state.manualNodes.map((node) {
-        if (results.containsKey(node.id)) {
-          return node.copyWith(pingMs: results[node.id]);
-        }
-        return node;
-      }).toList();
-
-      VlessNode? newSelected = state.selectedNode;
-      if (newSelected != null && results.containsKey(newSelected.id)) {
-        newSelected = newSelected.copyWith(pingMs: results[newSelected.id]);
-      }
-
-      state = state.copyWith(
-        subscriptions: updatedSubs,
-        manualNodes: updatedManual,
-        selectedNode: newSelected,
-        isTestingPing: false,
+      await _runSlidingPingPool(
+        allNodes,
+        pingType,
+        pingUrl,
+        timeoutMs,
+        isConnected,
       );
-      await _persist();
-    } catch (_) {
+    } catch (e) {
+      LogService.warning('pingAllNodes error: $e');
+    } finally {
       state = state.copyWith(isTestingPing: false);
     }
   }
 
-  /// Быстрый замер пинга для отдельного выбранного сервера
+  /// Замер пинга отдельного узла
   Future<int> pingSingleNode(VlessNode node) async {
     final pingType = PingType.fromString(state.settings.pingMode);
     final isConnected = state.status == CoreState.connected && state.selectedNode?.id == node.id;
@@ -1157,7 +1193,7 @@ class VpnNotifier extends StateNotifier<VpnState> {
     return ms;
   }
 
-  /// Замер пинга всех серверов конкретной подписки
+  /// Замер пинга конкретной подписки через скользящий пул воркеров
   Future<void> pingSubscription(String subId) async {
     final subIndex = state.subscriptions.indexWhere((s) => s.id == subId);
     if (subIndex == -1) return;
@@ -1171,39 +1207,17 @@ class VpnNotifier extends StateNotifier<VpnState> {
       final isConnected = state.status == CoreState.connected;
 
       final sub = state.subscriptions[subIndex];
-      final results = <String, int>{};
-      const concurrency = 6;
-      for (var i = 0; i < sub.nodes.length; i += concurrency) {
-        final end = (i + concurrency < sub.nodes.length) ? i + concurrency : sub.nodes.length;
-        final batch = sub.nodes.sublist(i, end);
-        await Future.wait(batch.map((node) async {
-          final ms = await PingService.testNode(
-            node,
-            pingType,
-            url: pingUrl,
-            timeoutMs: timeoutMs,
-            isConnected: isConnected && state.selectedNode?.id == node.id,
-          );
-          results[node.id] = ms;
-        }));
-      }
 
-      final updatedNodes = sub.nodes.map((node) {
-        if (results.containsKey(node.id)) {
-          return node.copyWith(pingMs: results[node.id]);
-        }
-        return node;
-      }).toList();
-
-      final updatedSubs = List<SubscriptionModel>.from(state.subscriptions);
-      updatedSubs[subIndex] = sub.copyWith(nodes: updatedNodes);
-
-      state = state.copyWith(
-        subscriptions: updatedSubs,
-        isTestingPing: false,
+      await _runSlidingPingPool(
+        sub.nodes,
+        pingType,
+        pingUrl,
+        timeoutMs,
+        isConnected,
       );
-      await _persist();
-    } catch (_) {
+    } catch (e) {
+      LogService.warning('pingSubscription error: $e');
+    } finally {
       state = state.copyWith(isTestingPing: false);
     }
   }

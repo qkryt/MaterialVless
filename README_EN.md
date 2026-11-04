@@ -1,4 +1,4 @@
-# MaterialVless 3.1.2 (Material Design 3 VPN Client)
+# MaterialVless 3.2.0 (Material Design 3 VPN Client)
 
 <p align="center">
   <b>English | <a href="README.md">Русский</a></b>
@@ -21,6 +21,23 @@
 </p>
 
 ---
+
+## 🌟 What's New in Version 3.2.0
+
+* **Active Sliding Worker Pool for Ping**:
+  * Configurable concurrent ping threads (3, 5, 10, 15, 20, 30, 50).
+  * High-efficiency async worker pipeline: if fast servers reply while one is still waiting on timeout, free workers instantly pick the next servers without waiting.
+  * Real-time UI updates: latency values appear live as each node responds.
+* **Server Sorting by Ping in "Ping & Latency" Tab**:
+  * Added dedicated card in Ping settings with toggle "Sort servers by ping" and order selection: ascending (lowest ping first) or descending.
+  * Real-time sorting applies to both dashboard and node list, placing unmeasured or failed nodes at the end.
+* **High-Precision Ping Engine**:
+  * Migrated to `IOClient` with automatic response stream draining and safe socket lifecycle.
+  * Sub-millisecond precision (`elapsedMicroseconds / 1000`).
+* **Fluid In-Place Settings Transition**:
+  * Fixed animation — elegant Material 3 Fade & Subtle Scale transition without horizontal displacement over the server list.
+* **Transparent Settings Background**:
+  * Custom wallpaper now smoothly shines through the settings screen and cards.
 
 ## 🌟 What's New in Version 3.1.2
 

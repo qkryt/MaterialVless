@@ -261,6 +261,34 @@ class AppStrings {
       'ru': 'Шрифт интерфейса',
       'en': 'Interface Font',
     },
+    'sort_by_ping': {
+      'ru': 'Сортировать сервера по пингу',
+      'en': 'Sort servers by ping',
+    },
+    'sort_by_ping_desc': {
+      'ru': 'Автоматически упорядочивать список серверов на основе замера задержки',
+      'en': 'Automatically order server list based on latency measurements',
+    },
+    'ping_sort_order': {
+      'ru': 'Порядок сортировки',
+      'en': 'Sort Order',
+    },
+    'sort_asc': {
+      'ru': 'От меньшего к большему',
+      'en': 'From lowest to highest',
+    },
+    'sort_desc': {
+      'ru': 'От большего к большему',
+      'en': 'From highest to lowest',
+    },
+    'ping_concurrency': {
+      'ru': 'Одновременный замер пинга',
+      'en': 'Concurrent ping workers',
+    },
+    'ping_concurrency_desc': {
+      'ru': 'Сколько серверов опрашиваются одновременно (активный скользящий пул)',
+      'en': 'How many servers are pinged simultaneously (active sliding pool)',
+    },
     'exit_app': {
       'ru': 'Полностью выйти из приложения',
       'en': 'Quit Application',

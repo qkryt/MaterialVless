@@ -10,6 +10,9 @@ class AppSettings {
   bool disconnectBeforePing;
   String pingMode; // 'proxyGet', 'proxyHead', 'tcp', 'icmp'
   String pingDisplayFormat; // 'time_ms'
+  bool sortByPing; // Сортировать сервера по пингу
+  String pingSortOrder; // 'asc', 'desc'
+  int pingConcurrency; // 0 = all/unlimited, or 5, 10, 20, etc.
 
   // Внешний вид и тема
   String fontFamily;
@@ -53,6 +56,9 @@ class AppSettings {
     this.disconnectBeforePing = true,
     this.pingMode = 'proxyGet',
     this.pingDisplayFormat = 'time_ms',
+    this.sortByPing = false,
+    this.pingSortOrder = 'asc',
+    this.pingConcurrency = 5,
     this.fontFamily = 'Google Sans',
     this.customFontPath,
     this.backgroundImagePath,
@@ -106,6 +112,9 @@ class AppSettings {
     bool? disconnectBeforePing,
     String? pingMode,
     String? pingDisplayFormat,
+    bool? sortByPing,
+    String? pingSortOrder,
+    int? pingConcurrency,
     String? fontFamily,
     String? customFontPath,
     String? backgroundImagePath,
@@ -140,6 +149,9 @@ class AppSettings {
       disconnectBeforePing: disconnectBeforePing ?? this.disconnectBeforePing,
       pingMode: pingMode ?? this.pingMode,
       pingDisplayFormat: pingDisplayFormat ?? this.pingDisplayFormat,
+      sortByPing: sortByPing ?? this.sortByPing,
+      pingSortOrder: pingSortOrder ?? this.pingSortOrder,
+      pingConcurrency: pingConcurrency ?? this.pingConcurrency,
       fontFamily: fontFamily ?? this.fontFamily,
       customFontPath: customFontPath ?? this.customFontPath,
       backgroundImagePath: clearBackgroundImage ? null : (backgroundImagePath ?? this.backgroundImagePath),
@@ -176,6 +188,10 @@ class AppSettings {
         'pingTimeoutMs': pingTimeoutMs,
         'pingMode': pingMode,
         'pingDisplayFormat': pingDisplayFormat,
+        'sortByPing': sortByPing,
+        'pingSortOrder': pingSortOrder,
+      'pingConcurrency': pingConcurrency,
+      'pingServersLimit': pingConcurrency,
         'speedtestUrl': speedtestUrl,
         'autoUpdateRulesOnStart': autoUpdateRulesOnStart,
         'userAgent': userAgent,
@@ -205,6 +221,9 @@ class AppSettings {
       pingTimeoutMs: int.tryParse(json['pingTimeoutMs']?.toString() ?? '3000') ?? 3000,
       pingMode: json['pingMode']?.toString() ?? 'proxyGet',
       pingDisplayFormat: json['pingDisplayFormat']?.toString() ?? 'time_ms',
+      sortByPing: json['sortByPing'] == true,
+      pingSortOrder: json['pingSortOrder']?.toString() ?? 'asc',
+      pingConcurrency: ((json['pingConcurrency'] ?? json['pingServersLimit']) as num?)?.toInt() ?? 5,
       speedtestUrl: json['speedtestUrl']?.toString() ?? 'http://cachefly.cachefly.net/1mb.test',
       autoUpdateRulesOnStart: json['autoUpdateRulesOnStart'] == true,
       userAgent: json['userAgent']?.toString() ?? 'MaterialVless/3.0',

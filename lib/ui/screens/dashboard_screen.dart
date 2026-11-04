@@ -256,23 +256,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
                 context,
                 PageRouteBuilder(
                   pageBuilder: (context, animation, secondaryAnimation) => const SettingsScreen(),
-                  transitionDuration: const Duration(milliseconds: 320),
-                  reverseTransitionDuration: const Duration(milliseconds: 260),
+                  transitionDuration: const Duration(milliseconds: 200),
+                  reverseTransitionDuration: const Duration(milliseconds: 160),
                   transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                    final curved = CurvedAnimation(
-                      parent: animation,
-                      curve: Curves.easeOutCubic,
-                      reverseCurve: Curves.easeInCubic,
-                    );
-                    return SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(0.08, 0.0),
-                        end: Offset.zero,
-                      ).animate(curved),
-                      child: FadeTransition(
-                        opacity: curved,
-                        child: child,
+                    return FadeTransition(
+                      opacity: CurvedAnimation(
+                        parent: animation,
+                        curve: Curves.easeInOut,
                       ),
+                      child: child,
                     );
                   },
                 ),
@@ -770,6 +762,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
       displayNodes = vpn.subscriptions.first.nodes;
     } else {
       displayNodes = vpn.manualNodes;
+    }
+
+    if (vpn.settings.sortByPing) {
+      final isAsc = vpn.settings.pingSortOrder != 'desc';
+      displayNodes = List<VlessNode>.from(displayNodes)..sort((a, b) {
+        final pA = a.pingMs ?? -1;
+        final pB = b.pingMs ?? -1;
+        if (pA <= 0 && pB <= 0) return 0;
+        if (pA <= 0) return 1;
+        if (pB <= 0) return -1;
+        return isAsc ? pA.compareTo(pB) : pB.compareTo(pA);
+      });
     }
 
     return Column(

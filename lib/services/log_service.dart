@@ -81,6 +81,10 @@ Log File: ${file.path}
   }
 
   /// Запись ошибки в лог
+  static void warning(String message) {
+    log('WARNING: ');
+  }
+
   static void logError(String message, [dynamic error, StackTrace? stack]) {
     final errStr = error != null ? ' | Error: $error' : '';
     final stackStr = stack != null ? '\nStack trace:\n$stack' : '';
